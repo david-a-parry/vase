@@ -1,0 +1,3 @@
+[submodule "vape/parse_vcf"]
+	path = vape/parse_vcf
+	url = https://github.com/gantzgraf/parse_vcf.py.git
