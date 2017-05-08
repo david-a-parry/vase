@@ -25,14 +25,32 @@ def get_filter_methods(vape_args):
     pass
 
 def print_header(vcf, out, vape_args):
+    ''' 
+        Write a VCF header for output that consists of the input VCF
+        header data plus program arguments and any new INFO/FORMAT 
+        fields.
+    '''
+
     vape_opts = []
     for k,v in vars(vape_args).items():
         vape_opts.append('--{} {}'.format(k, v))
     prog_header = '##vape.py="' + str.join(" ", vape_opts) + '"'
-    out.write(str.join("\n", vcf.header.meta_header + [prog_header]) + "\n")
+    new_info = get_vape_info_fields(vape_args)
+    out.write(str.join("\n", vcf.header.meta_header + new_info + 
+                             [prog_header]) + "\n")
     out.write(str.join("\t", vcf.col_header) + "\n")
 
+def get_vape_info_fields(vape_args):
+    pass 
+
 def get_output(vape_args):
+    ''' 
+        Return an output filehandle. If no output specified return 
+        sys.stdout, else, if output name ends with .gz or .bgz return a 
+        bgzf.BgzfWriter object and otherwise return a standard 
+        filehandle.
+    '''
+
     fh = None
     if isinstance(vape_args.output, str):
         if vape_args.output.endswith(('.gz', '.bgz')):
