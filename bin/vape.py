@@ -2,6 +2,7 @@
 
 import sys
 import argparse
+sys.path.insert(0, '')
 from vape import vape_runner
 
 def parse_args():
@@ -22,7 +23,8 @@ def parse_args():
 ''')
     #misc optional arguments
     optional_args.add_argument(
-'-o', '--output', type=argparse.FileType('w'), default=sys.stdout, help=
+'-o', '--output',  help=
+#'-o', '--output', type=argparse.FileType('w'), default=sys.stdout, help=
 '''Output filename "Default = STDOUT
 
 ''')
@@ -103,5 +105,5 @@ using population allele frequencies
     return parser.parse_args()
 
 if __name__ == '__main__':
-    args = parse_args()
-    vape_runner.run(args)
+    vape_args = parse_args()
+    vape_runner.run(vape_args)
