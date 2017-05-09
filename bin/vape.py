@@ -25,16 +25,12 @@ def parse_args():
     optional_args.add_argument(
 '-o', '--output',  help=
 #'-o', '--output', type=argparse.FileType('w'), default=sys.stdout, help=
-'''Output filename "Default = STDOUT
+'''Filename for VCF output. If this ends in .gz or 
+.bgz the output will be BGZIP compressed. 
+Default = STDOUT
 
 ''')
     #args for filtering/retaining variants based on features
-    filter_args.add_argument('-f', '--freq', type=float, help=
-'''Allele frequency cutoff (between 0 and 1). Used 
-for extenal allele frequency sources such as 
---dbSNP or --gnomAD files.
-
-''')
     filter_args.add_argument('--gq', type=int, 
                              help=
 '''Minimum genotype quality score threshold. Genotype 
@@ -92,16 +88,23 @@ transcripts.
 
     #args for specifying files for annotations/filtering
     file_args.add_argument(
-'-g', '--gnomAD', metavar='VCF', help=
+'-d', '--dbsnp', metavar='VCF', help=
+'''dbSNP file for variant annotating/filteirng
+
+''')
+    file_args.add_argument(
+'-g', '--gnomad', '--exac',  metavar='VCF', help=
 '''gnomAD/ExAC file for variant annotating/filtering
 using population allele frequencies
 
 ''')
-    file_args.add_argument(
-'-d', '--dbSNP', metavar='VCF', help=
-'''dbSNP file for variant annotating/filteirng
+    file_args.add_argument('-f', '--freq', type=float, help=
+'''Allele frequency cutoff (between 0 and 1). Used 
+for extenal allele frequency sources such as 
+--dbsnp or --gnomad files.
 
 ''')
+
     return parser.parse_args()
 
 if __name__ == '__main__':
