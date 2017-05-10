@@ -3,7 +3,7 @@ sys.path.insert(0, '')
 from .parse_vcf.parse_vcf import * 
 
 
-class vcfFilter(object):
+class VcfFilter(object):
     ''' 
         An object that filters VCF records based on variant data in a 
         another VCF file.
