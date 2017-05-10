@@ -69,7 +69,7 @@ class dbSnpFilter(vcfFilter):
         info_to_add = {}
         rsids = []
         for f in all_annots:
-            f_name = "VAPE_dbSNP_" + f
+            f_name = self.prefix + "_" + f
             info_to_add[f_name] = []
             for i in range(len(record.DECOMPOSED_ALLELES)):
                 if f in annotations[i]:
