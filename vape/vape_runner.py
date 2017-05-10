@@ -73,8 +73,11 @@ class VapeRunner(object):
             dbsnp_filter = dbSnpFilter(**kwargs)
             filters.append(dbsnp_filter)
         # get gnomAD/ExAC filters
-        if self.args.gnomad:
-            pass   
+        for gnomad in self.args.gnomad:
+            prefix = self.check_info_prefix('VAPE_gnomAD')
+            kwargs = {"vcf" : gnomad, "prefix" : prefix}
+            gnomad_filter = VcfFilter(**kwargs)
+            filters.append(gnomad_filter)
         #TODO get other VCF filters
         return filters
 
@@ -84,7 +87,8 @@ class VapeRunner(object):
                 #already has an appeneded '_#' - increment and try again
             if match:
                 i = int(match.group(1))
-                return self.check_info_prefix(name + str(i + 1))
+                name = re.sub(match.group(1) + '$', str(i + 1), name)
+                return self.check_info_prefix(name)
             else:
                 #append _1
                 return self.check_info_prefix(name + '_1')
