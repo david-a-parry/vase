@@ -1,38 +1,58 @@
 import sys
 sys.path.insert(0, '')
-from vape.parse_vcf.parse_vcf import * 
+from vape.vcf_filter import * 
 
 
-class dbSnpFilter(object):
+class dbSnpFilter(vcfFilter):
     ''' 
         An object that filters VCF records based on variant data in a 
         dbSNP VCF file.
     '''
     
-    def __init__(self, dbsnp_vcf, freq=None, min_freq=None, build=None, 
-                 min_build=None, clinvar_path=False):
+    def __init__(self, vcf, prefix='VAPE_dbSNP', freq=None, min_freq=None, 
+                build=None, min_build=None, clinvar_path=False):
         ''' 
             Initialize object with a dbSNP VCF file and optional filtering 
             arguments.
-        '''
 
-        self.vcf = VcfReader(dbsnp_vcf)
-        self.freq_fields = {}
+            Args:
+                vcf:          VCF containing variants to use to filter 
+                              or annotate records.
+                    
+                prefix:       Prefix to prepend to added INFO field 
+                              annotations. Default = VAPE_dbSNP.
+
+                freq:         Filter alleles if dbSNP allele frequency 
+                              is greater than this value. Optional.
+
+                min_freq:     Filter alleles if dbSNP allele frequency 
+                              is less than this value. Optional.
+
+                build:        Filter alleles if dbSNP allele build is 
+                              greater than this value. Optional.
+
+                min_build:    Filter alleles if dbSNP allele build is 
+                              less than this value. Optional.
+
+                clinvar_path: Keep alleles (overriding any filtering 
+                              based on freq/min_freq, build/min_build 
+                              values) if matching allele has a CLNSIG
+                              value of 4 or 5 (corresponding to 'likely 
+                              pathogenic' or 'pathogenic' ClinVar 
+                              annotations).
+
+        '''
+        
         self.build_fields = {}
         self.clinvar_fields = {}
-        self.freq = freq
-        self.min_freq = min_freq
         self.build = build
         self.min_build = min_build
         self.clinvar_path = clinvar_path
-        if self.freq is not None and self.min_freq is not None:
-            if self.freq > self.min_freq:
-                raise Exception("freq argument can not be greater than " +
-                                "min_freq argument")
+        super().__init__(vcf, prefix, freq, min_freq)
+        if self.build is not None and self.min_build is not None:
             if self.build > self.min_build:
                 raise Exception("build argument can not be greater than " +
                                 "min_build argument")
-        self.get_dbsnp_annot_fields()
 
     def annotate_and_filter_record(self, record):
         start = record.POS
@@ -41,7 +61,7 @@ class dbSnpFilter(object):
         filter_alleles = []
         keep_alleles = []
         annotations = []
-        hits = list(s for s in self.vcf.parser)
+        hits = self.get_overlapping_records(record)
         all_annots = set() #all fields added - may not be present for every ALT
         for i in range(len(record.DECOMPOSED_ALLELES)):
             filt,keep,annot = self._compare_snp_values(
@@ -141,10 +161,8 @@ class dbSnpFilter(object):
             if matched: break #bail out on first matching SNP
 
         return (do_filter, do_keep, annot)
-                        
 
-
-    def get_dbsnp_annot_fields(self):
+    def get_annot_fields(self):
         '''
             Creates dicts of INFO field names to dicts of 'Type', 
             'Number'and 'Description' as found in the VCF metadata for 
@@ -173,10 +191,10 @@ class dbSnpFilter(object):
         # file
         if not self.freq_fields and (self.freq is not None or 
                                      self.min_freq is not None):
-            raise Exception("ERROR: no frequency fields identified in dbSNP VCF " + 
-                            "header for file '{}'.".format(self.vcf.filename) +
-                            " Unable to use freq/min_freq arguments for " + 
-                            "variant filtering.")
+            raise Exception("ERROR: no frequency fields identified in dbSNP " +  
+                            "VCF header for file '{}'." .format(
+                            self.vcf.filename) + " Unable to use freq/" + 
+                            "min_freq arguments for variant filtering.")
 
         if not self.build_fields and (self.build is not None or 
                                      self.min_build is not None):
