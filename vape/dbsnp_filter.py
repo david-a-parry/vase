@@ -2,7 +2,7 @@ import sys
 from .vcf_filter import * 
 
 
-class dbSnpFilter(vcfFilter):
+class dbSnpFilter(VcfFilter):
     ''' 
         An object that filters VCF records based on variant data in a 
         dbSNP VCF file.
