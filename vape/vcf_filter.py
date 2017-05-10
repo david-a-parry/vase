@@ -105,8 +105,8 @@ class VcfFilter(object):
                     #these fields as they are not set to appropriate types
                     matched = True
                     for f,d in self.freq_fields.items():
-                        v = self._get_value(f, d, var, i)
-                        if v is not None:
+                        val = self._get_value(f, d, var, i)
+                        if val is not None:
                             annot[f] = val
                             if self.freq is not None:
                                 try:
@@ -121,8 +121,8 @@ class VcfFilter(object):
                                 except ValueError: 
                                     pass
                     for f,d in self.annot_fields.items():
-                        v = self._get_value(f, d, var, i)
-                        if v is not None:
+                        val = self._get_value(f, d, var, i)
+                        if val is not None:
                             annot[f] = val
                 if matched: break
             if matched: break #bail out on first matching variant
@@ -144,7 +144,7 @@ class VcfFilter(object):
             # var only has one ALT allele because we don't 
             # know which is the relevant allele
             val = variant.INFO_FIELDS[field_name]
-                       
+        return val
 
     def get_annot_fields(self):
         '''
