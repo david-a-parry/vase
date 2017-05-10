@@ -1,6 +1,5 @@
 import sys
-sys.path.insert(0, '')
-from vape.vcf_filter import * 
+from .vcf_filter import * 
 
 
 class dbSnpFilter(vcfFilter):

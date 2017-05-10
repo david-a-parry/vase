@@ -1,7 +1,6 @@
 import sys
-sys.path.insert(0, '')
-from vape.parse_vcf.parse_vcf import * 
-from vape.dbsnp_filter import * 
+from .parse_vcf.parse_vcf import * 
+from .dbsnp_filter import * 
 from Bio import bgzf
 
 

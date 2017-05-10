@@ -1,6 +1,6 @@
 import sys
 sys.path.insert(0, '')
-from vape.parse_vcf.parse_vcf import * 
+from .parse_vcf.parse_vcf import * 
 
 
 class vcfFilter(object):
