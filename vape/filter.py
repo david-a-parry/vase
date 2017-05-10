@@ -20,7 +20,6 @@ class dbSnpFilter(object):
         self.freq_fields = {}
         self.build_fields = {}
         self.clinvar_fields = {}
-        self.get_dbsnp_annot_fields()
         self.freq = freq
         self.min_freq = min_freq
         self.build = build
@@ -33,6 +32,7 @@ class dbSnpFilter(object):
             if self.build > self.min_build:
                 raise Exception("build argument can not be greater than " +
                                 "min_build argument")
+        self.get_dbsnp_annot_fields()
 
     def annotate_and_filter_record(self, record):
         start = record.POS
@@ -51,15 +51,22 @@ class dbSnpFilter(object):
             annotations.append(annot)
             all_annots.update(annot.keys())
         info_to_add = {}
+        rsids = []
         for f in all_annots:
-            info_to_add[f] = []
+            f_name = "VAPE_dbSNP_" + f
+            info_to_add[f_name] = []
             for i in range(len(record.DECOMPOSED_ALLELES)):
                 if f in annotations[i]:
-                    info_to_add[f].append(annotations[i][f])
+                    a_val = annotations[i][f]
+                    if f == 'RSID':
+                        rsids.append(a_val)
                 else:
-                    info_to_add[f].append('.')
+                    a_val = '.'
+                info_to_add[f_name].append(a_val)
+        if rsids:
+            record.add_ids(rsids)
         if info_to_add:
-            record.addInfoFields(info_to_add)
+            record.add_info_fields(info_to_add)
         return filter_alleles,keep_alleles
 
     def _compare_snp_values(self, alt_allele, snp_list):
@@ -74,6 +81,7 @@ class dbSnpFilter(object):
                     #no point attempting to use snp.parsed_info_fields() for 
                     #these fields as they are not set to appropriate types
                     matched = True
+                    annot['RSID'] = snp.ID
                     for f in self.freq_fields:
                         if f not in snp.INFO_FIELDS: continue
                         if f == 'CAF':
@@ -138,9 +146,11 @@ class dbSnpFilter(object):
 
     def get_dbsnp_annot_fields(self):
         '''
-            Returns a dict of INFO field names to dicts of 'Type', 'Number'
-            and 'Description' as found in the VCF metadata for known dbSNP 
-            INFO field names.
+            Creates dicts of INFO field names to dicts of 'Type', 
+            'Number'and 'Description' as found in the VCF metadata for 
+            known dbSNP INFO field names for frequency (freq_fields), 
+            dbSNP build versions (build_fields) and ClinVar 
+            (clinvar_fields).
         '''
 
         freq_fields = ["CAF", "G5A", "G5", "COMMON"]
@@ -157,4 +167,23 @@ class dbSnpFilter(object):
             if f in self.vcf.metadata['INFO']:
                 self.build_fields[f] = self.vcf.metadata['INFO'][f][-1]
 
+        # raise an Exception if no freq fields if filtering on frequency or if 
+        # no build fields if filtering on build, but let lack of ClinVar fields 
+        # slide as clinvar filtering may be occuring with a separate ClinVar 
+        # file
+        if not self.freq_fields and (self.freq is not None or 
+                                     self.min_freq is not None):
+            raise Exception("ERROR: no frequency fields identified in dbSNP VCF " + 
+                            "header for file '{}'.".format(self.vcf.filename) +
+                            " Unable to use freq/min_freq arguments for " + 
+                            "variant filtering.")
+
+        if not self.build_fields and (self.build is not None or 
+                                     self.min_build is not None):
+            raise Exception("ERROR: no dbSNPBuildID field identified in dbSNP " + 
+                            "VCF header for file '{}'." 
+                            .format(self.vcf.filename) +
+                            " Unable to use build/min_build arguments for " + 
+                            "variant filtering.")
+        
 
