@@ -9,7 +9,7 @@ class vcfFilter(object):
         another VCF file.
     '''
     
-    def __init__(self, vcf, name, freq=None, min_freq=None):
+    def __init__(self, vcf, prefix, freq=None, min_freq=None):
         ''' 
             Initialize object with a VCF file and optional filtering 
             arguments.
@@ -18,7 +18,7 @@ class vcfFilter(object):
                 vcf:      VCF containing variants to use to filter or 
                           annotate records.
                     
-                name:     Name to prepend to added INFO field 
+                prefix:   Prefix to prepend to added INFO field 
                           annotations. Required.
 
                 freq:     Filter alleles if allele frequency is greater
@@ -30,6 +30,7 @@ class vcfFilter(object):
         '''
 
         self.vcf = VcfReader(vcf)
+        self.prefix = prefix
         self.freq_fields = {}
         self.freq = freq
         self.min_freq = min_freq
@@ -78,7 +79,7 @@ class vcfFilter(object):
             all_annots.update(annot.keys())
         info_to_add = {}
         for f in all_annots:
-            f_name = name + "_" + f
+            f_name = self.prefix + "_" + f
             info_to_add[f_name] = []
             for i in range(len(record.DECOMPOSED_ALLELES)):
                 if f in annotations[i]:
