@@ -88,12 +88,12 @@ transcripts.
 
     #args for specifying files for annotations/filtering
     file_args.add_argument(
-'-d', '--dbsnp', metavar='VCF', nargs='*', help=
+'-d', '--dbsnp', metavar='VCF', nargs='*', default=[], help=
 '''dbSNP file for variant annotating/filteirng
 
 ''')
     file_args.add_argument(
-'-g', '--gnomad', '--exac',  metavar='VCF', nargs='*', help=
+'-g', '--gnomad', '--exac',  metavar='VCF', nargs='*', default=[], help=
 '''gnomAD/ExAC file for variant annotating/filtering
 using population allele frequencies
 
