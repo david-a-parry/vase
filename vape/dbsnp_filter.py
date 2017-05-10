@@ -55,9 +55,6 @@ class dbSnpFilter(vcfFilter):
                                 "min_build argument")
 
     def annotate_and_filter_record(self, record):
-        start = record.POS
-        end = record.SPAN
-        self.vcf.set_region(record.CHROM, start - 1, end)
         filter_alleles = []
         keep_alleles = []
         annotations = []
