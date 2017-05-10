@@ -2,6 +2,7 @@ import sys
 import re
 from .parse_vcf.parse_vcf import * 
 from .dbsnp_filter import * 
+from .gnomad_filter import * 
 from Bio import bgzf
 
 class VapeRunner(object):
@@ -76,7 +77,7 @@ class VapeRunner(object):
         for gnomad in self.args.gnomad:
             prefix = self.check_info_prefix('VAPE_gnomAD')
             kwargs = {"vcf" : gnomad, "prefix" : prefix}
-            gnomad_filter = VcfFilter(**kwargs)
+            gnomad_filter = GnomadFilter(**kwargs)
             filters.append(gnomad_filter)
         #TODO get other VCF filters
         return filters
