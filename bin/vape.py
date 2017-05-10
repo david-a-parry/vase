@@ -3,7 +3,7 @@
 import sys
 import argparse
 sys.path.insert(0, '')
-from vape import vape_runner
+from vape.vape_runner import VapeRunner
 
 def parse_args():
     parser = argparse.ArgumentParser(
@@ -88,12 +88,12 @@ transcripts.
 
     #args for specifying files for annotations/filtering
     file_args.add_argument(
-'-d', '--dbsnp', metavar='VCF', help=
+'-d', '--dbsnp', metavar='VCF', nargs='*', help=
 '''dbSNP file for variant annotating/filteirng
 
 ''')
     file_args.add_argument(
-'-g', '--gnomad', '--exac',  metavar='VCF', help=
+'-g', '--gnomad', '--exac',  metavar='VCF', nargs='*', help=
 '''gnomAD/ExAC file for variant annotating/filtering
 using population allele frequencies
 
@@ -109,4 +109,5 @@ for extenal allele frequency sources such as
 
 if __name__ == '__main__':
     vape_args = parse_args()
-    vape_runner.run(vape_args)
+    vape_runner = VapeRunner(vape_args)
+    vape_runner.run()
