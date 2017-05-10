@@ -1,104 +1,130 @@
 import sys
+import re
 from .parse_vcf.parse_vcf import * 
 from .dbsnp_filter import * 
 from Bio import bgzf
 
+class VapeRunner(object):
 
-def run(vape_args):
-    ''' Run VCF filtering/annotation using args from bin/vape.py '''
+    def __init__(self, args):
 
-    vcf_input = VcfReader(vape_args.input)
-    output = get_output(vape_args)
-    filters = get_filter_classes(vape_args)
-    print_header(vcf_input, output, vape_args)
-    var_count = 0
-    for record in vcf_input.parser:
-        process_record(record, var_count, output, filters )
-        var_count += 1
-        sys.stderr.write('\r{} variants processed...\r' .format(var_count))
-    sys.stderr.write('\rFinished processing {} variants.\n' .format(var_count))
-    finish_up()
-    output.close()
+        self.args = args
+        self.info_prefixes = set()
+        self.input = VcfReader(self.args.input)
+        self.out = self.get_output()
+        self.filters = self.get_filter_classes()
 
-def process_record(record, var_count, out, filters=[]):
-    remove_alleles = [False] * (len(record.ALLELES) -1)
-    keep_alleles = [False] * (len(record.ALLELES) -1)
-    # remove_alleles indicates whether allele should be filtered; keep_alleles 
-    # indicates whether allele should be kept, overriding any indications in 
-    # remove_alleles (e.g. if labelled pathogenic in ClinVar) 
-    for f in filters:
-        r, k = f.annotate_and_filter_record(record)
-        for i in range(len(r)):
-            # should only overwrite value of remove_alleles[i] or 
-            # keep_alleles[i] with True, not False (e.g. if already set to be 
-            # filtered because of a freq in ExAC we shouldn't set to False just 
-            # because it is absent from dbSNP)
-            if r[i] and not remove_alleles[i]:
-                remove_alleles[i] = True
-            if k[i] and not keep_alleles[i]:
-                keep_alleles[i] = True
-    # TODO
-    # if all ALTs for a record are set to be filtered and there is no override 
-    # in keep_alleles, whole record can be filtered
-    #
-    # otherwise, mark any filtered alleles and keep record
+    def run(self):
+        ''' Run VCF filtering/annotation using args from bin/vape.py '''
 
-    # the code below is a placeholder, assumes no inheritance checking etc., 
-    # just a simple SNP filter
-    for i in range(len(remove_alleles)):
-        if not remove_alleles[i] or keep_alleles[i]:
-            out.write(str(record) + '\n')
-            break
+        self.print_header()
+        var_count = 0
+        for record in self.input.parser:
+            self.process_record(record, var_count)
+            var_count += 1
+            sys.stderr.write('\r{} variants processed...\r' .format(var_count))
+        sys.stderr.write('\rFinished processing {} variants.\n' 
+                         .format(var_count))
+        self.finish_up()
+        self.out.close()
 
-def finish_up():
-    pass
+    def process_record(self, record, var_count):
+        remove_alleles = [False] * (len(record.ALLELES) -1)
+        keep_alleles = [False] * (len(record.ALLELES) -1)
+        # remove_alleles indicates whether allele should be filtered; 
+        # keep_alleles indicates whether allele should be kept, overriding any 
+        # indications in remove_alleles (e.g. if labelled pathogenic in 
+        # ClinVar)
+        for f in self.filters:
+            r, k = f.annotate_and_filter_record(record)
+            for i in range(len(r)):
+                # should only overwrite value of remove_alleles[i] or 
+                # keep_alleles[i] with True, not False (e.g. if already set to 
+                # be filtered because of a freq in ExAC we shouldn't set to 
+                # False just because it is absent from dbSNP)
+                if r[i] and not remove_alleles[i]:
+                    remove_alleles[i] = True
+                if k[i] and not keep_alleles[i]:
+                    keep_alleles[i] = True
+        # TODO
+        # if all ALTs for a record are set to be filtered and there is no 
+        # override in keep_alleles, whole record can be filtered
+        #
+        # otherwise, mark any filtered alleles and keep record
 
-def get_filter_classes(vape_args):
-    filters = []
-    if vape_args.dbsnp:
-        kwargs = {"vcf" : vape_args.dbsnp}
-        if vape_args.freq is not None:
-            kwargs["freq"] = vape_args.freq
-        dbsnp_filter = dbSnpFilter(**kwargs)
-        filters.append(dbsnp_filter)
-    #TODO get gnomAD/ExAC filters
-    #TODO get other VCF filters
-    return filters
+        # the code below is a placeholder, assumes no inheritance checking etc. 
+        # just a simple SNP filter
+        for i in range(len(remove_alleles)):
+            if not remove_alleles[i] or keep_alleles[i]:
+                self.out.write(str(record) + '\n')
+                break
 
-def print_header(vcf, out, vape_args):
-    ''' 
-        Write a VCF header for output that consists of the input VCF
-        header data plus program arguments and any new INFO/FORMAT 
-        fields.
-    '''
+    def finish_up(self):
+        pass
 
-    vape_opts = []
-    for k,v in vars(vape_args).items():
-        vape_opts.append('--{} {}'.format(k, v))
-    prog_header = '##vape.py="' + str.join(" ", vape_opts) + '"'
-    new_info = get_vape_info_fields(vape_args)
-    out.write(str.join("\n", vcf.header.meta_header + new_info + 
-                             [prog_header]) + "\n")
-    out.write(str.join("\t", vcf.col_header) + "\n")
+    def get_filter_classes(self):
+        filters = []
+        # get dbSNP filter
+        for dbsnp in self.args.dbsnp:
+            prefix = self.check_info_prefix('VAPE_dbSNP')
+            kwargs = {"vcf" : dbsnp, "prefix" : prefix}
+            if self.args.freq is not None:
+                kwargs["freq"] = self.args.freq
+            dbsnp_filter = dbSnpFilter(**kwargs)
+            filters.append(dbsnp_filter)
+        # get gnomAD/ExAC filters
+        if self.args.gnomad:
+            pass   
+        #TODO get other VCF filters
+        return filters
 
-def get_vape_info_fields(vape_args):
-    return []#TODO
-    pass 
+    def check_info_prefix(self, name):
+        if name in self.info_prefixes:
+            match = re.search('_(\d+)$', name) 
+                #already has an appeneded '_#' - increment and try again
+            if match:
+                i = int(match.group(1))
+                return self.check_info_prefix(name + str(i + 1))
+            else:
+                #append _1
+                return self.check_info_prefix(name + '_1')
+        self.info_prefixes.add(name)
+        return name
 
-def get_output(vape_args):
-    ''' 
-        Return an output filehandle. If no output specified return 
-        sys.stdout, else, if output name ends with .gz or .bgz return a 
-        bgzf.BgzfWriter object and otherwise return a standard 
-        filehandle.
-    '''
+    def print_header(self):
+        ''' 
+            Write a VCF header for output that consists of the input VCF
+            header data plus program arguments and any new INFO/FORMAT 
+            fields.
+        '''
 
-    fh = None
-    if isinstance(vape_args.output, str):
-        if vape_args.output.endswith(('.gz', '.bgz')):
-            fh = bgzf.BgzfWriter(vape_args.output)
+        vape_opts = []
+        for k,v in vars(self.args).items():
+            vape_opts.append('--{} {}'.format(k, v))
+        prog_header = '##vape.py="' + str.join(" ", vape_opts) + '"'
+        new_info = self.get_vape_info_fields()
+        self.out.write(str.join("\n", self.input.header.meta_header + new_info  
+                                + [prog_header]) + "\n")
+        self.out.write(str.join("\t", self.input.col_header) + "\n")
+
+    def get_vape_info_fields(self):
+        return []#TODO
+        pass 
+
+    def get_output(self):
+        ''' 
+            Return an output filehandle. If no output specified return 
+            sys.stdout, else, if output name ends with .gz or .bgz return a 
+            bgzf.BgzfWriter object and otherwise return a standard 
+            filehandle.
+        '''
+
+        fh = None
+        if isinstance(self.args.output, str):
+            if self.args.output.endswith(('.gz', '.bgz')):
+                fh = bgzf.BgzfWriter(self.args.output)
+            else:
+                fh = open(self.args.output, 'w')
         else:
-            fh = open(vape_args.output, 'w')
-    else:
-        fh = sys.stdout
-    return fh
+            fh = sys.stdout
+        return fh
