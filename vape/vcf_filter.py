@@ -32,6 +32,7 @@ class VcfFilter(object):
         self.vcf = VcfReader(vcf)
         self.prefix = prefix
         self.freq_fields = {}
+        self.annot_fields = {}
         self.freq = freq
         self.min_freq = min_freq
         if self.freq is not None and self.min_freq is not None:
@@ -89,7 +90,7 @@ class VcfFilter(object):
                 info_to_add[f_name].append(a_val)
         if info_to_add:
             record.add_info_fields(info_to_add)
-        return filter_alleles
+        return filter_alleles, keep_alleles
 
     def _compare_var_values(self, alt_allele, var_list):
         do_filter = False #only flag indicating should be filtered
@@ -104,7 +105,7 @@ class VcfFilter(object):
                     #these fields as they are not set to appropriate types
                     matched = True
                     for f,d in self.freq_fields.items():
-                        v = self._get_value(f, d, var)
+                        v = self._get_value(f, d, var, i)
                         if v is not None:
                             annot[f] = val
                             if self.freq is not None:
@@ -120,15 +121,15 @@ class VcfFilter(object):
                                 except ValueError: 
                                     pass
                     for f,d in self.annot_fields.items():
-                        v = self._get_value(f, d, var)
+                        v = self._get_value(f, d, var, i)
                         if v is not None:
                             annot[f] = val
                 if matched: break
             if matched: break #bail out on first matching variant
         return (do_filter, do_keep, annot)
 
-    def _get_value(self, field_name, field_properties, variant):
-        if f not in var.INFO_FIELDS:
+    def _get_value(self, field_name, field_properties, variant, index):
+        if field_name not in variant.INFO_FIELDS:
             return None
         a_offset = None
         val = None
@@ -137,12 +138,12 @@ class VcfFilter(object):
         elif field_properties['Number'] == 'R':
             a_offset = 1
         if a_offset is not None:
-            val = variant.INFO_FIELDS[f].split(',')[i + a_offset]
+            val = variant.INFO_FIELDS[field_name].split(',')[index + a_offset]
         elif len(variant.DECOMPOSED_ALLELES) == 1:
             # if not a value per allele, only process if 
             # var only has one ALT allele because we don't 
             # know which is the relevant allele
-            val = variant.INFO_FIELDS[f]
+            val = variant.INFO_FIELDS[field_name]
                        
 
     def get_annot_fields(self):
