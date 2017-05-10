@@ -1,7 +1,7 @@
 import sys
 sys.path.insert(0, '')
 from vape.parse_vcf.parse_vcf import * 
-from vape.filter import * 
+from vape.dbsnp_filter import * 
 from Bio import bgzf
 
 
@@ -16,7 +16,7 @@ def run(vape_args):
     for record in vcf_input.parser:
         process_record(record, var_count, output, filters )
         var_count += 1
-        #sys.stderr.write('\r{} variants processed...\r' .format(var_count))
+        sys.stderr.write('\r{} variants processed...\r' .format(var_count))
     sys.stderr.write('\rFinished processing {} variants.\n' .format(var_count))
     finish_up()
     output.close()
@@ -57,7 +57,7 @@ def finish_up():
 def get_filter_classes(vape_args):
     filters = []
     if vape_args.dbsnp:
-        kwargs = {"dbsnp_vcf" : vape_args.dbsnp}
+        kwargs = {"vcf" : vape_args.dbsnp}
         if vape_args.freq is not None:
             kwargs["freq"] = vape_args.freq
         dbsnp_filter = dbSnpFilter(**kwargs)
