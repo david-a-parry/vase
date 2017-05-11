@@ -80,8 +80,15 @@ following classes:
     filter_args.add_argument(
 '--canonical', action='store_true', help=
 '''When used in conjunction with --csq  argument, 
-only consider functional  consequences of canonical 
-transcripts.
+ignore consequences for non-canonical transcripts.
+
+''')
+    filter_args.add_argument(
+'--keep_nmd_transcripts', action='store_true', default=False, help=
+'''When used in conjunction with --csq  argument, 
+also include variants labelled as an
+'NMD_transcript_variant' if they also have a valid
+consequence (as determined by the --csq argument).
 
 ''')
 
@@ -114,7 +121,8 @@ Used for extenal allele frequency sources such as
 a frequency lower than this value will be filtered.
 
 ''')
-    file_args.add_argument('--filter_novel', action='store_true', help=
+    file_args.add_argument('--filter_novel', action='store_true', 
+                           default=False, help=
 '''Filter any allele/variant not present in 
 any of the files supplied to --gnomad or --dbsnp
 arguments.
