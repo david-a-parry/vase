@@ -48,7 +48,7 @@ filtered/ignored.
 ''') 
     filter_args.add_argument(
 '-p', '--pass_filters', action='store_true', help=
-'''Only keep variants that have passed passed filters 
+'''Only keep variants that have passed filters 
 (i.e. FILTER field must be "PASS")
 
 ''' )
