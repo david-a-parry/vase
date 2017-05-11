@@ -42,8 +42,13 @@ class VapeRunner(object):
         # keep_alleles indicates whether allele should be kept, overriding any 
         # indications in remove_alleles (e.g. if labelled pathogenic in 
         # ClinVar)
-
-        # First check functional consequences
+        if self.args.pass_filters:
+            if record.FILTER != 'PASS':
+                return
+        if self.args.variant_quality is not None:
+            if record.QUAL < self.args.variant_quality:
+                return
+        # check functional consequences
         if self.csq_filter:
             r = self.csq_filter.filter(record)
             for i in range(len(r)):
