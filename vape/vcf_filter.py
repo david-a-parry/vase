@@ -110,13 +110,13 @@ class VcfFilter(object):
                             annot[f] = val
                             if self.freq is not None:
                                 try:
-                                    if int(val) >= self.freq:
+                                    if float(val) >= self.freq:
                                         do_filter = True
                                 except ValueError: 
                                     pass 
                             if self.min_freq is not None:
                                 try:
-                                    if int(val) < self.min_freq:
+                                    if float(val) < self.min_freq:
                                         do_filter = True
                                 except ValueError: 
                                     pass
