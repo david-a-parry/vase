@@ -41,7 +41,7 @@ be treated as no-calls
 
     filter_args.add_argument(
 '-v', '--variant_quality', type=float, metavar='QUAL', help=
-'''Minimum variant quality score (QUAL 'field). 
+'''Minimum variant quality score ('QUAL' field).
 Variants with a QUAL score below this value will be 
 filtered/ignored.
 
@@ -101,7 +101,17 @@ using population allele frequencies
     file_args.add_argument('-f', '--freq', type=float, help=
 '''Allele frequency cutoff (between 0 and 1). Used 
 for extenal allele frequency sources such as 
---dbsnp or --gnomad files.
+--dbsnp or --gnomad files. Alleles/variants with
+an allele frequency equal to or greater than 
+this value in these sources will be filtered 
+from your input.
+
+''')
+    file_args.add_argument('--min_freq', type=float, help=
+'''Minimum allele frequency cutoff (between 0 and 1).
+Used for extenal allele frequency sources such as 
+--dbsnp or --gnomad files. Alleles/variants with 
+a frequency lower than this value will be filtered.
 
 ''')
 
