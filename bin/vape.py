@@ -114,7 +114,12 @@ Used for extenal allele frequency sources such as
 a frequency lower than this value will be filtered.
 
 ''')
+    file_args.add_argument('--filter_novel', action='store_true', help=
+'''Filter any allele/variant not present in 
+any of the files supplied to --gnomad or --dbsnp
+arguments.
 
+''')
     return parser.parse_args()
 
 if __name__ == '__main__':

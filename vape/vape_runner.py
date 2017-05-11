@@ -32,21 +32,24 @@ class VapeRunner(object):
     def process_record(self, record, var_count):
         remove_alleles = [False] * (len(record.ALLELES) -1)
         keep_alleles = [False] * (len(record.ALLELES) -1)
+        matched_alleles = [False] * (len(record.ALLELES) -1)
         # remove_alleles indicates whether allele should be filtered; 
         # keep_alleles indicates whether allele should be kept, overriding any 
         # indications in remove_alleles (e.g. if labelled pathogenic in 
         # ClinVar)
         for f in self.filters:
-            r, k = f.annotate_and_filter_record(record)
+            r, k, m = f.annotate_and_filter_record(record)
             for i in range(len(r)):
                 # should only overwrite value of remove_alleles[i] or 
                 # keep_alleles[i] with True, not False (e.g. if already set to 
                 # be filtered because of a freq in ExAC we shouldn't set to 
                 # False just because it is absent from dbSNP)
-                if r[i] and not remove_alleles[i]:
+                if r[i]:
                     remove_alleles[i] = True
-                if k[i] and not keep_alleles[i]:
+                if k[i]:
                     keep_alleles[i] = True
+                if m[i]:
+                    matched_alleles[i] = True
         # TODO
         # if all ALTs for a record are set to be filtered and there is no 
         # override in keep_alleles, whole record can be filtered
@@ -57,8 +60,10 @@ class VapeRunner(object):
         # just a simple SNP filter
         for i in range(len(remove_alleles)):
             if not remove_alleles[i] or keep_alleles[i]:
-                self.out.write(str(record) + '\n')
-                break
+                if (self.args.filter_novel and matched_alleles[i]) or (not 
+                    self.args.filter_novel):
+                    self.out.write(str(record) + '\n')
+                    break
 
     def finish_up(self):
         pass
