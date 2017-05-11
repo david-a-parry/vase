@@ -64,13 +64,15 @@ valid_csq = set(
 class VepFilter(object):
     '''An object that filters VCF records based on annotated VEP data.'''
 
-    def __init__(self, csq, canonical=False, keep_nmd_transcripts=False):
+    def __init__(self, csq=[], canonical=False, keep_nmd_transcripts=False):
         self.csq = set()
+        if len(csq) == 0:
+            csq = ['default']
         for c in csq:
             if c.lower() == 'default':
                 self.csq.update(default_csq)
             else:
-                if c.lower in valid_csq:
+                if c.lower() in valid_csq:
                     self.csq.add(c.lower())
                 else:
                     raise Exception("ERROR: Unrecognised VEP consequence " +  
