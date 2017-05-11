@@ -36,8 +36,8 @@ class VcfFilter(object):
         self.freq = freq
         self.min_freq = min_freq
         if self.freq is not None and self.min_freq is not None:
-            if self.freq > self.min_freq:
-                raise Exception("freq argument can not be greater than " +
+            if self.freq <= self.min_freq:
+                raise Exception("freq argument must be greater than " +
                                 "min_freq argument")
         self.get_annot_fields()
 
@@ -68,14 +68,16 @@ class VcfFilter(object):
 
         filter_alleles = []
         keep_alleles = []
+        matched_alleles = []
         annotations = []
         hits = self.get_overlapping_records(record)
         all_annots = set() #all fields added - may not be present for every ALT
         for i in range(len(record.DECOMPOSED_ALLELES)):
-            filt,keep,annot = self._compare_var_values(
+            filt,keep,matched,annot = self._compare_var_values(
                                             record.DECOMPOSED_ALLELES[i], hits)
             filter_alleles.append(filt)
             keep_alleles.append(keep)
+            matched_alleles.append(matched)
             annotations.append(annot)
             all_annots.update(annot.keys())
         info_to_add = {}
@@ -90,7 +92,7 @@ class VcfFilter(object):
                 info_to_add[f_name].append(a_val)
         if info_to_add:
             record.add_info_fields(info_to_add)
-        return filter_alleles, keep_alleles
+        return filter_alleles, keep_alleles, matched_alleles
 
     def _compare_var_values(self, alt_allele, var_list):
         do_filter = False #only flag indicating should be filtered
@@ -126,7 +128,7 @@ class VcfFilter(object):
                             annot[f] = val
                 if matched: break
             if matched: break #bail out on first matching variant
-        return (do_filter, do_keep, annot)
+        return (do_filter, do_keep, matched, annot)
 
     def _get_value(self, field_name, field_properties, variant, index):
         if field_name not in variant.INFO_FIELDS:

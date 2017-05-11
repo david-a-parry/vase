@@ -49,21 +49,23 @@ class dbSnpFilter(VcfFilter):
         self.clinvar_path = clinvar_path
         super().__init__(vcf, prefix, freq, min_freq)
         if self.build is not None and self.min_build is not None:
-            if self.build > self.min_build:
-                raise Exception("build argument can not be greater than " +
+            if self.build <= self.min_build:
+                raise Exception("build argument must be greater than " +
                                 "min_build argument")
 
     def annotate_and_filter_record(self, record):
         filter_alleles = []
         keep_alleles = []
+        matched_alleles = []
         annotations = []
         hits = self.get_overlapping_records(record)
         all_annots = set() #all fields added - may not be present for every ALT
         for i in range(len(record.DECOMPOSED_ALLELES)):
-            filt,keep,annot = self._compare_snp_values(
+            filt,keep,matched,annot = self._compare_snp_values(
                                             record.DECOMPOSED_ALLELES[i], hits)
             filter_alleles.append(filt)
             keep_alleles.append(keep)
+            matched_alleles.append(matched)
             annotations.append(annot)
             all_annots.update(annot.keys())
         info_to_add = {}
@@ -83,7 +85,7 @@ class dbSnpFilter(VcfFilter):
             record.add_ids(rsids)
         if info_to_add:
             record.add_info_fields(info_to_add)
-        return filter_alleles,keep_alleles
+        return filter_alleles, keep_alleles, matched_alleles
 
     def _compare_snp_values(self, alt_allele, snp_list):
         do_filter = False #only flag indicating should be filtered
@@ -156,7 +158,7 @@ class dbSnpFilter(VcfFilter):
                 if matched: break
             if matched: break #bail out on first matching SNP
 
-        return (do_filter, do_keep, annot)
+        return (do_filter, do_keep, matched, annot)
 
     def get_annot_fields(self):
         '''
