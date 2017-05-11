@@ -154,6 +154,9 @@ class VcfFilter(object):
             'Number'and 'Description' as found in the VCF metadata for 
             INFO field names for frequency (freq_fields = ['AF']), 
             or allele annotations fields (annot_fields = ['AN', 'AC'])
+            
+            Override this method to use custom allele frequency and 
+            annotation fields.
         '''
 
         freq_fields = ["AF"]
