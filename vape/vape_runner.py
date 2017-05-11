@@ -65,18 +65,23 @@ class VapeRunner(object):
 
     def get_filter_classes(self):
         filters = []
+        uni_args = {}
+        if self.args.freq is not None:
+            uni_args["freq"] = self.args.freq
+        if self.args.min_freq is not None:
+            uni_args["min_freq"] = self.args.min_freq
         # get dbSNP filter
         for dbsnp in self.args.dbsnp:
             prefix = self.check_info_prefix('VAPE_dbSNP')
             kwargs = {"vcf" : dbsnp, "prefix" : prefix}
-            if self.args.freq is not None:
-                kwargs["freq"] = self.args.freq
+            kwargs.update(uni_args)
             dbsnp_filter = dbSnpFilter(**kwargs)
             filters.append(dbsnp_filter)
         # get gnomAD/ExAC filters
         for gnomad in self.args.gnomad:
             prefix = self.check_info_prefix('VAPE_gnomAD')
             kwargs = {"vcf" : gnomad, "prefix" : prefix}
+            kwargs.update(uni_args)
             gnomad_filter = GnomadFilter(**kwargs)
             filters.append(gnomad_filter)
         #TODO get other VCF filters
