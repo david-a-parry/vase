@@ -53,7 +53,7 @@ filtered/ignored.
 
 ''' )
     filter_args.add_argument(
-'-c', '--csq', nargs='*', help=
+'-c', '--csq', nargs='+', help=
 '''One or more VEP consequence classes to  retain. 
 Variants which do not result in  one of these VEP 
 consequence classes will be filtered.  You may pass
@@ -79,7 +79,7 @@ following classes:
 ''' ) 
     filter_args.add_argument(
 '--canonical', action='store_true', help=
-'''When used in conjunction with --csq  argument, 
+'''When used in conjunction with --csq argument, 
 ignore consequences for non-canonical transcripts.
 
 ''')
@@ -95,12 +95,12 @@ consequence (as determined by the --csq argument).
 
     #args for specifying files for annotations/filtering
     file_args.add_argument(
-'-d', '--dbsnp', metavar='VCF', nargs='*', default=[], help=
+'-d', '--dbsnp', metavar='VCF', nargs='+', default=[], help=
 '''dbSNP file for variant annotating/filteirng
 
 ''')
     file_args.add_argument(
-'-g', '--gnomad', '--exac',  metavar='VCF', nargs='*', default=[], help=
+'-g', '--gnomad', '--exac',  metavar='VCF', nargs='+', default=[], help=
 '''gnomAD/ExAC file for variant annotating/filtering
 using population allele frequencies
 
