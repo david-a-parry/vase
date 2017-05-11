@@ -53,12 +53,13 @@ filtered/ignored.
 
 ''' )
     filter_args.add_argument(
-'-c', '--csq', nargs='+', help=
+'-c', '--csq', nargs='*', help=
 '''One or more VEP consequence classes to  retain. 
 Variants which do not result in  one of these VEP 
-consequence classes will be filtered.  You may pass
-the value  "default" in order to include the  
-following classes: 
+consequence classes will be filtered. If no 
+values are passed then the following default 
+classes will be used:
+
                   TFBS_ablation
                   TFBS_amplification
                   inframe_deletion
@@ -75,6 +76,10 @@ following classes:
                   stop_lost
                   transcript_ablation
                   transcript_amplification
+
+You may also pass the value "default" in order to 
+include these default classes in addition to other 
+specified classes.
 
 ''' ) 
     filter_args.add_argument(

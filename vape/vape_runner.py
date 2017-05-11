@@ -16,7 +16,7 @@ class VapeRunner(object):
         self.out = self.get_output()
         self.vcf_filters = self.get_vcf_filter_classes()
         self.csq_filter = None
-        if args.csq:
+        if args.csq is not None:
             self.csq_filter = VepFilter(args.csq, args.canonical,
                                         args.keep_nmd_transcripts)
 
