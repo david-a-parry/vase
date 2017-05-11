@@ -3,6 +3,7 @@ import re
 from .parse_vcf.parse_vcf import * 
 from .dbsnp_filter import * 
 from .gnomad_filter import * 
+from .vep_filter import * 
 from Bio import bgzf
 
 class VapeRunner(object):
@@ -13,7 +14,11 @@ class VapeRunner(object):
         self.info_prefixes = set()
         self.input = VcfReader(self.args.input)
         self.out = self.get_output()
-        self.filters = self.get_filter_classes()
+        self.vcf_filters = self.get_vcf_filter_classes()
+        self.csq_filter = None
+        if args.csq:
+            self.csq_filter = VepFilter(args.csq, args.canonical,
+                                        args.keep_nmd_transcripts)
 
     def run(self):
         ''' Run VCF filtering/annotation using args from bin/vape.py '''
@@ -37,7 +42,17 @@ class VapeRunner(object):
         # keep_alleles indicates whether allele should be kept, overriding any 
         # indications in remove_alleles (e.g. if labelled pathogenic in 
         # ClinVar)
-        for f in self.filters:
+
+        # First check functional consequences
+        if self.csq_filter:
+            r = self.csq_filter.filter(record)
+            for i in range(len(r)):
+                if r[i]:
+                    remove_alleles[i] = True
+            #bail out now if no valid consequence
+            if sum(remove_alleles) == len(remove_alleles):
+                return
+        for f in self.vcf_filters:
             r, k, m = f.annotate_and_filter_record(record)
             for i in range(len(r)):
                 # should only overwrite value of remove_alleles[i] or 
@@ -58,17 +73,18 @@ class VapeRunner(object):
 
         # the code below is a placeholder, assumes no inheritance checking etc. 
         # just a simple SNP filter
-        for i in range(len(remove_alleles)):
-            if not remove_alleles[i] or keep_alleles[i]:
-                if (self.args.filter_novel and matched_alleles[i]) or (not 
-                    self.args.filter_novel):
-                    self.out.write(str(record) + '\n')
-                    break
+        if (sum(remove_alleles) == len(remove_alleles) and 
+            sum(keep_alleles) == 0):
+            #all alleles should be filtered and no overide in keep_alleles
+            return
+        if self.args.filter_novel and sum(matched_alleles[i]) == 0:
+            return
+        self.out.write(str(record) + '\n')
 
     def finish_up(self):
         pass
 
-    def get_filter_classes(self):
+    def get_vcf_filter_classes(self):
         filters = []
         uni_args = {}
         if self.args.freq is not None:
