@@ -1,5 +1,4 @@
 import sys
-sys.path.insert(0, '')
 from .parse_vcf.parse_vcf import * 
 
 
