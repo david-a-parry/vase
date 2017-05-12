@@ -89,11 +89,51 @@ ignore consequences for non-canonical transcripts.
 
 ''')
     filter_args.add_argument(
-'--keep_nmd_transcripts', action='store_true', default=False, help=
+'--biotypes', nargs='*', default=[], help=
 '''When used in conjunction with --csq  argument, 
-also include variants labelled as an
-'NMD_transcript_variant' if they also have a valid
-consequence (as determined by the --csq argument).
+ignore consequences in biotypes other than those 
+specified here. By default only consequences in 
+features with the following biotypes are 
+considered:
+    
+            3prime_overlapping_ncrna
+            antisense
+            CTCF_binding_site
+            enhancer
+            IG_C_gene
+            IG_D_gene
+            IG_J_gene
+            IG_V_gene
+            lincRNA
+            miRNA
+            misc_RNA
+            Mt_rRNA
+            Mt_tRNA
+            open_chromatin_region
+            polymorphic_pseudogene
+            processed_transcript
+            promoter
+            promoter_flanking_region
+            protein_coding
+            rRNA
+            sense_intronic
+            sense_overlapping
+            snoRNA
+            snRNA
+            TF_binding_site
+            translated_processed_pseudogene
+            TR_C_gene
+            TR_D_gene
+            TR_J_gene
+            TR_V_gene
+
+Use this argument to specify one or more biotypes
+to consider instead of those listed above. You may
+also include the value 'default' in your list to
+include the default values listed above in
+addition to those provided to this argument.
+Alternatively you may use the value 'all' to
+disable filtering on biotypes.
 
 ''')
 

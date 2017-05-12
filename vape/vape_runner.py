@@ -18,7 +18,7 @@ class VapeRunner(object):
         self.csq_filter = None
         if args.csq is not None:
             self.csq_filter = VepFilter(args.csq, args.canonical,
-                                        args.keep_nmd_transcripts)
+                                        args.biotypes)
 
     def run(self):
         ''' Run VCF filtering/annotation using args from bin/vape.py '''
