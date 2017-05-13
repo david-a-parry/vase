@@ -1,12 +1,12 @@
 #VEP native annotations
-sift	deleterious	default
-sift	tolerated	valid
-polyphen	probably_damaging	default
-polyphen	possibly_damaging	default	
-polyphen	benign	valid
-polyphen	unknown	valid
-condel	deleterious	valid
-condel	neutral	valid
+SIFT	deleterious	default
+SIFT	tolerated	valid
+PolyPhen	probably_damaging	default
+PolyPhen	possibly_damaging	default	
+PolyPhen	benign	valid
+PolyPhen	unknown	valid
+Condel	deleterious	valid
+Condel	neutral	valid
 #dbNSFP annotations
 #predictions
 fathmm-MKL_coding_pred	D	default
