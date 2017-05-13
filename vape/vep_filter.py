@@ -1,5 +1,6 @@
 import sys
 from .parse_vcf.parse_vcf import * 
+from .insilico_filter import *
 
 default_csq = set(
                ["TFBS_ablation",
@@ -145,7 +146,8 @@ valid_biotypes = set(
 class VepFilter(object):
     '''An object that filters VCF records based on annotated VEP data.'''
 
-    def __init__(self, csq=[], canonical=False, biotypes=[]):
+    def __init__(self, csq=[], canonical=False, biotypes=[], in_silico=[],
+                 filter_unpredicted=False, keep_any_damaging=False):
         self.csq = set()
         self.biotypes = set()
         if len(csq) == 0:
@@ -174,6 +176,11 @@ class VepFilter(object):
                                     "'{}'".format(b))
 
         self.canonical = canonical
+        self.in_silico = False
+        if in_silico:
+            in_silico = set(in_silico)
+            self.in_silico = InSilicoFilter(in_silico, filter_unpredicted, 
+                                            keep_any_damaging)
 
     def filter(self, record):
         filter_alleles = [True] * (len(record.ALLELES) -1)
@@ -189,5 +196,9 @@ class VepFilter(object):
             consequence = c['Consequence'].split('&')
             for s_csq in consequence:
                 if s_csq in self.csq:
-                    filter_alleles[c['alt_index'] -1] = False
+                    if self.in_silico and s_csq == 'missense_variant':
+                        filter_alleles[c['alt_index'] -1] = (
+                            self.in_silico.filter(c))
+                    else:
+                        filter_alleles[c['alt_index'] -1] = False
         return filter_alleles
