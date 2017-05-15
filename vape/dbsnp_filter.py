@@ -202,4 +202,18 @@ class dbSnpFilter(VcfFilter):
                             " Unable to use build/min_build arguments for " + 
                             "variant filtering.")
         
+    def create_header_fields(self):
+        '''
+            Create dict entries for all INFO fields added by this 
+            instance, suitable for adding to a VcfHeader object.
+        '''
+
+        for f,v in self.freq_fields.items():
+            if f == 'CAF':
+                v['Type'] = 'Float'
+            self._make_metadata(f, v)
+        for f,v in self.build_fields.items():
+            self._make_metadata(f, v)
+        for f,v in self.clinvar_fields.items():
+            self._make_metadata(f, v)
 
