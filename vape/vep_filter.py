@@ -47,7 +47,12 @@ class VepFilter(object):
 
     def filter(self, record):
         filter_alleles = [True] * (len(record.ALLELES) -1)
+        #whether an ALT allele should be filtered or not
+        filter_csq = [True] * len(record.CSQ) 
+        #whether each csq should be filtered or not
+        i = -1
         for c in record.CSQ:
+            i += 1
             if self.canonical:
                 try: 
                     if c['CANONICAL'] != 'YES':
@@ -60,11 +65,14 @@ class VepFilter(object):
             for s_csq in consequence:
                 if s_csq in self.csq:
                     if self.in_silico and s_csq == 'missense_variant':
-                        filter_alleles[c['alt_index'] -1] = (
-                            self.in_silico.filter(c))
+                        do_filter = self.in_silico.filter(c)
+                        if not do_filter:
+                            filter_alleles[c['alt_index'] -1] = False
+                        filter_csq[i] = do_filter
                     else:
                         filter_alleles[c['alt_index'] -1] = False
-        return filter_alleles
+                        filter_csq[i] = False
+        return filter_alleles, filter_csq
 
     def _read_csq_file(self):
         return self._get_valid_and_default("data/vep_classes.tsv")
