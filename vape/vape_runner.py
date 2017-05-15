@@ -11,8 +11,9 @@ class VapeRunner(object):
     def __init__(self, args):
 
         self.args = args
-        self.info_prefixes = set()
         self.input = VcfReader(self.args.input)
+        self.prev_annots, self.info_prefixes = self._get_prev_annotations()
+        self.new_annots = dict()
         self.out = self.get_output()
         self.vcf_filters = self.get_vcf_filter_classes()
         self.csq_filter = None
@@ -53,9 +54,9 @@ class VapeRunner(object):
                 return
         # check functional consequences
         if self.csq_filter:
-            r = self.csq_filter.filter(record)
-            for i in range(len(r)):
-                if r[i]:
+            r_alts, r_csq = self.csq_filter.filter(record)
+            for i in range(len(r_alts)):
+                if r_alts[i]:
                     remove_alleles[i] = True
             #bail out now if no valid consequence
             if sum(remove_alleles) == len(remove_alleles):
@@ -116,11 +117,21 @@ class VapeRunner(object):
         #TODO get other VCF filters
         return filters
 
+    def _get_prev_annotations(self):
+        annots = set()
+        prefixes = set()
+        for info in self.input.metadata['INFO']:
+            match = re.search('^(VAPE_\w+(_\d+)?)', info)
+            if match:
+                annots.add(info)
+                prefixes.add(match.group(1))
+        return annots, prefixes
+
     def check_info_prefix(self, name):
         if name in self.info_prefixes:
             match = re.search('_(\d+)$', name) 
-                #already has an appeneded '_#' - increment and try again
             if match:
+                #already has an appended '_#' - increment and try again
                 i = int(match.group(1))
                 name = re.sub(match.group(1) + '$', str(i + 1), name)
                 return self.check_info_prefix(name)
