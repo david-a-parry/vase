@@ -159,7 +159,8 @@ class dbSnpFilter(VcfFilter):
                             j = snp.INFO_FIELDS['CLNALLE'].index(cln_idx)
                             for f in self.clinvar_fields:
                                 if f == 'CLNALLE': continue
-                                annot[f] = snp.INFO_FIELDS[f].split(",")[j] 
+                                sig = snp.INFO_FIELDS[f].split(",")[j] 
+                                annot[f] = sig 
                                 if self.clinvar_path and f == 'CLNSIG':
                                     if ([i for i in ['4', '5'] if i 
                                                            in sig.split('|')]):
