@@ -144,11 +144,12 @@ class dbSnpFilter(VcfFilter):
                         #the clinvar annotations are done in a non-standard 
                         #way, giving indexes of relevant alleles in CLNALLE 
                         #and keeping other annotations in the same order
-                        if (i + 1) in clinvars['CLNALLE']:
-                            j = clinvars['CLNALLE'].index(i+1)
+                        cln_idx = str(i + 1)
+                        if cln_idx in snp.INFO_FIELDS['CLNALLE']:
+                            j = snp.INFO_FIELDS['CLNALLE'].index(cln_idx)
                             for f in self.clinvar_fields:
                                 if f == 'CLNALLE': continue
-                                annot[f] = clinvars[f].split(",")[j] 
+                                annot[f] = snp.INFO_FIELDS[f].split(",")[j] 
                                 if self.clinvar_path and f == 'CLNSIG':
                                     if ([i for i in ['4', '5'] if i 
                                                            in sig.split('|')]):
