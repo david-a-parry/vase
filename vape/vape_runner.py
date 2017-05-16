@@ -103,7 +103,12 @@ class VapeRunner(object):
         # get dbSNP filter
         for dbsnp in self.args.dbsnp:
             prefix = self.check_info_prefix('VAPE_dbSNP')
-            kwargs = {"vcf" : dbsnp, "prefix" : prefix}
+            kwargs = {"vcf" : dbsnp, "prefix" : prefix, 
+                      "clinvar_path" : self.args.clinvar_path,}
+            if self.args.build is not None:
+                kwargs['build'] = self.args.build
+            if self.args.max_build is not None:
+                kwargs['max_build'] = self.args.max_build
             kwargs.update(uni_args)
             dbsnp_filter = dbSnpFilter(**kwargs)
             filters.append(dbsnp_filter)
