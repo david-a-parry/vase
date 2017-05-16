@@ -174,7 +174,6 @@ class VapeRunner(object):
             filehandle.
         '''
 
-        fh = None
         if isinstance(self.args.output, str):
             if self.args.output.endswith(('.gz', '.bgz')):
                 fh = bgzf.BgzfWriter(self.args.output)
