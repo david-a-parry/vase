@@ -189,15 +189,17 @@ class VcfFilter(object):
 
     def _make_metadata(self, name, properties):
        
-        desc = ('"{}_{} INFO field parsed by {} object. '.format(
-                self.prefix, name, type(self).__name__) + 
+        desc = ('"{} INFO field parsed by {} object. '.format(
+                name, type(self).__name__) + 
                'Original description was as follows: {}"' .format(
                 properties['Description'].replace('"', '')))
         if properties['Type'] == 'Flag':
             f_type = 'Integer'
         else:
             f_type = properties['Type']
-        self.added_info[name] = {'Number' : 'A', 'Type' : f_type,
-                                 'Source' : self.vcf.filename, 
-                                 'Description' : desc }
+        self.added_info[self.prefix + "_" + name] = {'Number' : 'A', 
+                                                     'Type' : f_type,
+                                                     'Source' : '"' + 
+                                                       self.vcf.filename + '"',
+                                                     'Description' : desc }
          
