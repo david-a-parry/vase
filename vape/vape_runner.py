@@ -4,7 +4,6 @@ from .parse_vcf.parse_vcf import *
 from .dbsnp_filter import * 
 from .gnomad_filter import * 
 from .vep_filter import * 
-from Bio import bgzf
 
 class VapeRunner(object):
 
@@ -176,6 +175,13 @@ class VapeRunner(object):
 
         if isinstance(self.args.output, str):
             if self.args.output.endswith(('.gz', '.bgz')):
+                try:
+                    from Bio import bgzf
+                except ImportError:
+                    raise Exception("Can not import bgzf via " + 
+                                    "biopython. Please install biopython in" +
+                                    " order to write bgzip compressed " + 
+                                    "(.gz/.bgz) output.")
                 fh = bgzf.BgzfWriter(self.args.output)
             else:
                 fh = open(self.args.output, 'w')
