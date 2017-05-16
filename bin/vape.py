@@ -200,8 +200,9 @@ missing for any program.
 
     #args for specifying files for annotations/filtering
     file_args.add_argument(
-'-d', '--dbsnp', metavar='VCF', nargs='+', default=[], help=
-'''dbSNP file for variant annotating/filteirng
+'-d', '--dbsnp', '--clinvar', metavar='VCF', nargs='+', default=[], help=
+'''dbSNP or ClinVar VCF file for variant 
+annotating/filtering
 
 ''')
     file_args.add_argument(
@@ -226,11 +227,37 @@ Used for extenal allele frequency sources such as
 a frequency lower than this value will be filtered.
 
 ''')
+ 
+    file_args.add_argument('-b', '--build', type=int, metavar='dbSNP_build',
+                           help=
+'''dbSNP build version cutoff. For use with --dbsnp 
+files. Alleles/variants present in this dbSNP 
+build or earlier will be filtered from input.
+from your input.
+
+''')
+    file_args.add_argument('--max_build', type=int, metavar='dbSNP_build',
+                           help=
+'''Maximum dbSNP build version cutoff. For use with 
+--dbsnp files. Alleles/variants present in dbSNP
+builds later than this version will be filtered.
+
+''')
     file_args.add_argument('--filter_novel', action='store_true', 
                            default=False, help=
 '''Filter any allele/variant not present in 
 any of the files supplied to --gnomad or --dbsnp
 arguments.
+
+''')
+    file_args.add_argument('--clinvar_path', '--path', action='store_true', 
+                           default=False, help=
+'''Retain variants with ClinVar 'likely pathogenic' 
+or 'pathogenic' flags regardless of frequency or 
+other settings provided to other Annotation File 
+Arguments. This requires one of the files 
+provided to --dbsnp to have CLNSIG annotations 
+from ClinVar.
 
 ''')
     return parser.parse_args()
