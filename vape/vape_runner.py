@@ -107,6 +107,9 @@ class VapeRunner(object):
             kwargs.update(uni_args)
             dbsnp_filter = dbSnpFilter(**kwargs)
             filters.append(dbsnp_filter)
+            for f,d in dbsnp_filter.added_info.items():
+                self.input.header.addHeaderField(name=f, dictionary=d, 
+                                          field_type='INFO')
         # get gnomAD/ExAC filters
         for gnomad in self.args.gnomad:
             prefix = self.check_info_prefix('VAPE_gnomAD')
@@ -114,6 +117,9 @@ class VapeRunner(object):
             kwargs.update(uni_args)
             gnomad_filter = GnomadFilter(**kwargs)
             filters.append(gnomad_filter)
+            for f,d in gnomad_filter.added_info.items():
+                self.input.header.addHeaderField(name=f, dictionary=d, 
+                                          field_type='INFO')
         #TODO get other VCF filters
         return filters
 
@@ -121,7 +127,7 @@ class VapeRunner(object):
         annots = set()
         prefixes = set()
         for info in self.input.metadata['INFO']:
-            match = re.search('^(VAPE_\w+(_\d+)?)', info)
+            match = re.search('^(VAPE_\w+)_\w+(_\d+)?', info)
             if match:
                 annots.add(info)
                 prefixes.add(match.group(1))
@@ -151,15 +157,9 @@ class VapeRunner(object):
         vape_opts = []
         for k,v in vars(self.args).items():
             vape_opts.append('--{} {}'.format(k, v))
-        prog_header = '##vape.py="' + str.join(" ", vape_opts) + '"'
-        new_info = self.get_vape_info_fields()
-        self.out.write(str.join("\n", self.input.header.meta_header + new_info  
-                                + [prog_header]) + "\n")
-        self.out.write(str.join("\t", self.input.col_header) + "\n")
-
-    def get_vape_info_fields(self):
-        return []#TODO
-        pass 
+        self.input.header.addHeaderField(name="vape.py", 
+                                   string='"' + str.join(" ", vape_opts) + '"')
+        self.out.write(str(self.input.header))
 
     def get_output(self):
         ''' 
