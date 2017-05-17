@@ -59,6 +59,8 @@ class Family(object):
     def __init__(self, fid, individuals=None):
         self.fid = fid
         self.individuals = {}
+        self.parents = {}
+        self.founder = None
         if individuals is not None:
             for i in individuals:
                 self.add_individual(i)
@@ -73,9 +75,9 @@ class Family(object):
 
     def add_individual(self, individual):
         ''' 
-            Add an Individual object to Family The family ID (fid) of 
+            Add an Individual object to Family. The family ID (fid) of 
             the added individual will be changed to that of the Family 
-            object
+            object if it differs.
         '''
         if individual.iid in self.individuals:
             raise PedError("Duplicate individual '{}'" .format(individual.iid)+
@@ -90,6 +92,16 @@ class Family(object):
                   (i.father != '0' and i.father == individual.father)):
                 i.half_siblings.append(individual.iid)
                 individual.half_siblings.append(i.iid)
+        for parent in [individual.mother, individual.father]:
+            if parent != '0':
+                if parent not in self.parents:
+                    self.parents[parent.iid] = set(individual.iid)
+                else:
+                    self.parents[parent.iid].add(individual.iid)
+                if parent in self.individuals:
+                    self.individuals[parent].children.append(individual.iid)
+        if individual.iid in self.parents:
+            individual.children.append(self.parents[individual.iid])
         self.individuals[individual.iid] = individual
 
     def set_founder(self, founder):
@@ -97,6 +109,10 @@ class Family(object):
             raise PedError("Can not set founder to '{}' " .format(founder) + 
                            "for family '{}' - ".format(self.fid) + 
                            "no individual with matching ID found in family")
+        if isinstance(founder, str):
+            self.founder = founder
+        elif isinstance(founder, Individual):
+            self.founder = founder.iid
 
 class Individual(object):
     ''' Stores information about a single individual in a PED file '''
