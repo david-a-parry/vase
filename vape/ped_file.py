@@ -52,8 +52,24 @@ class PedFile(object):
                 fam = Family(indv.fid, [indv])
                 self.families[indv.fid] = fam
 
+    def get_affected(self):
+        return (i for i in self.individuals 
+                if self.individuals[i].is_affected())
 
-class Family(object):
+    def get_unaffected(self):
+        return (i for i in self.individuals 
+                if self.individuals[i].is_unaffected())
+
+    def get_males(self):
+        return (i for i in self.individuals 
+                if self.individuals[i].is_male())
+
+    def get_females(self):
+        return (i for i in self.individuals 
+                if self.individuals[i].is_female())
+
+
+class Family(PedFile):
     ''' Stores a single family as defined in a PED file '''
 
     def __init__(self, fid, individuals=None):
@@ -95,13 +111,13 @@ class Family(object):
         for parent in [individual.mother, individual.father]:
             if parent != '0':
                 if parent not in self.parents:
-                    self.parents[parent.iid] = set(individual.iid)
+                    self.parents[parent] = [individual.iid]
                 else:
-                    self.parents[parent.iid].add(individual.iid)
+                    self.parents[parent].append(individual.iid)
                 if parent in self.individuals:
-                    self.individuals[parent].children.append(individual.iid)
+                    self.individuals[parent].children = self.parents[parent]
         if individual.iid in self.parents:
-            individual.children.append(self.parents[individual.iid])
+            individual.children = self.parents[individual.iid]
         self.individuals[individual.iid] = individual
 
     def set_founder(self, founder):
@@ -114,6 +130,7 @@ class Family(object):
         elif isinstance(founder, Individual):
             self.founder = founder.iid
 
+
 class Individual(object):
     ''' Stores information about a single individual in a PED file '''
 
@@ -123,8 +140,8 @@ class Individual(object):
         self.iid = iid
         self.father = father
         self.mother = mother
-        self.sex = sex
-        self.phenotype = phenotype
+        self.sex = int(sex)
+        self.phenotype = int(phenotype)
         self.siblings = []
         self.half_siblings = []
         self.children = []
@@ -134,6 +151,24 @@ class Individual(object):
             self.half_siblings.append(half_siblings)
         if children:
             self.children.append(children)
+
+    def is_affected(self):
+        return self.phenotype == 2
+
+    def is_unaffected(self):
+        return self.phenotype == 1
+
+    def is_unknown_phenotype(self):
+        return self.phenotype != 1 and self.phenotype != 2
+
+    def is_male(self):
+        return self.sex == 1
+
+    def is_female(self):
+        return self.sex == 2
+
+    def is_unknown_gender(self):
+        return self.sex != 1 and self.sex != 2
 
 class PedError(Exception):
     pass
