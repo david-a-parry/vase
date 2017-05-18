@@ -140,7 +140,10 @@ class Individual(object):
         self.iid = iid
         self.father = father
         self.mother = mother
-        self.sex = int(sex)
+        try:
+            self.sex = int(sex)
+        except ValueError: #any value other than 1 or 2 = unknown gender
+            self.sex = 0
         self.phenotype = int(phenotype)
         self.siblings = []
         self.half_siblings = []
