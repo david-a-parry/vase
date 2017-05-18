@@ -9,7 +9,7 @@ class dbSnpFilter(VcfFilter):
     '''
     
     def __init__(self, vcf, prefix='VAPE_dbSNP', freq=None, min_freq=None, 
-                build=None, min_build=None, clinvar_path=False):
+                build=None, max_build=None, clinvar_path=False):
         ''' 
             Initialize object with a dbSNP VCF file and optional filtering 
             arguments.
@@ -28,10 +28,10 @@ class dbSnpFilter(VcfFilter):
                               is less than this value. Optional.
 
                 build:        Filter alleles if dbSNP allele build is 
-                              greater than this value. Optional.
+                              lower (earlier) than this value. Optional.
 
-                min_build:    Filter alleles if dbSNP allele build is 
-                              less than this value. Optional.
+                max_build:    Filter alleles if dbSNP allele build is 
+                              higher (later) than this value. Optional.
 
                 clinvar_path: Keep alleles (overriding any filtering 
                               based on freq/min_freq, build/min_build 
@@ -45,13 +45,13 @@ class dbSnpFilter(VcfFilter):
         self.build_fields = {}
         self.clinvar_fields = {}
         self.build = build
-        self.min_build = min_build
+        self.max_build = max_build
         self.clinvar_path = clinvar_path
         super().__init__(vcf, prefix, freq, min_freq)
-        if self.build is not None and self.min_build is not None:
-            if self.build <= self.min_build:
-                raise Exception("build argument must be greater than " +
-                                "min_build argument")
+        if self.build is not None and self.max_build is not None:
+            if self.build > self.max_build:
+                raise Exception("build argument must not be greater than " +
+                                "max_build argument")
 
     def annotate_and_filter_record(self, record):
         filter_alleles = []
@@ -140,15 +140,27 @@ class dbSnpFilter(VcfFilter):
                              and self.min_freq <= 0.05):
                                 if snp.INFO_FIELDS[f]: do_filter = False
                                 
+                    for f in self.build_fields:
+                        if f not in snp.INFO_FIELDS: continue
+                        annot[f] = snp.INFO_FIELDS[f]
+                        if (self.build is not None and 
+                            int(snp.INFO_FIELDS[f]) < self.build):
+                            do_filter = True
+                        if (self.max_build is not None and 
+                            int(snp.INFO_FIELDS[f]) > self.max_build):
+                            do_filter = True
+                        
                     if 'CLNALLE' in snp.INFO_FIELDS:
                         #the clinvar annotations are done in a non-standard 
                         #way, giving indexes of relevant alleles in CLNALLE 
                         #and keeping other annotations in the same order
-                        if (i + 1) in clinvars['CLNALLE']:
-                            j = clinvars['CLNALLE'].index(i+1)
+                        cln_idx = str(i + 1)
+                        if cln_idx in snp.INFO_FIELDS['CLNALLE']:
+                            j = snp.INFO_FIELDS['CLNALLE'].index(cln_idx)
                             for f in self.clinvar_fields:
                                 if f == 'CLNALLE': continue
-                                annot[f] = clinvars[f].split(",")[j] 
+                                sig = snp.INFO_FIELDS[f].split(",")[j] 
+                                annot[f] = sig 
                                 if self.clinvar_path and f == 'CLNSIG':
                                     if ([i for i in ['4', '5'] if i 
                                                            in sig.split('|')]):
@@ -202,4 +214,18 @@ class dbSnpFilter(VcfFilter):
                             " Unable to use build/min_build arguments for " + 
                             "variant filtering.")
         
+    def create_header_fields(self):
+        '''
+            Create dict entries for all INFO fields added by this 
+            instance, suitable for adding to a VcfHeader object.
+        '''
+
+        for f,v in self.freq_fields.items():
+            if f == 'CAF':
+                v['Type'] = 'Float'
+            self._make_metadata(f, v)
+        for f,v in self.build_fields.items():
+            self._make_metadata(f, v)
+        for f,v in self.clinvar_fields.items():
+            self._make_metadata(f, v)
 

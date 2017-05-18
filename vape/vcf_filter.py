@@ -39,6 +39,8 @@ class VcfFilter(object):
                 raise Exception("freq argument must be greater than " +
                                 "min_freq argument")
         self.get_annot_fields()
+        self.added_info = {}
+        self.create_header_fields()
 
     def get_overlapping_records(self, record):
         ''' 
@@ -174,4 +176,30 @@ class VcfFilter(object):
                             " Unable to use freq/min_freq arguments for " + 
                             "variant filtering.")
 
+    def create_header_fields(self):
+        '''
+            Create dict entries for all INFO fields added by this 
+            instance, suitable for adding to a VcfHeader object.
+        '''
 
+        for f,v in self.freq_fields.items():
+            self._make_metadata(f, v)
+        for f,v in self.annot_fields.items():
+            self._make_metadata(f, v)
+
+    def _make_metadata(self, name, properties):
+       
+        desc = ('"{} INFO field parsed by {} object. '.format(
+                name, type(self).__name__) + 
+               'Original description was as follows: {}"' .format(
+                properties['Description'].replace('"', '')))
+        if properties['Type'] == 'Flag':
+            f_type = 'Integer'
+        else:
+            f_type = properties['Type']
+        self.added_info[self.prefix + "_" + name] = {'Number' : 'A', 
+                                                     'Type' : f_type,
+                                                     'Source' : '"' + 
+                                                       self.vcf.filename + '"',
+                                                     'Description' : desc }
+         

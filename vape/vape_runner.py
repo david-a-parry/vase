@@ -4,21 +4,24 @@ from .parse_vcf.parse_vcf import *
 from .dbsnp_filter import * 
 from .gnomad_filter import * 
 from .vep_filter import * 
-from Bio import bgzf
 
 class VapeRunner(object):
 
     def __init__(self, args):
 
         self.args = args
-        self.info_prefixes = set()
         self.input = VcfReader(self.args.input)
+        self.prev_annots, self.info_prefixes = self._get_prev_annotations()
+        self.new_annots = dict()
         self.out = self.get_output()
         self.vcf_filters = self.get_vcf_filter_classes()
         self.csq_filter = None
         if args.csq is not None:
             self.csq_filter = VepFilter(args.csq, args.canonical,
-                                        args.keep_nmd_transcripts)
+                                        args.biotypes, 
+                                        args.missense_filters,
+                                        args.filter_unpredicted,
+                                        args.keep_if_any_damaging)
 
     def run(self):
         ''' Run VCF filtering/annotation using args from bin/vape.py '''
@@ -50,9 +53,9 @@ class VapeRunner(object):
                 return
         # check functional consequences
         if self.csq_filter:
-            r = self.csq_filter.filter(record)
-            for i in range(len(r)):
-                if r[i]:
+            r_alts, r_csq = self.csq_filter.filter(record)
+            for i in range(len(r_alts)):
+                if r_alts[i]:
                     remove_alleles[i] = True
             #bail out now if no valid consequence
             if sum(remove_alleles) == len(remove_alleles):
@@ -99,10 +102,18 @@ class VapeRunner(object):
         # get dbSNP filter
         for dbsnp in self.args.dbsnp:
             prefix = self.check_info_prefix('VAPE_dbSNP')
-            kwargs = {"vcf" : dbsnp, "prefix" : prefix}
+            kwargs = {"vcf" : dbsnp, "prefix" : prefix, 
+                      "clinvar_path" : self.args.clinvar_path,}
+            if self.args.build is not None:
+                kwargs['build'] = self.args.build
+            if self.args.max_build is not None:
+                kwargs['max_build'] = self.args.max_build
             kwargs.update(uni_args)
             dbsnp_filter = dbSnpFilter(**kwargs)
             filters.append(dbsnp_filter)
+            for f,d in dbsnp_filter.added_info.items():
+                self.input.header.addHeaderField(name=f, dictionary=d, 
+                                          field_type='INFO')
         # get gnomAD/ExAC filters
         for gnomad in self.args.gnomad:
             prefix = self.check_info_prefix('VAPE_gnomAD')
@@ -110,14 +121,27 @@ class VapeRunner(object):
             kwargs.update(uni_args)
             gnomad_filter = GnomadFilter(**kwargs)
             filters.append(gnomad_filter)
+            for f,d in gnomad_filter.added_info.items():
+                self.input.header.addHeaderField(name=f, dictionary=d, 
+                                          field_type='INFO')
         #TODO get other VCF filters
         return filters
+
+    def _get_prev_annotations(self):
+        annots = set()
+        prefixes = set()
+        for info in self.input.metadata['INFO']:
+            match = re.search('^(VAPE_\w+)_\w+(_\d+)?', info)
+            if match:
+                annots.add(info)
+                prefixes.add(match.group(1))
+        return annots, prefixes
 
     def check_info_prefix(self, name):
         if name in self.info_prefixes:
             match = re.search('_(\d+)$', name) 
-                #already has an appeneded '_#' - increment and try again
             if match:
+                #already has an appended '_#' - increment and try again
                 i = int(match.group(1))
                 name = re.sub(match.group(1) + '$', str(i + 1), name)
                 return self.check_info_prefix(name)
@@ -137,15 +161,9 @@ class VapeRunner(object):
         vape_opts = []
         for k,v in vars(self.args).items():
             vape_opts.append('--{} {}'.format(k, v))
-        prog_header = '##vape.py="' + str.join(" ", vape_opts) + '"'
-        new_info = self.get_vape_info_fields()
-        self.out.write(str.join("\n", self.input.header.meta_header + new_info  
-                                + [prog_header]) + "\n")
-        self.out.write(str.join("\t", self.input.col_header) + "\n")
-
-    def get_vape_info_fields(self):
-        return []#TODO
-        pass 
+        self.input.header.addHeaderField(name="vape.py", 
+                                   string='"' + str.join(" ", vape_opts) + '"')
+        self.out.write(str(self.input.header))
 
     def get_output(self):
         ''' 
@@ -155,9 +173,15 @@ class VapeRunner(object):
             filehandle.
         '''
 
-        fh = None
         if isinstance(self.args.output, str):
             if self.args.output.endswith(('.gz', '.bgz')):
+                try:
+                    from Bio import bgzf
+                except ImportError:
+                    raise Exception("Can not import bgzf via " + 
+                                    "biopython. Please install biopython in" +
+                                    " order to write bgzip compressed " + 
+                                    "(.gz/.bgz) output.")
                 fh = bgzf.BgzfWriter(self.args.output)
             else:
                 fh = open(self.args.output, 'w')

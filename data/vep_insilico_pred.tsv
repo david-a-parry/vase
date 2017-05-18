@@ -1,0 +1,69 @@
+#VEP native annotations
+SIFT	deleterious	default
+SIFT	tolerated	valid
+PolyPhen	probably_damaging	default
+PolyPhen	possibly_damaging	default	
+PolyPhen	benign	valid
+PolyPhen	unknown	valid
+Condel	deleterious	valid
+Condel	neutral	valid
+#dbNSFP annotations
+#predictions
+fathmm-MKL_coding_pred	D	default
+fathmm-MKL_coding_pred	T	valid
+FATHMM_pred	D	default
+FATHMM_pred	T	valid
+LRT_pred	D	default
+LRT_pred	U	valid
+LRT_pred	N	valid
+MetaLR_pred	D	default
+MetaLR_pred	T	valid
+MetaSVM_pred	D	default
+MetaSVM_pred	T	valid
+MutationAssessor_pred	H	default
+MutationAssessor_pred	M	default
+MutationAssessor_pred	L	valid
+MutationAssessor_pred	N	valid
+MutationTaster_pred	A	default
+MutationTaster_pred	D	default
+MutationTaster_pred	N	valid
+MutationTaster_pred	P	valid
+PROVEAN_pred	D	default
+PROVEAN_pred	N	valid
+Polyphen2_HDIV_pred	D	default
+Polyphen2_HDIV_pred	P	default
+Polyphen2_HDIV_pred	B	valid
+Polyphen2_HVAR_pred	D	default
+Polyphen2_HVAR_pred	P	default
+Polyphen2_HVAR_pred	B	valid
+SIFT_pred	D	default
+SIFT_pred	T	valid
+#scores
+CADD_phred	10	score
+Eigen-phred	10	score
+fathmm-MKL_coding_score	0.5	score
+FATHMM_score	0	score	lower=damaging
+LRT_score	0	score	
+MetaLR_score	0.5	score	
+MetaSVM_score	1	score
+MutationAssessor_score	0	score	
+MutationTaster_score	0.5	score
+PROVEAN_score	0.5	score	lower=damaging
+Polyphen2_HDIV_score	0.5	score
+Polyphen2_HVAR_score	0.5	score
+SIFT_score	0.5	score	lower=damaging
+#rank scores
+CADD_raw_rankscore	0.5	score
+fathmm-MKL_coding_rankscore	0.28317	score
+FATHMM_converted_rankscore	0.5	score
+LRT_converted_rankscore	0.5	score
+MetaLR_rankscore	0.81113	score
+MetaSVM_rankscore	0.82268	score
+MutationAssessor_score_rankscore	0.61	score
+MutationTaster_converted_rankscore	0.5	score
+PROVEAN_converted_rankscore	0.5	score
+Polyphen2_HDIV_rankscore	0.5	score
+Polyphen2_HVAR_rankscore	0.5	score
+SIFT_converted_rankscore	0.5	score
+Eigen-PC-raw_rankscore	0.5	score
+Eigen-raw_rankscore	0.5	score

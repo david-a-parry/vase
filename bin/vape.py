@@ -89,19 +89,120 @@ ignore consequences for non-canonical transcripts.
 
 ''')
     filter_args.add_argument(
-'--keep_nmd_transcripts', action='store_true', default=False, help=
+'--biotypes', nargs='*', default=[], help=
 '''When used in conjunction with --csq  argument, 
-also include variants labelled as an
-'NMD_transcript_variant' if they also have a valid
-consequence (as determined by the --csq argument).
+ignore consequences in biotypes other than those 
+specified here. By default only consequences in 
+features with the following biotypes are 
+considered:
+    
+            3prime_overlapping_ncrna
+            antisense
+            CTCF_binding_site
+            enhancer
+            IG_C_gene
+            IG_D_gene
+            IG_J_gene
+            IG_V_gene
+            lincRNA
+            miRNA
+            misc_RNA
+            Mt_rRNA
+            Mt_tRNA
+            open_chromatin_region
+            polymorphic_pseudogene
+            processed_transcript
+            promoter
+            promoter_flanking_region
+            protein_coding
+            rRNA
+            sense_intronic
+            sense_overlapping
+            snoRNA
+            snRNA
+            TF_binding_site
+            translated_processed_pseudogene
+            TR_C_gene
+            TR_D_gene
+            TR_J_gene
+            TR_V_gene
+
+Use this argument to specify one or more biotypes
+to consider instead of those listed above. You may
+also include the value 'default' in your list to
+include the default values listed above in
+addition to others provided to this argument.
+Alternatively you may use the value 'all' to
+disable filtering on biotypes.
+
+''')
+    filter_args.add_argument( 
+'-m', '--missense_filters', default=[], nargs='+', help=
+'''A list of in silico prediction programs to use
+use for filtering missense variants (must be used
+in conjunction with --csq argument). The programs 
+provided her must have been annotated on the 
+input VCF file either directly by VEP or via the 
+dbNSFP VEP plugin. Recognised program names and 
+default 'damaging' values are provided in the
+"data/vep_insilico_pred.tsv" file. 
+
+You may optionally specify score criteria for 
+filtering as in the the following examples:
+                    
+    FATHMM_pred=D
+    MutationTaster_pred=A
+    MetaSVM_rankscore=0.8
+
+Or you may just provide the program names 
+and the default 'damaging' prediction values 
+will be used, as listed in the file
+"../data/vep_insilico_pred.tsv".
+
+By default, a missense consequence is filtered 
+unless each of the programs listed here have an 
+appropriate or missing prediction/score. This 
+behaviour can be changed using the 
+--filter_unpredicted or --keep_if_any_damaging 
+flags.
+
+''')
+    filter_args.add_argument(
+'--filter_unpredicted', action='store_true', default=False, help=
+'''For use in conjunction with --missense_filters. 
+The default behaviour when using 
+--missense_filters is to ignore a program if 
+there is no prediction given (i.e. the score/pred 
+is empty). That is, if there are no predictions 
+for any of the programs annotating a missense 
+consequence, it will not be filtered, while if 
+predictions are missing for only some, filtering 
+will proceed as normal with the other programs. If
+this option is given, missense variants will be 
+filtered if any program does not have a
+prediction/score.
+
+''')
+    filter_args.add_argument(
+'--keep_if_any_damaging', action='store_true', default=False, help=
+'''For use in conjunction with --missense_filters. 
+If this option is provided, a missense consequence
+is only filtered if ALL of the programs provided 
+to --missense_filters do not have an appropriate 
+prediction/score - that is, the missense 
+consequence will be retained if ANY of the given 
+programs has an appropriate value for the 
+prediction/score. This behaviour is overridden by
+'--filter_unpredicted' when a prediction/score is 
+missing for any program.
 
 ''')
 
-
     #args for specifying files for annotations/filtering
     file_args.add_argument(
-'-d', '--dbsnp', metavar='VCF', nargs='+', default=[], help=
-'''dbSNP file for variant annotating/filteirng
+'-d', '--dbsnp', '--clinvar', metavar='VCF', nargs='+', default=[], help=
+'''dbSNP or ClinVar VCF file for variant 
+annotating/filtering
 
 ''')
     file_args.add_argument(
@@ -126,11 +227,37 @@ Used for extenal allele frequency sources such as
 a frequency lower than this value will be filtered.
 
 ''')
+ 
+    file_args.add_argument('-b', '--build', type=int, metavar='dbSNP_build',
+                           help=
+'''dbSNP build version cutoff. For use with --dbsnp 
+files. Alleles/variants present in this dbSNP 
+build or earlier will be filtered from input.
+from your input.
+
+''')
+    file_args.add_argument('--max_build', type=int, metavar='dbSNP_build',
+                           help=
+'''Maximum dbSNP build version cutoff. For use with 
+--dbsnp files. Alleles/variants present in dbSNP
+builds later than this version will be filtered.
+
+''')
     file_args.add_argument('--filter_novel', action='store_true', 
                            default=False, help=
 '''Filter any allele/variant not present in 
 any of the files supplied to --gnomad or --dbsnp
 arguments.
+
+''')
+    file_args.add_argument('--clinvar_path', '--path', action='store_true', 
+                           default=False, help=
+'''Retain variants with ClinVar 'likely pathogenic' 
+or 'pathogenic' flags regardless of frequency or 
+other settings provided to other Annotation File 
+Arguments. This requires one of the files 
+provided to --dbsnp to have CLNSIG annotations 
+from ClinVar.
 
 ''')
     return parser.parse_args()
