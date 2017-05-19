@@ -5,6 +5,7 @@ from .dbsnp_filter import *
 from .gnomad_filter import * 
 from .vep_filter import * 
 from .sample_filter import *
+from .ped_file import *
 
 class VapeRunner(object):
 
@@ -16,6 +17,9 @@ class VapeRunner(object):
         self.new_annots = dict()
         self.out = self.get_output()
         self.vcf_filters = self.get_vcf_filter_classes()
+        self.ped = None
+        if args.ped:
+            self.ped = PedFile(args.ped)
         self.csq_filter = None
         if args.csq is not None:
             self.csq_filter = VepFilter(args.csq, args.canonical,
