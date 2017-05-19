@@ -80,10 +80,12 @@ class VepFilter(object):
         return filter_alleles, filter_csq
 
     def _read_csq_file(self):
-        return self._get_valid_and_default("data/vep_classes.tsv")
+        data_file = os.path.join(os.path.dirname(__file__), "data", "vep_classes.tsv")
+        return self._get_valid_and_default(data_file)
 
     def _read_biotype_file(self):
-        return self._get_valid_and_default("data/biotypes.tsv")
+        data_file = os.path.join(os.path.dirname(__file__), "data", "biotypes.tsv")
+        return self._get_valid_and_default(data_file)
 
     def _get_valid_and_default(self, data_file):
         defaults = list()
