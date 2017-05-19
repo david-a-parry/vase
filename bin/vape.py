@@ -13,7 +13,11 @@ def parse_args():
     required_args = parser.add_argument_group('Required Arguments')
     optional_args = parser.add_argument_group('Optional Arguments')
     file_args = parser.add_argument_group('Annotation File Arguments')
-    filter_args = parser.add_argument_group('Variant Filtering  Arguments')
+    filter_args = parser.add_argument_group('Variant Filtering  Arguments', 
+        'Arguments for filtering based on variant features')
+    sample_args = parser.add_argument_group('Sample Based Filtering Arguments',
+        'Arguments for filtering variants based on presence/absence in ' + 
+        'samples and/or inheritance patterns')
 
     #required arguments
     required_args.add_argument(
@@ -30,15 +34,8 @@ def parse_args():
 Default = STDOUT
 
 ''')
+
     #args for filtering/retaining variants based on features
-    filter_args.add_argument('--gq', type=int, 
-                             help=
-'''Minimum genotype quality score threshold. Genotype 
-calls with a score lower than this threshold will 
-be treated as no-calls
-
-''')
-
     filter_args.add_argument(
 '-v', '--variant_quality', type=float, metavar='QUAL', help=
 '''Minimum variant quality score ('QUAL' field).
@@ -260,6 +257,74 @@ provided to --dbsnp to have CLNSIG annotations
 from ClinVar.
 
 ''')
+
+    #args for sample based filtering
+    sample_args.add_argument('--cases', default=[], nargs='+', 
+                             metavar='SAMPLE_ID', help=
+'''One or more sample IDs to treat as cases. Default 
+behaviour is to retain variants/alleles present in 
+all of these samples as long as they are not 
+present in any sample specified using the 
+'--controls' option. This behaviour can be 
+adjusted using other options detailed below.
+
+''')
+    sample_args.add_argument('--controls', default=[], nargs='+', 
+                             metavar='SAMPLE_ID', help=
+'''One or more sample IDs to treat as controls. 
+Default behaviour is to filter variants/alleles 
+present in any of these samples. This behaviour 
+can be adjusted using other options detailed 
+below.
+
+''')
+    sample_args.add_argument('--ped', help=
+'''A ped file containing information about samples in
+your VCF for use for filtering on affectation 
+status and inheritance patterns.
+
+A PED file is a white-space (space or tab) 
+delimited file with the first six mandatory 
+columns:
+
+     Family ID
+     Individual ID
+     Paternal ID
+     Maternal ID
+     Sex (1=male; 2=female; other=unknown)
+     Phenotype
+
+Affection status should be coded:
+
+    -9 missing 
+     0 missing
+     1 unaffected
+     2 affected
+
+''')
+    sample_args.add_argument('--gq', type=int, default=20,
+                             help=
+'''Minimum genotype quality score threshold. Sample 
+genotype calls with a score lower than this 
+threshold will be treated as no-calls. 
+Default = 20.
+
+''')
+
+    sample_args.add_argument('--n_cases', type=int, help=
+'''Instead of requiring a variant to be present in
+ALL samples specified by --cases, require at least
+this many cases.
+
+''')
+    sample_args.add_argument('--n_controls', type=int, help=
+'''Instead of filtering an allele/variant if present
+in ANY sample specified by --controls, require at 
+least this many controls to carry a variant before
+it is filtered.
+
+''')
+    #end of args
     return parser.parse_args()
 
 if __name__ == '__main__':

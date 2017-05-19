@@ -4,6 +4,7 @@ from .parse_vcf.parse_vcf import *
 from .dbsnp_filter import * 
 from .gnomad_filter import * 
 from .vep_filter import * 
+from .sample_filter import *
 
 class VapeRunner(object):
 
@@ -22,6 +23,9 @@ class VapeRunner(object):
                                         args.missense_filters,
                                         args.filter_unpredicted,
                                         args.keep_if_any_damaging)
+        self.sample_filter = None
+        if self.args.cases or self.args.controls:
+            self.sample_filter = SampleFilter(args, self.input)
 
     def run(self):
         ''' Run VCF filtering/annotation using args from bin/vape.py '''
@@ -73,6 +77,12 @@ class VapeRunner(object):
                     keep_alleles[i] = True
                 if m[i]:
                     matched_alleles[i] = True
+        
+        if self.sample_filter:
+            r = self.sample_filter.filter(record)
+            for i in range(len(r)):
+                if r[i]:
+                    remove_alleles[i] = True
         # TODO
         # if all ALTs for a record are set to be filtered and there is no 
         # override in keep_alleles, whole record can be filtered
@@ -188,3 +198,5 @@ class VapeRunner(object):
         else:
             fh = sys.stdout
         return fh
+
+
