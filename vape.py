@@ -7,8 +7,8 @@ from vape.vape_runner import VapeRunner
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description='Filter, annotate and prioritize variants.',
-        formatter_class=argparse.RawTextHelpFormatter)
+                       description='Filter, annotate and prioritize variants.',
+                       formatter_class=argparse.RawTextHelpFormatter)
     parser._action_groups.pop()
     required_args = parser.add_argument_group('Required Arguments')
     optional_args = parser.add_argument_group('Optional Arguments')
@@ -259,7 +259,7 @@ from ClinVar.
 ''')
 
     #args for sample based filtering
-    sample_args.add_argument('--cases', default=[], nargs='+', 
+    sample_args.add_argument('--cases', '-cases', default=[], nargs='+', 
                              metavar='SAMPLE_ID', help=
 '''One or more sample IDs to treat as cases. Default 
 behaviour is to retain variants/alleles present in 
@@ -269,7 +269,7 @@ present in any sample specified using the
 adjusted using other options detailed below.
 
 ''')
-    sample_args.add_argument('--controls', default=[], nargs='+', 
+    sample_args.add_argument('--controls', '-controls', default=[], nargs='+', 
                              metavar='SAMPLE_ID', help=
 '''One or more sample IDs to treat as controls. 
 Default behaviour is to filter variants/alleles 
@@ -278,7 +278,7 @@ can be adjusted using other options detailed
 below.
 
 ''')
-    sample_args.add_argument('--ped', help=
+    sample_args.add_argument('--ped', '-ped', help=
 '''A ped file containing information about samples in
 your VCF for use for filtering on affectation 
 status and inheritance patterns.
@@ -302,7 +302,7 @@ Affection status should be coded:
      2 affected
 
 ''')
-    sample_args.add_argument('--gq', type=int, default=20,
+    sample_args.add_argument('--gq', '-gq', type=int, default=20,
                              help=
 '''Minimum genotype quality score threshold. Sample 
 genotype calls with a score lower than this 
@@ -311,13 +311,13 @@ Default = 20.
 
 ''')
 
-    sample_args.add_argument('--n_cases', type=int, help=
+    sample_args.add_argument('--n_cases', '-n_cases', type=int, help=
 '''Instead of requiring a variant to be present in
 ALL samples specified by --cases, require at least
 this many cases.
 
 ''')
-    sample_args.add_argument('--n_controls', type=int, help=
+    sample_args.add_argument('--n_controls', '-n_controls', type=int, help=
 '''Instead of filtering an allele/variant if present
 in ANY sample specified by --controls, require at 
 least this many controls to carry a variant before
