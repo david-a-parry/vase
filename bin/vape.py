@@ -86,7 +86,7 @@ ignore consequences for non-canonical transcripts.
 
 ''')
     filter_args.add_argument(
-'--biotypes', nargs='*', default=[], help=
+'--biotypes', nargs='+', default=[], metavar='BIOTYPE', help=
 '''When used in conjunction with --csq  argument, 
 ignore consequences in biotypes other than those 
 specified here. By default only consequences in 
