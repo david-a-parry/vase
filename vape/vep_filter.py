@@ -48,7 +48,12 @@ class VepFilter(object):
     def filter(self, record):
         filter_alleles = [True] * (len(record.ALLELES) -1)
         #whether an ALT allele should be filtered or not
-        filter_csq = [True] * len(record.CSQ) 
+        try:
+            filter_csq = [True] * len(record.CSQ) 
+        except HeaderError:
+            raise Exception("Could not identify CSQ or ANN fields in VCF " +
+                            "header. Please ensure your input is annotated " +
+                            "with Ensembl's VEP")
         #whether each csq should be filtered or not
         i = -1
         for c in record.CSQ:
