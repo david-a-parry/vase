@@ -1,4 +1,5 @@
 import re
+import os
 
 vep_internal_pred_re = re.compile(r'\(\d(\.\d+)?\)') 
 # for removing numbers in brackets at end of PolyPhen, SIFT and Condel VEP 
@@ -75,7 +76,9 @@ class InSilicoFilter(object):
         default_progs = {}
         case_insensitive = {}
         self.lower_more_damaging = set()
-        with open("data/vep_insilico_pred.tsv",encoding='UTF-8')as insilico_d:
+        pred_file = os.path.join(os.path.dirname(__file__), "data", 
+                                 "vep_insilico_pred.tsv")
+        with open(pred_file, encoding='UTF-8') as insilico_d:
             for line in insilico_d:
                 if line.startswith('#'):
                     continue
