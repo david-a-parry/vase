@@ -1,5 +1,6 @@
 import sys
 import re
+import logging
 from .parse_vcf.parse_vcf import * 
 from .dbsnp_filter import * 
 from .gnomad_filter import * 
@@ -12,6 +13,7 @@ class VapeRunner(object):
     def __init__(self, args):
 
         self.args = args
+        self._set_logger()
         self.input = VcfReader(self.args.input)
         self.prev_annots, self.info_prefixes = self._get_prev_annotations()
         self.new_annots = dict()
@@ -28,20 +30,34 @@ class VapeRunner(object):
                                         args.filter_unpredicted,
                                         args.keep_if_any_damaging)
         self.sample_filter = None
-        if self.args.cases or self.args.controls:
-            self.sample_filter = SampleFilter(args, self.input)
+        if args.cases or args.controls:
+            self.sample_filter = SampleFilter(self.input, args.cases, 
+                                              args.controls, args.n_cases,
+                                              args.n_controls, args.gq)
+        self.de_novo_filters = None
+        if args.de_novo:
+            if not self.ped:
+                raise Exception("--de_novo argument requires a PED file but " +
+                                "no PED was specified. Please specify a PED " + 
+                                "file with at least one parent-child trio " + 
+                                "using the --ped argument.")
+            self._get_de_novo_filters()
+            
+            
 
     def run(self):
         ''' Run VCF filtering/annotation using args from bin/vape.py '''
-
+        self.logger.info('Starting variant processing')
         self.print_header()
         var_count = 0
         for record in self.input.parser:
             self.process_record(record, var_count)
             var_count += 1
-            sys.stderr.write('\r{} variants processed...\r' .format(var_count))
-        sys.stderr.write('\rFinished processing {} variants.\n' 
-                         .format(var_count))
+            if not self.args.quiet:
+                sys.stderr.write('\r{} variants processed...\r' 
+                                 .format(var_count))
+        self.logger.info('Finished processing {} variants.' 
+                             .format(var_count))
         self.finish_up()
         self.out.close()
 
@@ -87,6 +103,16 @@ class VapeRunner(object):
             for i in range(len(r)):
                 if r[i]:
                     remove_alleles[i] = True
+        if self.de_novo_filters:
+            for f in self.de_novo_filters:
+            # this will not work properly if we are doing multiple operations 
+            # (e.g. biallelic as well)
+                r = f.filter(record)
+                for i in range(len(r)):
+                    if r[i]:
+                        remove_alleles[i] = True
+                    else:
+                        keep_alleles[i] = True
         # TODO
         # if all ALTs for a record are set to be filtered and there is no 
         # override in keep_alleles, whole record can be filtered
@@ -126,6 +152,7 @@ class VapeRunner(object):
             dbsnp_filter = dbSnpFilter(**kwargs)
             filters.append(dbsnp_filter)
             for f,d in dbsnp_filter.added_info.items():
+                self.logger.debug("Adding dbSNP annotation {}" .format(f))
                 self.input.header.addHeaderField(name=f, dictionary=d, 
                                           field_type='INFO')
         # get gnomAD/ExAC filters
@@ -136,6 +163,8 @@ class VapeRunner(object):
             gnomad_filter = GnomadFilter(**kwargs)
             filters.append(gnomad_filter)
             for f,d in gnomad_filter.added_info.items():
+                self.logger.debug("Adding gnomAD/ExAC annotation {}" 
+                                  .format(f))
                 self.input.header.addHeaderField(name=f, dictionary=d, 
                                           field_type='INFO')
         #TODO get other VCF filters
@@ -149,10 +178,14 @@ class VapeRunner(object):
             if match:
                 annots.add(info)
                 prefixes.add(match.group(1))
+                self.logger.debug("Identified previously annotated VAPE INFO" +
+                                  " field '{}'" .format(info))
         return annots, prefixes
 
     def check_info_prefix(self, name):
         if name in self.info_prefixes:
+            self.logger.debug("INFO field {} already exists - trying another"
+                              .format(name))
             match = re.search('_(\d+)$', name) 
             if match:
                 #already has an appended '_#' - increment and try again
@@ -203,4 +236,70 @@ class VapeRunner(object):
             fh = sys.stdout
         return fh
 
+    def _get_de_novo_filters(self):
+        fams = set()
+        self.de_novo_filters = []
+        num_trios = 0
+        for iid in self.ped.get_affected():
+            if iid in self.input.header.samples:
+                self.logger.debug("Ped sample {} is in VCF" .format(iid))
+                if (self.ped.individuals[iid].mother and 
+                    self.ped.individuals[iid].father):
+                    #must have both parents specified present in PED 
+                    if (self.ped.individuals[iid].mother in 
+                        self.input.header.samples and 
+                        self.ped.individuals[iid].father in 
+                        self.input.header.samples):
+                        #and must have both parents present in VCF
+                        df = DeNovoFilter(vcf=self.input, child=iid,
+                                       mother=self.ped.individuals[iid].mother,
+                                       father=self.ped.individuals[iid].father,
+                                       gq=self.args.gq)
+                        self.de_novo_filters.append(df)
+                        fams.add(self.ped.individuals[iid].fid)
+                        num_trios += 1
+                        self.logger.debug("Ped sample {} has " .format(iid) +
+                                          "both  parents in VCF and can be "+
+                                          "de novo filtered")
+                else:
+                    self.logger.debug("Ped sample {} does not " .format(iid) + 
+                                      "have both parents in VCF")
+            else:
+                self.logger.debug("Ped sample {} not in VCF" .format(iid))
+        self.logger.info("Identified {} parent-child trios " .format(num_trios) 
+                  + "in {} families present in PED and VCF " .format(len(fams))
+                  + "from {} total families in PED." 
+                    .format(len(self.ped.families)))
+        if not num_trios:
+            e = Exception("No parent-child trios identified from PED and VCF" +
+                          " - please check your PED and VCF sample IDs")
+            self.logger.exception(e)
+            raise e
+        
+        self.input.header.addHeaderField(
+            field_type='INFO',
+            name='VAPE_de_novo', 
+            dictionary={
+                         'Number' : 'A',
+                         'Type' : 'String',
+                         'Description' : '"Sample IDs in which an ALT allele' +
+                                         ' appears to have arisen de novo ' +  
+                                         'based on the absence of an allele ' +
+                                         'call in either parent"',
+            })
+                
+    def _set_logger(self):
+        self.logger = logging.getLogger("VAPE")
+        if self.args.debug:
+            self.logger.setLevel(logging.DEBUG)
+        elif self.args.quiet:
+            self.logger.setLevel(logging.WARNING)
+        else:
+            self.logger.setLevel(logging.INFO)
+        formatter = logging.Formatter(
+                        '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        ch = logging.StreamHandler()
+        ch.setLevel(self.logger.level)
+        ch.setFormatter(formatter)
+        self.logger.addHandler(ch)
 
