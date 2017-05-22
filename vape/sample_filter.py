@@ -3,7 +3,8 @@
 class SampleFilter(object):
     ''' A class for filtering VCF records on sample calls'''
 
-    def __init__(self, args, vcf):
+    def __init__(self, vcf, cases=[], controls=[], n_cases=0, n_controls=0, 
+                 gq=0, confirm_missing=False):
         '''
             Initialize with parsed args from vape.py and input VcfReader
             object
@@ -15,7 +16,8 @@ class SampleFilter(object):
         self.n_controls = 0
         self.min_gq = 0
         self.vcf = vcf
-        self._parse_sample_args(args)
+        self.confirm_missing = confirm_missing
+        self._parse_sample_args(cases, controls, n_cases, n_controls, gq)
 
     def filter(self, record):
         '''
@@ -33,6 +35,8 @@ class SampleFilter(object):
         for s in self.controls:
             if self.min_gq and (gts['GQ'][s] is None 
                 or gts['GQ'][s] < self.min_gq):
+                if self.confirm_missing:
+                    return [True] * (len(record.ALLELES) -1)
                 continue
             sgt =  gts['GT'][s]
             for i in range(1, len(record.ALLELES)):
@@ -48,8 +52,8 @@ class SampleFilter(object):
             for i in range(1, len(record.ALLELES)):
                 if control_allele_matches[i-1] > self.n_controls:
                     filter_alleles[i-1] = True
-            if sum(filter_alleles) == len(filter_alleles):
-                return filter_alleles
+        if sum(filter_alleles) == len(filter_alleles):
+            return filter_alleles
 
         #check for presence in cases
         for s in self.cases:
@@ -82,20 +86,21 @@ class SampleFilter(object):
                     
             
 
-    def _parse_sample_args(self, args):
+    def _parse_sample_args(self, cases, controls, n_cases=0, n_controls=0, 
+                           gq=0):
         not_found = set()
-        cases = set()
-        controls = set()
-        for c in args.cases:
+        case_set = set()
+        control_set = set()
+        for c in cases:
             if c in self.vcf.header.samples:
-                cases.add(c)
+                case_set.add(c)
             elif c.lower() == 'all':
-                if len(args.cases) > 1:
+                if len(cases) > 1:
                     raise Exception("'all' can not be used in --cases " + 
                                     "argument in conjunction with sample " + 
                                     "names - please specify either 'all' or " +
                                     "a list of sample IDs, not both.")
-                cases.update(self.vcf.header.samples)
+                case_set.update(self.vcf.header.samples)
             else:
                 not_found.add(c)
         if not_found:
@@ -103,18 +108,18 @@ class SampleFilter(object):
             s.sort()
             raise Exception("The following samples specified by --cases were" +
                             " not found in the input VCF: " + str.join(", ",s))
-        for c in args.controls:
+        for c in controls:
             if c in self.vcf.header.samples:
-                controls.add(c)
+                control_set.add(c)
             elif c.lower() == 'all':
-                if len(args.controls) > 1:
+                if len(controls) > 1:
                     raise Exception("'all' can not be used in --controls " + 
                                     "argument in conjunction with sample " + 
                                     "names - please specify either 'all' or " +
                                     "a list of sample IDs, not both.")
                 for samp in self.vcf.header.samples:
-                    if samp not in cases:
-                        controls.add(samp)
+                    if samp not in case_set:
+                        control_set.add(samp)
             else:
                 not_found.add(c)
         if not_found:
@@ -123,23 +128,62 @@ class SampleFilter(object):
             raise Exception("The following samples specified by --controls " +
                             "were not found in the input VCF: " + 
                             str.join(", ", s))
-        self.cases = list(cases)
-        self.controls = list(controls)
-        if args.n_cases and len(self.cases) < args.n_cases:
+        self.cases = list(case_set)
+        self.controls = list(control_set)
+        if n_cases and len(self.cases) < n_cases:
             raise Exception("Number of cases specified by --n_cases is " + 
                             "greater than the number of cases specified by " +
                             "--cases")
-        if args.n_controls and len(self.controls) < args.n_controls:
+        if n_controls and len(self.controls) < n_controls:
             raise Exception("Number of controls specified by --n_controls " + 
                             "is greater than the number of controls " +
                             "specified by --controls")
         self.samples = self.cases + self.controls
-        if args.gq:
-            self.min_gq = args.gq
-        if args.n_cases:
-            self.n_cases = args.n_cases    
-        if args.n_controls:
-            self.n_controls = args.n_controls    
+        if gq:
+            self.min_gq = gq
+        if n_cases:
+            self.n_cases = n_cases    
+        if n_controls:
+            self.n_controls = n_controls    
         
 
+class DeNovoFilter(SampleFilter):
+    ''' 
+        Identify and output variants occuring in a child and absent from 
+        the parents
+    '''
 
+    def __init__(self, vcf, child, mother, father, gq=0, confirm_het=False):
+        ''' Initialize with parent IDs, child ID and VcfReader object.'''
+        self.mother = mother
+        self.father = father
+        self.child = child
+        self.vcf = vcf
+        self.confirm_het = confirm_het
+        super().__init__(vcf, cases=[child], controls=[mother, father], 
+                         gq=gq, confirm_missing=True)
+
+    def filter(self, record):
+        remove_alleles = super().filter(record)
+        if len(remove_alleles) == sum(remove_alleles):
+            return remove_alleles
+        if self.confirm_het:
+            gts = record.parsed_gts(fields=['GT'], samples=self.samples)
+            for i in range(1, len(record.ALLELES)):
+                if not remove_alleles[i-1]:
+                    if len(set(gts['GT'][child])) != 2:
+                        remove_alleles[i-1] = True
+        if len(remove_alleles) == sum(remove_alleles):
+            return remove_alleles
+        denovos = []
+        for f in remove_alleles:
+            if not f:
+                denovos.append(self.child)
+            else:
+                denovos.append('.')
+        inf = {'VAPE_de_novo' : str.join(",", denovos)}
+        record.add_info_fields(info=inf, append_existing=True)
+        return remove_alleles
+        
+                        
+                    
