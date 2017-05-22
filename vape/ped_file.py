@@ -100,16 +100,16 @@ class Family(PedFile):
                            " added to family '{}'." .format(self.fid))
         individual.fid = self.fid
         for i in self.individuals.values():
-            if (i.mother != '0' and i.mother == individual.mother and 
-                i.father != '0' and i.father == individual.father):
+            if (i.mother and i.mother == individual.mother and 
+                i.father and i.father == individual.father):
                 i.siblings.append(individual.iid)
                 individual.siblings.append(i.iid)
-            elif ( (i.mother != '0' and i.mother == individual.mother) or
-                  (i.father != '0' and i.father == individual.father)):
+            elif ( (i.mother and i.mother == individual.mother) or
+                  (i.father and i.father == individual.father)):
                 i.half_siblings.append(individual.iid)
                 individual.half_siblings.append(i.iid)
         for parent in [individual.mother, individual.father]:
-            if parent != '0':
+            if parent:
                 if parent not in self.parents:
                     self.parents[parent] = [individual.iid]
                 else:
@@ -138,8 +138,14 @@ class Individual(object):
                  half_siblings=[], children=[]):
         self.fid = fid
         self.iid = iid
-        self.father = father
-        self.mother = mother
+        if father == '0':
+            self.father = None
+        else:
+            self.father = father
+        if mother == '0':
+            self.mother = None
+        else:
+            self.mother = mother
         try:
             self.sex = int(sex)
         except ValueError: #any value other than 1 or 2 = unknown gender
