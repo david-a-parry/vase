@@ -19,14 +19,13 @@ class SampleFilter(object):
         self.confirm_missing = confirm_missing
         self._parse_sample_args(cases, controls, n_cases, n_controls, gq)
 
-    def filter(self, record):
+    def filter(self, record, allele):
         '''
             For a given VcfRecord, return a list of booleans indicating
             for each allele whether it should be filtered or not.
         '''
-        filter_alleles = [False] * (len(record.ALLELES) -1)
-        case_allele_matches = [0] * (len(record.ALLELES) -1) 
-        control_allele_matches = [0] * (len(record.ALLELES) -1) 
+        case_matches = 0
+        control_matches = 0
         gt_fields = ['GT']
         if self.min_gq:
             gt_fields.append('GQ')
@@ -36,25 +35,17 @@ class SampleFilter(object):
             if self.min_gq and (gts['GQ'][s] is None 
                 or gts['GQ'][s] < self.min_gq):
                 if self.confirm_missing:
-                    return [True] * (len(record.ALLELES) -1)
+                    return True 
                 continue
             sgt =  gts['GT'][s]
-            for i in range(1, len(record.ALLELES)):
-                if i in sgt: #checks for presence, not whether het/hom
-                    if not self.n_controls:
-                        filter_alleles[i-1] = True
-                    control_allele_matches[i-1] += 1
-            #bail out if all ALTs are present in controls and !self.n_controls
-            if sum(filter_alleles) == len(filter_alleles):
-                return filter_alleles
+            if allele in sgt: #checks for presence, not whether het/hom
+                if self.n_controls:
+                    control_matches += 1
+                else:
+                    return True
         
-        if self.n_controls:
-            for i in range(1, len(record.ALLELES)):
-                if control_allele_matches[i-1] > self.n_controls:
-                    filter_alleles[i-1] = True
-        if sum(filter_alleles) == len(filter_alleles):
-            return filter_alleles
-
+        if self.n_controls and control_matches >= self.n_controls:
+            return True
         #check for presence in cases
         for s in self.cases:
             if self.min_gq and (gts['GQ'][s] is None 
@@ -64,26 +55,18 @@ class SampleFilter(object):
             else:
                 sgt =  gts['GT'][s]
             if sgt is None:
-                if not self.n_cases:
-                    return [True] * (len(record.ALLELES) -1)
-                else:
+                if self.n_cases:
                     continue
-            for i in range(1, len(record.ALLELES)):
-                if i in sgt:
-                    case_allele_matches[i-1] += 1
-                elif not self.n_cases:
-                    filter_alleles[i-1] = True
-            #bail if all ALTs are absent in at least one case and !self.n_cases
-            if sum(filter_alleles) == len(filter_alleles):
-                return filter_alleles
+                else:
+                    return True 
+            if allele in sgt:
+                case_matches += 1
+            elif not self.n_cases:
+                return True
         if self.n_cases:
-            for i in range(1, len(record.ALLELES)):
-                if case_allele_matches[i-1] < self.n_cases:
-                    filter_alleles[i-1] = True
-            
-        return filter_alleles
-            
-                    
+            if case_matches < self.n_cases:
+                return True
+        return False
             
 
     def _parse_sample_args(self, cases, controls, n_cases=0, n_controls=0, 
@@ -163,27 +146,15 @@ class DeNovoFilter(SampleFilter):
         super().__init__(vcf, cases=[child], controls=[mother, father], 
                          gq=gq, confirm_missing=True)
 
-    def filter(self, record):
-        remove_alleles = super().filter(record)
-        if len(remove_alleles) == sum(remove_alleles):
-            return remove_alleles
+    def filter(self, record, allele):
+        remove = super().filter(record, allele)
+        if remove:
+            return True
         if self.confirm_het:
             gts = record.parsed_gts(fields=['GT'], samples=self.samples)
-            for i in range(1, len(record.ALLELES)):
-                if not remove_alleles[i-1]:
-                    if len(set(gts['GT'][child])) != 2:
-                        remove_alleles[i-1] = True
-        if len(remove_alleles) == sum(remove_alleles):
-            return remove_alleles
+            if len(set(gts['GT'][child])) != 2:
+                return True
         denovos = []
-        for f in remove_alleles:
-            if not f:
-                denovos.append(self.child)
-            else:
-                denovos.append('.')
-        inf = {'VAPE_de_novo' : str.join(",", denovos)}
-        record.add_info_fields(info=inf, append_existing=True)
-        return remove_alleles
-        
+        return False
                         
                     
