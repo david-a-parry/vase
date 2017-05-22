@@ -34,7 +34,16 @@ def parse_args():
 Default = STDOUT
 
 ''')
+    optional_args.add_argument(
+'--quiet', action='store_true', help=
+'''Do not output progress information.
 
+''')
+    optional_args.add_argument(
+'--debug', action='store_true', help=
+'''Output debugging information.
+
+''')
     #args for filtering/retaining variants based on features
     filter_args.add_argument(
 '-v', '--variant_quality', type=float, metavar='QUAL', help=
@@ -208,7 +217,8 @@ annotating/filtering
 using population allele frequencies
 
 ''')
-    file_args.add_argument('-f', '--freq', type=float, help=
+    file_args.add_argument(
+'-f', '--freq', type=float, help=
 '''Allele frequency cutoff (between 0 and 1). Used 
 for extenal allele frequency sources such as 
 --dbsnp or --gnomad files. Alleles/variants with
@@ -217,7 +227,8 @@ this value in these sources will be filtered
 from your input.
 
 ''')
-    file_args.add_argument('--min_freq', type=float, help=
+    file_args.add_argument(
+'--min_freq', type=float, help=
 '''Minimum allele frequency cutoff (between 0 and 1).
 Used for extenal allele frequency sources such as 
 --dbsnp or --gnomad files. Alleles/variants with 
@@ -225,30 +236,30 @@ a frequency lower than this value will be filtered.
 
 ''')
  
-    file_args.add_argument('-b', '--build', type=int, metavar='dbSNP_build',
-                           help=
+    file_args.add_argument(
+'-b', '--build', type=int, metavar='dbSNP_build', help=
 '''dbSNP build version cutoff. For use with --dbsnp 
 files. Alleles/variants present in this dbSNP 
 build or earlier will be filtered from input.
 from your input.
 
 ''')
-    file_args.add_argument('--max_build', type=int, metavar='dbSNP_build',
-                           help=
+    file_args.add_argument(
+'--max_build', type=int, metavar='dbSNP_build', help=
 '''Maximum dbSNP build version cutoff. For use with 
 --dbsnp files. Alleles/variants present in dbSNP
 builds later than this version will be filtered.
 
 ''')
-    file_args.add_argument('--filter_novel', action='store_true', 
-                           default=False, help=
+    file_args.add_argument(
+'--filter_novel', action='store_true', default=False, help=
 '''Filter any allele/variant not present in 
 any of the files supplied to --gnomad or --dbsnp
 arguments.
 
 ''')
-    file_args.add_argument('--clinvar_path', '--path', action='store_true', 
-                           default=False, help=
+    file_args.add_argument(
+'--clinvar_path', '-path', action='store_true', default=False, help=
 '''Retain variants with ClinVar 'likely pathogenic' 
 or 'pathogenic' flags regardless of frequency or 
 other settings provided to other Annotation File 
@@ -259,8 +270,8 @@ from ClinVar.
 ''')
 
     #args for sample based filtering
-    sample_args.add_argument('--cases', '-cases', default=[], nargs='+', 
-                             metavar='SAMPLE_ID', help=
+    sample_args.add_argument(
+'-cases', '--cases', default=[], nargs='+', metavar='SAMPLE_ID', help=
 '''One or more sample IDs to treat as cases. Default 
 behaviour is to retain variants/alleles present in 
 all of these samples as long as they are not 
@@ -269,8 +280,8 @@ present in any sample specified using the
 adjusted using other options detailed below.
 
 ''')
-    sample_args.add_argument('--controls', '-controls', default=[], nargs='+', 
-                             metavar='SAMPLE_ID', help=
+    sample_args.add_argument(
+'-controls', '--controls', default=[], nargs='+', metavar='SAMPLE_ID', help=
 '''One or more sample IDs to treat as controls. 
 Default behaviour is to filter variants/alleles 
 present in any of these samples. This behaviour 
@@ -278,7 +289,8 @@ can be adjusted using other options detailed
 below.
 
 ''')
-    sample_args.add_argument('--ped', '-ped', help=
+    sample_args.add_argument(
+'-ped', '--ped', help=
 '''A ped file containing information about samples in
 your VCF for use for filtering on affectation 
 status and inheritance patterns.
@@ -302,8 +314,8 @@ Affection status should be coded:
      2 affected
 
 ''')
-    sample_args.add_argument('--gq', '-gq', type=int, default=20,
-                             help=
+    sample_args.add_argument(
+'-gq', '--gq', type=int, default=20, help=
 '''Minimum genotype quality score threshold. Sample 
 genotype calls with a score lower than this 
 threshold will be treated as no-calls. 
@@ -311,17 +323,40 @@ Default = 20.
 
 ''')
 
-    sample_args.add_argument('--n_cases', '-n_cases', type=int, help=
+    sample_args.add_argument(
+'-n_cases', '--n_cases', type=int, help=
 '''Instead of requiring a variant to be present in
 ALL samples specified by --cases, require at least
 this many cases.
 
 ''')
-    sample_args.add_argument('--n_controls', '-n_controls', type=int, help=
+    sample_args.add_argument(
+'-n_controls', '--n_controls', type=int, help=
 '''Instead of filtering an allele/variant if present
 in ANY sample specified by --controls, require at 
 least this many controls to carry a variant before
 it is filtered.
+
+''')
+    sample_args.add_argument(
+'--biallelic', action='store_true', help=
+'''Identify variants matching a recessive inheritance
+pattern in cases present in the PED file specified
+by the --ped argument. Input must be VEP 
+annotated. If the --csq argument is given, only
+variants/alleles resulting in the given functional
+consequences will be used to identify qualifying 
+variants/alleles, otherwise the default set of 
+VEP consequences (see --csq argument for details)
+will be used.
+
+''')
+    sample_args.add_argument(
+'--de_novo', action='store_true', help=
+'''Idenfify apparent de novo variants in cases
+present in the PED file specified by the --ped
+argument. This requires that at least one 
+parent-child trio exists in the given PED file.
 
 ''')
     #end of args
