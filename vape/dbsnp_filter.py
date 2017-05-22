@@ -155,11 +155,18 @@ class dbSnpFilter(VcfFilter):
                         #way, giving indexes of relevant alleles in CLNALLE 
                         #and keeping other annotations in the same order
                         cln_idx = str(i + 1)
-                        if cln_idx in snp.INFO_FIELDS['CLNALLE']:
-                            j = snp.INFO_FIELDS['CLNALLE'].index(cln_idx)
+                        cln_alle = snp.INFO_FIELDS['CLNALLE'].split(",")
+                        if cln_idx in cln_alle:
+                            j = cln_alle.index(cln_idx)
                             for f in self.clinvar_fields:
                                 if f == 'CLNALLE': continue
-                                sig = snp.INFO_FIELDS[f].split(",")[j] 
+                                try:
+                                    sig = snp.INFO_FIELDS[f].split(",")[j]
+                                except IndexError:
+                                    if f == 'GENEINFO':
+                                        sig = snp.INFO_FIELDS[f]
+                                    else:
+                                        raise 
                                 annot[f] = sig 
                                 if self.clinvar_path and f == 'CLNSIG':
                                     if ([i for i in ['4', '5'] if i 
