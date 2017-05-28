@@ -60,6 +60,10 @@ class PedFile(object):
         return (i for i in self.individuals 
                 if self.individuals[i].is_unaffected())
 
+    def get_unknown_phenotype(self):
+        return (i for i in self.individuals 
+                if self.individuals[i].is_unknown_phenotype())
+
     def get_males(self):
         return (i for i in self.individuals 
                 if self.individuals[i].is_male())
@@ -67,6 +71,10 @@ class PedFile(object):
     def get_females(self):
         return (i for i in self.individuals 
                 if self.individuals[i].is_female())
+
+    def get_unknown_gender(self):
+        return (i for i in self.individuals 
+                if self.individuals[i].is_unknown_gender())
 
 
 class Family(PedFile):
@@ -100,16 +108,16 @@ class Family(PedFile):
                            " added to family '{}'." .format(self.fid))
         individual.fid = self.fid
         for i in self.individuals.values():
-            if (i.mother != '0' and i.mother == individual.mother and 
-                i.father != '0' and i.father == individual.father):
+            if (i.mother and i.mother == individual.mother and 
+                i.father and i.father == individual.father):
                 i.siblings.append(individual.iid)
                 individual.siblings.append(i.iid)
-            elif ( (i.mother != '0' and i.mother == individual.mother) or
-                  (i.father != '0' and i.father == individual.father)):
+            elif ( (i.mother and i.mother == individual.mother) or
+                  (i.father and i.father == individual.father)):
                 i.half_siblings.append(individual.iid)
                 individual.half_siblings.append(i.iid)
         for parent in [individual.mother, individual.father]:
-            if parent != '0':
+            if parent:
                 if parent not in self.parents:
                     self.parents[parent] = [individual.iid]
                 else:
@@ -134,13 +142,25 @@ class Family(PedFile):
 class Individual(object):
     ''' Stores information about a single individual in a PED file '''
 
+    __slots__ = ['fid', 'iid', 'father', 'mother', 'sex', 'phenotype',
+                 'siblings', 'half_siblings', 'children']
+
     def __init__(self, fid, iid, father, mother, sex, phenotype, siblings=[],
                  half_siblings=[], children=[]):
         self.fid = fid
         self.iid = iid
-        self.father = father
-        self.mother = mother
-        self.sex = int(sex)
+        if father == '0':
+            self.father = None
+        else:
+            self.father = father
+        if mother == '0':
+            self.mother = None
+        else:
+            self.mother = mother
+        try:
+            self.sex = int(sex)
+        except ValueError: #any value other than 1 or 2 = unknown gender
+            self.sex = 0
         self.phenotype = int(phenotype)
         self.siblings = []
         self.half_siblings = []
@@ -151,6 +171,15 @@ class Individual(object):
             self.half_siblings.append(half_siblings)
         if children:
             self.children.append(children)
+
+    @property
+    def parents(self):
+        parents = []
+        if self.father is not None:
+            parents.append(self.father)
+        if self.mother is not None:
+            parents.append(self.mother)
+        return parents
 
     def is_affected(self):
         return self.phenotype == 2

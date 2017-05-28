@@ -48,7 +48,12 @@ class VepFilter(object):
     def filter(self, record):
         filter_alleles = [True] * (len(record.ALLELES) -1)
         #whether an ALT allele should be filtered or not
-        filter_csq = [True] * len(record.CSQ) 
+        try:
+            filter_csq = [True] * len(record.CSQ) 
+        except HeaderError:
+            raise Exception("Could not identify CSQ or ANN fields in VCF " +
+                            "header. Please ensure your input is annotated " +
+                            "with Ensembl's VEP")
         #whether each csq should be filtered or not
         i = -1
         for c in record.CSQ:
@@ -75,10 +80,12 @@ class VepFilter(object):
         return filter_alleles, filter_csq
 
     def _read_csq_file(self):
-        return self._get_valid_and_default("data/vep_classes.tsv")
+        data_file = os.path.join(os.path.dirname(__file__), "data", "vep_classes.tsv")
+        return self._get_valid_and_default(data_file)
 
     def _read_biotype_file(self):
-        return self._get_valid_and_default("data/biotypes.tsv")
+        data_file = os.path.join(os.path.dirname(__file__), "data", "biotypes.tsv")
+        return self._get_valid_and_default(data_file)
 
     def _get_valid_and_default(self, data_file):
         defaults = list()
