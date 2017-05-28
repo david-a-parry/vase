@@ -60,6 +60,10 @@ class PedFile(object):
         return (i for i in self.individuals 
                 if self.individuals[i].is_unaffected())
 
+    def get_unknown_phenotype(self):
+        return (i for i in self.individuals 
+                if self.individuals[i].is_unknown_phenotype())
+
     def get_males(self):
         return (i for i in self.individuals 
                 if self.individuals[i].is_male())
@@ -67,6 +71,10 @@ class PedFile(object):
     def get_females(self):
         return (i for i in self.individuals 
                 if self.individuals[i].is_female())
+
+    def get_unknown_gender(self):
+        return (i for i in self.individuals 
+                if self.individuals[i].is_unknown_gender())
 
 
 class Family(PedFile):
@@ -134,6 +142,9 @@ class Family(PedFile):
 class Individual(object):
     ''' Stores information about a single individual in a PED file '''
 
+    __slots__ = ['fid', 'iid', 'father', 'mother', 'sex', 'phenotype',
+                 'siblings', 'half_siblings', 'children']
+
     def __init__(self, fid, iid, father, mother, sex, phenotype, siblings=[],
                  half_siblings=[], children=[]):
         self.fid = fid
@@ -160,6 +171,15 @@ class Individual(object):
             self.half_siblings.append(half_siblings)
         if children:
             self.children.append(children)
+
+    @property
+    def parents(self):
+        parents = []
+        if self.father is not None:
+            parents.append(self.father)
+        if self.mother is not None:
+            parents.append(self.mother)
+        return parents
 
     def is_affected(self):
         return self.phenotype == 2
