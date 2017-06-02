@@ -89,8 +89,12 @@ class FamilyFilter(object):
             inheritance is made and it will not spot pseudodominance.
 
         '''
-        n_affected = 0
         for fid, fam in self.ped.families.items():
+            n_affected = 0
+            no_parents = True
+            dominant = False
+            denovo = False
+            recessive = False
             self.logger.info("Assessing inheritance pattern of family {}"
                               .format(fid))
             f_aff =list(fam.get_affected())
@@ -104,9 +108,7 @@ class FamilyFilter(object):
                     self.logger.info("No parents for affected individual {}"
                                       .format(iid))
                     continue
-                dominant = False
-                denovo = False
-                recessive = False
+                no_parents = False
                 obligate_carriers = set()
                 for par in indv.parents:
                     #is parent affected
@@ -134,12 +136,13 @@ class FamilyFilter(object):
                         dominant = True
             if not dominant:
                 recessive = True
-            if recessive and n_affected == 1:
+            if recessive and n_affected == 1 and not no_parents:
                 denovo = True
             elif recessive and n_affected > 1:
                 # we can entertain apparent de novos due to somatic mosaicism
                 # if all affecteds share a parent
                 pars = fam.individuals[f_aff[0]].parents
+                shared_pars = None
                 if len(pars) == 2:
                     shared_pars = set(pars)
                     for i in range(1, len(f_aff)):
@@ -155,16 +158,19 @@ class FamilyFilter(object):
             
             self.inheritance_patterns[fid] = []
             if recessive:
-                self.logger.info("Assesing recessive inheritance for family " +
-                                 "'{}'" .format(fid))
+                self.logger.info("Family '{}' " .format(fid) + "can be " + 
+                                 "analysed  under a recessive model")
                 self.inheritance_patterns[fid].append('recessive')
             if denovo:
-                self.logger.info("Assesing de novo inheritance for family " +
-                                 "'{}'" .format(fid))
+                dmodel = "de novo"
+                if n_affected > 1:
+                    dmodel += " (with germline mosaicism)"
+                self.logger.info("Family '{}' " .format(fid) + "can be " + 
+                                 "analysed  under a {} model" .format(dmodel))
                 self.inheritance_patterns[fid].append('de_novo')
             if dominant:
-                self.logger.info("Assesing dominant inheritance for family " +
-                                 "'{}'" .format(fam.fid))
+                self.logger.info("Family '{}' " .format(fid) + "can be " + 
+                                 "analysed  under a dominant model")
                 self.inheritance_patterns[fid].append('dominant')
             
 
@@ -203,11 +209,12 @@ class RecessiveFilter(object):
 
         self.family_filter = family_filter
         self.ped = family_filter.ped
-        self.families = list(x for x in family_filter.inheritance_patterns 
-                             if 'recessive' in family_filter.inheritance_patterns[x])
+        self.families = list(x for x in family_filter.inheritance_patterns if
+                          'recessive' in family_filter.inheritance_patterns[x])
         self.samples = family_filter.vcf_samples
         self.unaffected = family_filter.vcf_unaffected
-        self.affected = family_filter.vcf_affected
+        self.affected = list(x for x in family_filter.vcf_affected if 
+                             self.ped.individuals[x].fid in self.families)
         self.gq = gq
         self._fam_to_aff = dict()
         for fid in self.families:
@@ -373,6 +380,7 @@ class RecessiveFilter(object):
                                 incomp = True
                                 break
                         if not incomp:
+                            #TODO - check phase groups!
                             biallelics[aff].append(tuple([hets[i], hets[j]]))
             if not biallelics:
                 continue
