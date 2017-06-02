@@ -8,7 +8,8 @@ class VcfFilter(object):
         another VCF file.
     '''
     
-    def __init__(self, vcf, prefix, freq=None, min_freq=None):
+    def __init__(self, vcf, prefix, freq=None, min_freq=None, 
+                 freq_fields=("AF",), ac_fields=("AC",), an_fields=("AN",) ):
         ''' 
             Initialize object with a VCF file and optional filtering 
             arguments.
@@ -30,14 +31,19 @@ class VcfFilter(object):
 
         self.vcf = VcfReader(vcf)
         self.prefix = prefix
-        self.freq_fields = {}
-        self.annot_fields = {}
         self.freq = freq
         self.min_freq = min_freq
+        self.freq_info = freq_fields
+        self.ac_info = ac_fields
+        self.an_info = an_fields
         if self.freq is not None and self.min_freq is not None:
             if self.freq <= self.min_freq:
                 raise Exception("freq argument must be greater than " +
                                 "min_freq argument")
+        self.freq_fields = dict()
+        self.ac_fields = dict()
+        self.an_fields = dict()
+        self.annot_fields = dict()
         self.get_annot_fields()
         self.added_info = {}
         self.create_header_fields()
@@ -104,8 +110,6 @@ class VcfFilter(object):
         for var in var_list:
             for i in range(len(var.DECOMPOSED_ALLELES)):
                 if alt_allele == var.DECOMPOSED_ALLELES[i]:
-                    #no point attempting to use var.parsed_info_fields() for 
-                    #these fields as they are not set to appropriate types
                     matched = True
                     for f,d in self.freq_fields.items():
                         val = self._get_value(f, d, var, i)
@@ -123,6 +127,29 @@ class VcfFilter(object):
                                         do_filter = True
                                 except ValueError: 
                                     pass
+                    for an_k,an_v in self.an_fields.items():
+                        # will only have self.an_fields if there were no 
+                        # self.freq_fields 
+                        f = an_k.replace("AN", "AF", 1)
+                        ac_k = an_k.replace("AN", "AC", 1)
+                        ac_v = self.ac_fields[ac_k]
+                        an = self._get_value(an_k, an_v, var, i)
+                        ac = self._get_value(ac_k, ac_v, var, i)
+                        if an is None or ac is None:
+                            continue
+                        try:
+                            an = int(an)
+                            ac = int(ac)
+                            af = ac/an
+                            annot[f] = af
+                            if self.freq is not None:
+                                if af >= self.freq:
+                                    do_filter = True
+                            if self.min_freq is not None:
+                                if af < self.min_freq:
+                                    do_filter = True
+                        except (ValueError, ZeroDivisionError): 
+                            pass
                     for f,d in self.annot_fields.items():
                         val = self._get_value(f, d, var, i)
                         if val is not None:
@@ -153,39 +180,59 @@ class VcfFilter(object):
         '''
             Creates dicts of INFO field names to dicts of 'Type', 
             'Number'and 'Description' as found in the VCF metadata for 
-            INFO field names for frequency (freq_fields = ['AF']), 
-            or allele annotations fields (annot_fields = ['AN', 'AC'])
+            INFO field names for frequency (freq_fields = ['AF']),
+            allele count fields (ac_fields = ['AC']) and allele 
+            number fields (an_fields = ['AN'] or allele annotations 
+            fields (annot_fields = ['AN', 'AC']).
             
             Override this method to use custom allele frequency and 
             annotation fields.
         '''
 
-        freq_fields = ["AF"]
-        annot_fields = ["AN", "AC"]
-        for f in freq_fields:
+        annot_info = self.ac_info + self.an_info
+        for f in self.freq_info:
             if f in self.vcf.metadata['INFO']:
                 self.freq_fields[f] = self.vcf.metadata['INFO'][f][-1]
-        for f in annot_fields:
+        for f in annot_info:
             if f in self.vcf.metadata['INFO']:
                 self.annot_fields[f] = self.vcf.metadata['INFO'][f][-1]
 
         if not self.freq_fields and (self.freq is not None or 
-                                   self.min_freq is not None):
-            raise Exception("ERROR: no frequency fields identified in VCF " + 
-                            "header for file '{}'.".format(self.vcf.filename) +
-                            " Unable to use freq/min_freq arguments for " + 
-                            "variant filtering.")
+                                     self.min_freq is not None):
+            self._get_an_and_ac(self.an_info, self.ac_info)
+            if not self.an_fields:
+                raise Exception("ERROR: no frequency fields identified in " + 
+                                "VCF header for file '{}'."
+                                .format(self.vcf.filename) + " Unable to use" +
+                                "freq/min_freq arguments for variant " + 
+                                "filtering.")
 
     def create_header_fields(self):
         '''
             Create dict entries for all INFO fields added by this 
             instance, suitable for adding to a VcfHeader object.
         '''
-
-        for f,v in self.freq_fields.items():
-            self._make_metadata(f, v)
         for f,v in self.annot_fields.items():
             self._make_metadata(f, v)
+        if self.freq_fields:
+            for f,v in self.freq_fields.items():
+                self._make_metadata(f, v)
+        elif self.an_fields:
+            self._make_an_freq_metadata()
+
+    def _make_an_freq_metadata(self):
+        for an in self.an_fields:
+            name = an.replace("AN", "AF", 1)
+            ac = an.replace("AN", "AC", 1)
+            desc = ('"{} INFO field parsed by {} object. '.format(
+                    name, type(self).__name__) + "Calculated from {} and {} "
+                    .format(ac, an))
+            self.added_info[self.prefix + "_" + name] = {'Number' : 'A', 
+                                                         'Type' : 'Float',
+                                                         'Source' : '"' + 
+                                                         self.vcf.filename + 
+                                                         '"',
+                                                         'Description' : desc }
 
     def _make_metadata(self, name, properties):
        
@@ -203,3 +250,15 @@ class VcfFilter(object):
                                                        self.vcf.filename + '"',
                                                      'Description' : desc }
          
+    def _get_an_and_ac(self, an_info, ac_info):
+        for i in range(len(ac_info)):
+            an = an_info[i]
+            ac = ac_info[i]
+            if (an in self.vcf.metadata['INFO'] and 
+                ac in self.vcf.metadata['INFO']):
+                #ANs and ACs should be in same order
+                self.an_fields[an] = self.vcf.metadata['INFO'][an][-1]
+                self.ac_fields[ac] = self.vcf.metadata['INFO'][ac][-1]
+
+
+
