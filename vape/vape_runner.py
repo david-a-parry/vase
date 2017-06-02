@@ -47,8 +47,15 @@ class VapeRunner(object):
             self.recessive_filter = RecessiveFilter(self.input, 
                                                     self.family_filter, 
                                                     args.gq)
-        
-            
+            if not self.recessive_filter.affected:
+                msg = ("No samples fit a recessive model - can not use " + 
+                      "biallelic filtering")
+                if not self.dominant_filter and not self.de_novo_filters:
+                    raise Exception("Error: " + msg)
+                else:
+                    self.logger.warn(msg + ". Will continue with other " + 
+                                     "inheritance models.")
+                    self.recessive_filter = None
 
     def run(self):
         ''' Run VCF filtering/annotation using args from bin/vape.py '''
@@ -82,6 +89,7 @@ class VapeRunner(object):
                 if sum(filter_alleles) == len(filter_alleles): 
                     #all alleles should be filtered
                     return
+        #TODO make de novo and recessive filtering work nicely together
         filter_dominant = self.dom_filter(record, filter_alleles)
         if self.recessive_filter:
             #if var is valid de novo or dominant, add to cache
