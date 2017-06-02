@@ -457,10 +457,10 @@ class RecessiveFilter(object):
                         #apparent de novo
                         self.family_filter.logger.debug("Apparent de novo " + 
                             "allele {} for sample {} (parents = {} + {}) "
-                            .format(alleles[i], samp, par[0], par[1]) + 
+                            .format(alleles[-i], samp, par[0], par[1]) + 
                             "for recessive combination {}/{}"
                             .format(alleles[0], alleles[-1]))
-                        dns[alleles[i]].append(samp)
+                        dns[alleles[-i]].append(samp)
                         if self.exclude_denovo:
                             return (False, dns)
             elif len(par) == 1:
