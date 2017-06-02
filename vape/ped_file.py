@@ -76,7 +76,13 @@ class PedFile(object):
         return (i for i in self.individuals 
                 if self.individuals[i].is_unknown_gender())
 
-
+    def fid_from_iid(self, iid):
+        try:
+            return self.individuals[iid].fid
+        except KeyError:
+            raise PedError("Individual {} not ine PED file {}" .format(iid, 
+                                                                self.filename))
+        
 class Family(PedFile):
     ''' Stores a single family as defined in a PED file '''
 
