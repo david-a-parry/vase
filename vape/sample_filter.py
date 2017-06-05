@@ -21,8 +21,9 @@ class SampleFilter(object):
 
     def filter(self, record, allele):
         '''
-            For a given VcfRecord, return a list of booleans indicating
-            for each allele whether it should be filtered or not.
+            For a given VcfRecord and ALT allele, return True if that 
+            allele should be filtered or not based on presence/absence
+            in cases and controls.
         '''
         case_matches = 0
         control_matches = 0
