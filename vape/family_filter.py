@@ -229,7 +229,28 @@ class RecessiveFilter(object):
         self._last_added = dict()
         self._current_features = set()
         self._processed_features = set()
-    
+ 
+    def get_header_fields(self):
+        hf = dict()
+        fields = [("VAPE_biallelic_homozygous", 
+                   '"Variants that constitute homozygous biallelic changes ' + 
+                   ' parsed by {}"' .format(type(self).__name__)),
+                   ("VAPE_biallelic_compound_het",
+                   '"Variants that constitute compound heterozygous ' + 
+                   'biallelic changes parsed by {}"'.format(
+                                                        type(self).__name__)),
+                   ("VAPE_biallelic_de_novo",
+                   '"Variants that constitute biallelic changes and appear ' + 
+                   ' to have arisen de novo"'),
+                   ("VAPE_biallelic_features", 
+                   '"Features (e.g. transcripts) that contain qualifying ' + 
+                   'biallelic variants parsed by {}"' .format(
+                    type(self).__name__)),]
+        for f in fields:
+            hf[f[0]] = {'Number' : 'A', 'Type' : 'String',
+                        'Description' : f[1] }
+        return hf
+        
     def process_record(self, record, ignore_alleles=[], ignore_csq=[]):
         '''
             Returns True if record should be stored for checking against
@@ -380,8 +401,13 @@ class RecessiveFilter(object):
                                 incomp = True
                                 break
                         if not incomp:
-                            #TODO - check phase groups!
-                            biallelics[aff].append(tuple([hets[i], hets[j]]))
+                            if not prs[hets[i]].record.in_cis_with(sample=aff,
+                                allele=prs[hets[i]].allele, 
+                                other=prs[hets[j]].record, 
+                                other_allele=prs[hets[j]].allele):
+                                #check phase groups in case alleles in cis
+                                biallelics[aff].append(
+                                                     tuple([hets[i], hets[j]]))
             if not biallelics:
                 continue
             #see if all affecteds in the same family share the same biallelics
