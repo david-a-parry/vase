@@ -56,6 +56,13 @@ class VapeRunner(object):
                     self.logger.warn(msg + ". Will continue with other " + 
                                      "inheritance models.")
                     self.recessive_filter = None
+            else:
+                for f,d in self.recessive_filter.get_header_fields().items():
+                    self.logger.debug("Adding RecessiveFilter annotation {}" 
+                                      .format(f))
+                    self.input.header.add_header_field(name=f, dictionary=d, 
+                                                       field_type='INFO')
+        #TODO get other VCF filters
 
     def run(self):
         ''' Run VCF filtering/annotation using args from bin/vape.py '''
