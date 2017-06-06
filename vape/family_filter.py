@@ -48,7 +48,7 @@ class FamilyFilter(object):
         if not self.logger.hasHandlers():
             self.logger.setLevel(logging_level)
             formatter = logging.Formatter(
-                        '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+                        '[%(asctime)s] %(name)s - %(levelname)s - %(message)s')
             ch = logging.StreamHandler()
             ch.setLevel(self.logger.level)
             ch.setFormatter(formatter)
@@ -159,18 +159,18 @@ class FamilyFilter(object):
             self.inheritance_patterns[fid] = []
             if recessive:
                 self.logger.info("Family '{}' " .format(fid) + "can be " + 
-                                 "analysed  under a recessive model")
+                                 "analysed under a recessive model")
                 self.inheritance_patterns[fid].append('recessive')
             if denovo:
                 dmodel = "de novo"
                 if n_affected > 1:
                     dmodel += " (with germline mosaicism)"
                 self.logger.info("Family '{}' " .format(fid) + "can be " + 
-                                 "analysed  under a {} model" .format(dmodel))
+                                 "analysed under a {} model" .format(dmodel))
                 self.inheritance_patterns[fid].append('de_novo')
             if dominant:
                 self.logger.info("Family '{}' " .format(fid) + "can be " + 
-                                 "analysed  under a dominant model")
+                                 "analysed under a dominant model")
                 self.inheritance_patterns[fid].append('dominant')
                 self.obligate_carriers[fid] = tuple(obligate_carriers)
             
@@ -871,7 +871,8 @@ class DeNovoFilter(InheritanceFilter):
             fam_per_allele = ['.'] * (len(record.ALLELES) -1)
             for i in range(len(denovo_alleles)):
                 if denovo_alleles[i]:
-                     dns_per_allele[i] = str.join("|", denovo_alleles[i])
+                    dns_per_allele[i] = str.join("|", denovo_alleles[i])
+                    fam_per_allele[i] = str.join("|", fam_alleles[i])
             record.add_info_fields({'VAPE_de_novo' : str.join(',', 
                                                               dns_per_allele),
                                     'VAPE_de_novo_families' : str.join(",",
