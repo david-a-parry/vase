@@ -138,10 +138,10 @@ class VcfFilter(object):
                         if an is None or ac is None:
                             continue
                         try:
-                            an = int(an)
-                            ac = int(ac)
+                            an = float(an)
+                            ac = float(ac)
                             af = ac/an
-                            annot[f] = af
+                            annot[f] = "{:.4e}".format(af)
                             if self.freq is not None:
                                 if af >= self.freq:
                                     do_filter = True
