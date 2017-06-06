@@ -36,7 +36,7 @@ class VapeRunner(object):
             self.sample_filter = SampleFilter(self.input, args.cases, 
                                               args.controls, args.n_cases,
                                               args.n_controls, args.gq)
-        self.de_novo_filters = None
+        self.de_novo_filter = None
         self.dominant_filter = None
         self.recessive_filter = None
         self.family_filter = None
@@ -318,7 +318,7 @@ class VapeRunner(object):
         else:
             self.logger.setLevel(logging.INFO)
         formatter = logging.Formatter(
-                        '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+                        '[%(asctime)s] %(name)s - %(levelname)s - %(message)s')
         ch = logging.StreamHandler()
         ch.setLevel(self.logger.level)
         ch.setFormatter(formatter)
