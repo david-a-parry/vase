@@ -521,7 +521,7 @@ class RecessiveFilter(InheritanceFilter):
                         self.family_filter.logger.debug("Apparent de novo " + 
                             "allele {} for sample {} (parents = {} + {}) "
                             .format(alleles[-i], samp, par[0], par[1]) + 
-                            "for recessive combination {}/{}"
+                            "for recessive combination {}|{}"
                             .format(alleles[0], alleles[-1]))
                         dns[alleles[-i]].append(samp)
                         if self.exclude_denovo:
@@ -862,6 +862,12 @@ class DeNovoFilter(InheritanceFilter):
                                 dns.append(dfilter.cases)
                         else:
                             dns.append(dfilter.cases)
+                            self.family_filter.logger.debug("Apparent de " + 
+                                "novo allele {}:{}-{}/{} ".format(
+                                record.CHROM, record.POS, record.REF, 
+                                record.ALLELES[-i]) + "present in {} ".format(
+                                dfilter.cases) + "and absent in {}".format(
+                                dfilter.controls))
                 if len(dns) == len(filters):
                     ([denovo_alleles[i].extend(x) for x in dns])
                     fam_alleles[i].append(fam)
