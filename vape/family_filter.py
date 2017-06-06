@@ -1,5 +1,6 @@
 from .parse_vcf.parse_vcf import * 
 from .ped_file import *
+from .sample_filter import SampleFilter
 import logging
 from collections import OrderedDict, defaultdict
 
@@ -52,25 +53,21 @@ class FamilyFilter(object):
             ch.setLevel(self.logger.level)
             ch.setFormatter(formatter)
             self.logger.addHandler(ch)
-        self.affected = list(ped.get_affected())
-        self.unaffected = list(ped.get_unaffected())
+        self.affected = tuple(ped.get_affected())
+        self.unaffected = tuple(ped.get_unaffected())
+        self.obligate_carriers = dict()
         self.ped = ped
         self.vcf = vcf
         if not self.affected:
             raise Exception("No affected individuals found in PED file '{}'"
                             .format(ped.filename))
-        self.vcf_affected = []
-        self.vcf_unaffected = []
-        self.vcf_samples = []
-        for aff in self.affected:
-            if aff in self.vcf.header.samples:
-                self.vcf_affected.append(aff)
+        self.vcf_affected = tuple(x for x in self.affected 
+                                  if x in self.vcf.header.samples)
         if not self.vcf_affected:
             raise Exception("No affected individuals in PED file '{}'"
                             .format(ped.filename) + " found in VCF '{}'")
-        for un in self.unaffected:
-            if un in self.vcf.header.samples:
-                self.vcf_unaffected.append(un)
+        self.vcf_unaffected = tuple(x for x in self.unaffected 
+                                    if x in self.vcf.header.samples)
         self.vcf_samples = self.vcf_affected + self.vcf_unaffected
         if inheritance_pattern is None:
             self.inheritance_patterns = dict()
@@ -97,7 +94,8 @@ class FamilyFilter(object):
             recessive = False
             self.logger.info("Assessing inheritance pattern of family {}"
                               .format(fid))
-            f_aff =list(fam.get_affected())
+            f_aff = tuple(fam.get_affected())
+            obligate_carriers = set()
             if not f_aff:
                 continue
             for iid in f_aff:
@@ -109,9 +107,10 @@ class FamilyFilter(object):
                                       .format(iid))
                     continue
                 no_parents = False
-                obligate_carriers = set()
                 for par in indv.parents:
                     #is parent affected
+                    if par not in fam.individuals:
+                        continue
                     parent = fam.individuals[par]
                     par_to_child = False
                     gpar_to_child = False
@@ -137,7 +136,8 @@ class FamilyFilter(object):
             if not dominant:
                 recessive = True
             if recessive and n_affected == 1 and not no_parents:
-                denovo = True
+                if len(fam.individuals[f_aff[0]].parents) == 2:
+                    denovo = True
             elif recessive and n_affected > 1:
                 # we can entertain apparent de novos due to somatic mosaicism
                 # if all affecteds share a parent
@@ -172,10 +172,53 @@ class FamilyFilter(object):
                 self.logger.info("Family '{}' " .format(fid) + "can be " + 
                                  "analysed  under a dominant model")
                 self.inheritance_patterns[fid].append('dominant')
+                self.obligate_carriers[fid] = tuple(obligate_carriers)
             
+class InheritanceFilter(object):
+    
+    ''' 
+        Parent class for RecessiveFilter/DominantFilter/DeNovoFilter
+        object.
+    '''
+
+    def __init__(self, vcf, family_filter, gq=0):
+        self.family_filter = family_filter
+        self.gq = gq #setting to 0 should allow VCFs without GQ information
+        self.ped = family_filter.ped
+        self.samples = family_filter.vcf_samples
+        self.unaffected = family_filter.vcf_unaffected
+
+    def get_header_fields(self):
+        ''' 
+            Return dict of dicts with INFO header field names as keys
+            and dicts of features as values. These are suitable for 
+            handing to VcfHeader class's add_header_field() method.
+
+            Each INFO field must be defined in self.header_fields in 
+            the child class, which should be a list of tuples where 
+            each tuple consists of the name and description of the 
+            field.
+        '''
+        hf = dict()
+        for f in self.header_fields:
+            hf[f[0]] = {'Number' : 'A', 'Type' : 'String',
+                        'Description' : f[1] }
+        return hf
+
+    def confirm_heterozygous(self, record, samples):
+        gts = record.parsed_gts(fields=['GT'], samples=samples)
+        for s in samples:
+            if len(set(gts['GT'][s])) != 2:
+                return False
+        return True
+
+    def process_record(self, record):
+        '''Return True if record should be printed/kept'''
+        return NotImplementedError("process_record method should be " + 
+                                   "overriden by child class!") 
 
 
-class RecessiveFilter(object):
+class RecessiveFilter(InheritanceFilter):
     ''' 
         This class assumes that each family has a shared biallelic 
         genetic cause of disease. It will not cope with phenocopies, 
@@ -192,30 +235,42 @@ class RecessiveFilter(object):
 
                     gq:     Minimum genotype quality score. Genotype 
                             calls with a GQ lower than this value will
-                            be treated as no-calls.
+                            be treated as no-calls. Input without GQ
+                            data can be used if gq=0. Default=0.
 
                     strict: If True, for any affected sample with 
                             parents, require confirmation of parental 
                             genotypes. If either parent genotype is a 
                             no-call for a record, then the record will 
-                            be ignored. Default = False.
+                            be ignored. Defaul=False.
 
                     exclude_denovo:
                             If True, where there is data available from
                             both parents for an affected individual 
                             ignore apparent de novo occuring alleles.
+                            Default = False.
                             
         '''
-
-        self.family_filter = family_filter
-        self.ped = family_filter.ped
-        self.families = list(x for x in family_filter.inheritance_patterns if
-                          'recessive' in family_filter.inheritance_patterns[x])
-        self.samples = family_filter.vcf_samples
-        self.unaffected = family_filter.vcf_unaffected
-        self.affected = list(x for x in family_filter.vcf_affected if 
+        self.header_fields = [("VAPE_biallelic_homozygous", 
+               '"Variants that constitute homozygous biallelic changes ' + 
+               ' parsed by {}"' .format(type(self).__name__)),
+               ("VAPE_biallelic_compound_het",
+               '"Variants that constitute compound heterozygous ' + 
+               'biallelic changes parsed by {}"'.format(
+                                                    type(self).__name__)),
+               ("VAPE_biallelic_de_novo",
+               '"Variants that constitute biallelic changes and appear ' + 
+               ' to have arisen de novo"'),
+               ("VAPE_biallelic_features", 
+               '"Features (e.g. transcripts) that contain qualifying ' + 
+               'biallelic variants parsed by {}"' .format(
+                type(self).__name__)),]
+        super().__init__(vcf, family_filter, gq)
+        self.families = tuple(x for x in self.family_filter.inheritance_patterns 
+                             if 'recessive' in 
+                             self.family_filter.inheritance_patterns[x])
+        self.affected = tuple(x for x in family_filter.vcf_affected if 
                              self.ped.individuals[x].fid in self.families)
-        self.gq = gq
         self._fam_to_aff = dict()
         for fid in self.families:
             self._fam_to_aff[fid] = set(x for x in 
@@ -230,27 +285,7 @@ class RecessiveFilter(object):
         self._current_features = set()
         self._processed_features = set()
  
-    def get_header_fields(self):
-        hf = dict()
-        fields = [("VAPE_biallelic_homozygous", 
-                   '"Variants that constitute homozygous biallelic changes ' + 
-                   ' parsed by {}"' .format(type(self).__name__)),
-                   ("VAPE_biallelic_compound_het",
-                   '"Variants that constitute compound heterozygous ' + 
-                   'biallelic changes parsed by {}"'.format(
-                                                        type(self).__name__)),
-                   ("VAPE_biallelic_de_novo",
-                   '"Variants that constitute biallelic changes and appear ' + 
-                   ' to have arisen de novo"'),
-                   ("VAPE_biallelic_features", 
-                   '"Features (e.g. transcripts) that contain qualifying ' + 
-                   'biallelic variants parsed by {}"' .format(
-                    type(self).__name__)),]
-        for f in fields:
-            hf[f[0]] = {'Number' : 'A', 'Type' : 'String',
-                        'Description' : f[1] }
-        return hf
-        
+       
     def process_record(self, record, ignore_alleles=[], ignore_csq=[]):
         '''
             Returns True if record should be stored for checking against
@@ -265,7 +300,7 @@ class RecessiveFilter(object):
                 record: VcfRecord from parse_vcf.py
 
                 
-                        ignore_alleles:
+                ignore_alleles:
                         List of booleans indicating for each ALT in 
                         order whether it should be ignored in relation
                         to possible recessive variation (e.g. if MAF is
@@ -308,10 +343,11 @@ class RecessiveFilter(object):
             skip_allele = False
             fams_with_allele = []
             for un in self.unaffected:
-                if gts['GT'][un] == (alt, alt) and gts['GQ'][un] >= self.gq:
-                    #hom in a control - skip allele
-                    skip_allele = True
-                    break
+                if gts['GT'][un] == (alt, alt):
+                    if not self.gq or gts['GQ'][un] >= self.gq:
+                        #hom in a control - skip allele
+                        skip_allele = True
+                        break
             if skip_allele:
                 continue
             for fid in self.families:
@@ -320,7 +356,8 @@ class RecessiveFilter(object):
                 have_allele = set() #affecteds carrying this allele
                 for aff in self._fam_to_aff[fid]:
                     #check all affecteds carry this allele
-                    if alt in gts['GT'][aff] and gts['GQ'][aff] >= self.gq:
+                    if (alt in gts['GT'][aff] and 
+                       (not self.gq or gts['GQ'][aff] >= self.gq)):
                         have_allele.add(aff)
                     else: 
                         break
@@ -433,12 +470,12 @@ class RecessiveFilter(object):
                                 model = 'compound_het'
                             for bi_pr in (prs[x] for x in bi):
                                 if bi_pr in segregating:
-                                    segregating[bi_pr].add_samples(affs, model, 
-                                                   feat, de_novo[bi_pr.alt_id])
+                                    segregating[bi_pr].add_samples(affs, fid, 
+                                           model, feat, de_novo[bi_pr.alt_id])
                                 else:
                                     segregating[bi_pr] = SegregatingBiallelic(
-                                                      bi_pr, affs, model, feat,
-                                                      de_novo[bi_pr.alt_id])
+                                                  bi_pr, affs, fid, model,
+                                                  feat, de_novo[bi_pr.alt_id])
         b_var_ids = set()
         for sb in segregating.values():
             sb.annotate_records()
@@ -503,11 +540,14 @@ class RecessiveFilter(object):
     def _get_allele_counts(self, allele, gts):
         a_counts = dict()
         for samp in gts['GT']:
-            gq = gts['GQ'][samp] 
-            if gq is not None and gq >= self.gq:
-                a_counts[samp] = gts['GT'][samp].count(allele)
+            if self.gq: #allow for VCFs without GQ by specifying gq=0
+                gq = gts['GQ'][samp] 
+                if gq is not None and gq >= self.gq:
+                    a_counts[samp] = gts['GT'][samp].count(allele)
+                else:
+                    a_counts[samp] = None
             else:
-                a_counts[samp] = None
+                a_counts[samp] = gts['GT'][samp].count(allele)
         return a_counts
 
         
@@ -517,9 +557,10 @@ class SegregatingBiallelic(object):
         with recessive inheritance.
     '''
 
-    __slots__ = ['recessive', 'samples', 'model', 'features', 'de_novos']
+    __slots__ = ['recessive', 'samples', 'families', 'model', 'features', 
+                 'de_novos']
 
-    def __init__(self, recessive, samples, model, feature, de_novos):
+    def __init__(self, recessive, samples, family, model, feature, de_novos):
         ''' 
             Initialize with a PotentialRecessive object, an iterable of
             sample IDs carrying the PotentialRecessives a string 
@@ -530,6 +571,7 @@ class SegregatingBiallelic(object):
         '''
         self.recessive = recessive
         self.samples = list(samples)
+        self.families = set([family])
         self.model = [model] * len(self.samples)
         self.features = set([feature])
         self.de_novos = set(de_novos)
@@ -540,9 +582,10 @@ class SegregatingBiallelic(object):
     def __hash__(self):
         return hash(self.recessive)
 
-    def add_samples(self, samples, model, feature, de_novos):
+    def add_samples(self, samples, family, model, feature, de_novos):
         ''' Add samples with corresponding model of inheritance '''
         self.samples.extend(samples)
+        self.families.add(family)
         self.model.extend([model] * (len(self.samples) - len(self.model)))
         self.features.add(feature)
         self.de_novos.update(de_novos)
@@ -554,14 +597,29 @@ class SegregatingBiallelic(object):
             k = 'VAPE_biallelic_' + self.model[i]
             annots[k].add(self.samples[i])
         for k in annots:
-            annots[k] = str.join(",", sorted(annots[k]))
-        annots['VAPE_biallelic_features'] = str.join(",", 
+            annots[k] = str.join("|", sorted(annots[k]))
+        annots['VAPE_biallelic_families'] = str.join("|", 
+                                                     sorted(self.families))
+        annots['VAPE_biallelic_features'] = str.join("|", 
                                                      sorted(self.features))
         if self.de_novos:
-            annots['VAPE_biallelic_de_novo'] = str.join(",", 
+            annots['VAPE_biallelic_de_novo'] = str.join("|", 
                                                         sorted(self.de_novos))
+        annots = self._convert_annotations(annots)
         self.recessive.record.add_info_fields(annots)
 
+    def _convert_annotations(self, annots):
+        ''' Convert to per-allele (Number=A) format for INFO field '''
+        converted_annots = dict()
+        for k,v in annots.items():
+            allele_fields = ['.'] * (len(self.recessive.record.ALLELES) -1)
+            if k in self.recessive.record.INFO_FIELDS:
+                allele_fields = self.recessive.record.INFO_FIELDS[k].split(',')
+            i = self.recessive.allele - 1
+            allele_fields[i] = v
+            converted_annots[k] = str.join(",", allele_fields)
+        return converted_annots
+            
 
 class PotentialRecessive(object):
     ''' 
@@ -588,11 +646,238 @@ class PotentialRecessive(object):
     def __hash__(self):
         return hash(self.alt_id)
 
-class DominantFilter(object):
-    pass
+class DominantFilter(InheritanceFilter):
+    '''
+        Identify variants that fit a dominant recessive pattern in 
+        given families.
+    '''
+
+    def __init__(self, vcf, family_filter, gq=0):
+        ''' 
+            Initialize with parent IDs, children IDs and VcfReader 
+            object.
+            
+            Args:
+                vcf:    VcfReader object from parse_vcf.py
+                
+                family_filter: 
+                        FamilyFilter object
+
+                gq:     Minimum genotype quality score. Genotype calls
+                        with a GQ lower than this value will be treated 
+                        as no-calls. Input without GQ data can be used 
+                        if gq=0. Default=0.
+
+                confirm_het:
+                        If True, apparent de novos are required to be 
+                        called as heterozygous. Default=False.
+
+        '''
+        self.header_fields = [("VAPE_dominant", 
+                    '"Alleles that segregate according to a dominant ' + 
+                    'inheritance pattern in an affected sample as' + 
+                    ' parsed by {}"' .format(type(self).__name__)),
+                    ('VAPE_dominant_families',
+                    '"Family IDs for VAPE_dominant alleles"')]
+        super().__init__(vcf, family_filter, gq)
+        self.families = tuple(x for x in self.family_filter.inheritance_patterns 
+                             if 'dominant' in 
+                             self.family_filter.inheritance_patterns[x])
+        self.affected = tuple(x for x in family_filter.vcf_affected if 
+                             self.ped.individuals[x].fid in self.families)
+        self.filters = dict()
+        for fam in self.families:
+            f_aff = tuple(x for x in self.ped.families[fam].get_affected() 
+                          if (x in self.affected or 
+                          x in self.obligate_carriers[fam]))
+            f_unaff = tuple(x for x in self.ped.families[fam].get_unaffected() 
+                            if (x in self.unaffected and x not in  
+                            self.family_filter.obligate_carriers[fam]))
+            dom_filter = SampleFilter(vcf, cases=f_aff, controls=f_unaff, 
+                                      gq=gq, confirm_missing=True)
+            self.filters[fam] = dom_filter 
+
+    def process_record(self, record, ignore_alleles=[]):
+        '''
+            Returns True if an allele segregates consistent with 
+            dominant inheritance. 
+
+            Args:
+                record: VcfRecord from parse_vcf.py
+                
+                ignore_alleles:
+                        List of booleans indicating for each ALT in 
+                        order whether it should be ignored in relation
+                        to possible recessive variation (e.g. if MAF is
+                        too high, no likely pathogenic consequence 
+                        etc.). This will normally have been generated 
+                        by VapeRunner via VcfFilter and/or VepFilter
+                        classes.
+
+        '''
+        dom_alleles = ([[] for i in range(len(record.ALLELES) - 1)])
+        fam_alleles = ([[] for i in range(len(record.ALLELES) - 1)])
+        for i in range(len(record.ALLELES) - 1):
+            if ignore_alleles[i]:
+                continue
+            allele = i + 1
+            for fam, dfilter in self.filters.items():
+                #looking for (potentially shared) de novos in a single family
+                is_dom = not dfilter.filter(record, allele)
+                if is_dom:
+                    if self.confirm_heterozygous(record, dfilter.cases):
+                        dom_alleles[i].extend(dfilter.cases)
+                        fam_alleles[i].append(fam)
+            
+        if sum(len(l) for l in dom_alleles):
+            dom_per_allele = ['.'] * (len(record.ALLELES) -1)
+            fam_per_allele = ['.'] * (len(record.ALLELES) -1)
+            for i in range(len(dom_alleles)):
+                if dom_alleles[i]:
+                     dom_per_allele[i] = str.join("|", dom_alleles[i])
+                     fam_per_allele[i] = str.join("|", fam_alleles[i])
+            record.add_info_fields({'VAPE_dominant' : str.join(',', 
+                                                              dom_per_allele),
+                                    'VAPE_dominant_families' : str.join(",",
+                                                              fam_per_allele)})
+            return True
+        return False
 
 
-class DeNovoFilter(object):
-    pass
+class ControlFilter(SampleFilter):
+    ''' Filter variants if they are present in a control sample. '''
 
+    def __init__(self, vcf, family_filter, gq=0, n_controls=0):
+        '''
+            Args:
+                vcf:    Input VcfReader object.
 
+                family_filter:
+                        FamilyFilter object containing information on 
+                        which samples are controls in the input VCF.
+
+                gq:     Minimum genotype quality score. Genotype calls 
+                        with a GQ lower than this value will be treated
+                        as as no-calls. Input without GQ data can be 
+                        used if gq=0. Default=0.
+        
+                
+                n_controls:
+                        Minimum number of controls required to carry an 
+                        ALT allele for it to be filtered. Alleles will 
+                        only be filtered if carried by this number of 
+                        controls or more. Default=0.
+
+        '''
+            
+        super().__init__(vcf, controls=family_filter.unaffected, gq=gq, 
+                         n_controls=0, confirm_missing=False)
+        
+
+class DeNovoFilter(InheritanceFilter):
+    ''' 
+        Identify and output variants occuring in a child and absent from 
+        the parents.
+    '''
+
+    def __init__(self, vcf, family_filter, gq=0, confirm_het=False):
+        ''' 
+            Initialize with parent IDs, children IDs and VcfReader 
+            object.
+            
+            Args:
+                vcf:    VcfReader object from parse_vcf.py
+                
+                family_filter: 
+                        FamilyFilter object
+
+                gq:     Minimum genotype quality score. Genotype calls
+                        with a GQ lower than this value will be treated 
+                        as no-calls. Input without GQ data can be used 
+                        if gq=0. Default=0.
+
+                confirm_het:
+                        If True, apparent de novos are required to be 
+                        called as heterozygous. Default=False.
+
+        '''
+        self.header_fields = [("VAPE_de_novo", 
+                   '"Alleles that constitute de novo occurence in a child' + 
+                   ' parsed by {}"' .format(type(self).__name__)),
+                    ('VAPE_de_novo_families',
+                    '"Family IDs for VAPE_de_novo alleles"')]
+        super().__init__(vcf, family_filter, gq)
+        self.families = tuple(x for x in self.family_filter.inheritance_patterns 
+                             if 'de_novo' in 
+                             self.family_filter.inheritance_patterns[x])
+        self.affected = tuple(x for x in family_filter.vcf_affected if 
+                             self.ped.individuals[x].fid in self.families)
+        self.confirm_het = confirm_het
+        self.filters = defaultdict(list)
+        for fam in self.families:
+            f_aff = tuple(x for x in self.ped.families[fam].get_affected() 
+                          if x in self.affected)
+            par_child_combos = defaultdict(list)
+            for aff in f_aff:
+                pars = tuple(self.ped.families[fam].individuals[aff].parents)
+                if len(pars) == 2:
+                    par_child_combos[pars].append(aff)
+            for parents,children in par_child_combos.items():
+                par_filter = SampleFilter(vcf, cases=children, 
+                                          controls=parents, gq=gq, 
+                                          confirm_missing=True)
+                self.filters[fam].append(par_filter)
+        
+    def process_record(self, record, ignore_alleles=[]):
+        '''
+            Returns True if allele is an apparent de novo variant.
+
+            Args:
+                record: VcfRecord from parse_vcf.py
+                
+                ignore_alleles:
+                        List of booleans indicating for each ALT in 
+                        order whether it should be ignored in relation
+                        to possible recessive variation (e.g. if MAF is
+                        too high, no likely pathogenic consequence 
+                        etc.). This will normally have been generated 
+                        by VapeRunner via VcfFilter and/or VepFilter
+                        classes.
+
+        '''
+        denovo_alleles = ([[] for i in range(len(record.ALLELES) - 1)])
+        fam_alleles = ([[] for i in range(len(record.ALLELES) - 1)])
+        for i in range(len(record.ALLELES) - 1):
+            if ignore_alleles[i]:
+                continue
+            allele = i + 1
+            for fam, filters in self.filters.items():
+                #looking for (potentially shared) de novos in a single family
+                dns = []
+                for dfilter in filters:
+                    is_denovo = not dfilter.filter(record, allele)
+                    if is_denovo:
+                        if self.confirm_het:
+                            if self.confirm_heterozygous(record, dfilter.cases):
+                                dns.append(dfilter.cases)
+                        else:
+                            dns.append(dfilter.cases)
+                if len(dns) == len(filters):
+                    ([denovo_alleles[i].extend(x) for x in dns])
+                    fam_alleles[i].append(fam)
+        if sum(len(l) for l in denovo_alleles):
+            #at least one de novo allele in at least one family
+            dns_per_allele = ['.'] * (len(record.ALLELES) -1)
+            fam_per_allele = ['.'] * (len(record.ALLELES) -1)
+            for i in range(len(denovo_alleles)):
+                if denovo_alleles[i]:
+                     dns_per_allele[i] = str.join("|", denovo_alleles[i])
+            record.add_info_fields({'VAPE_de_novo' : str.join(',', 
+                                                              dns_per_allele),
+                                    'VAPE_de_novo_families' : str.join(",",
+                                                              fam_per_allele)})
+            return True
+            return True
+        return False
+
+   
