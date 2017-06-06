@@ -728,6 +728,11 @@ class DominantFilter(InheritanceFilter):
                     if self.confirm_heterozygous(record, dfilter.cases):
                         dom_alleles[i].extend(dfilter.cases)
                         fam_alleles[i].append(fam)
+                        self.family_filter.logger.debug("Apparent dominant " + 
+                            "allele {}:{}-{}/{} ".format(record.CHROM, 
+                            record.POS, record.REF, record.ALLELES[allele]) + 
+                            "present in {} ".format(dfilter.cases) + 
+                            "and absent in {}".format(dfilter.controls))
             
         if sum(len(l) for l in dom_alleles):
             dom_per_allele = ['.'] * (len(record.ALLELES) -1)
@@ -865,9 +870,9 @@ class DeNovoFilter(InheritanceFilter):
                             self.family_filter.logger.debug("Apparent de " + 
                                 "novo allele {}:{}-{}/{} ".format(
                                 record.CHROM, record.POS, record.REF, 
-                                record.ALLELES[-i]) + "present in {} ".format(
-                                dfilter.cases) + "and absent in {}".format(
-                                dfilter.controls))
+                                record.ALLELES[allele]) + "present in {} "
+                                .format(dfilter.cases) + "and absent in {}"
+                                .format(dfilter.controls))
                 if len(dns) == len(filters):
                     ([denovo_alleles[i].extend(x) for x in dns])
                     fam_alleles[i].append(fam)
