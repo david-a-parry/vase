@@ -359,6 +359,14 @@ argument. This requires that at least one
 parent-child trio exists in the given PED file.
 
 ''')
+    sample_args.add_argument(
+'--dominant', action='store_true', help=
+'''Idenfify variants segregating in manner matching
+dominant inheritance in cases present in the PED 
+file specified by the --ped argument. 
+
+''')
+
     #end of args
     return parser.parse_args()
 
