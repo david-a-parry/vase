@@ -6,15 +6,41 @@ class SampleFilter(object):
     def __init__(self, vcf, cases=[], controls=[], n_cases=0, n_controls=0, 
                  gq=0, confirm_missing=False):
         '''
-            Initialize with parsed args from vape.py and input VcfReader
-            object
+            Initialize filtering options. 
+
+            Args:
+                vcf:    VcfReader object for input. Sample IDs will be 
+                        checked against header information.
+
+                cases:  IDs of samples that you want to check for the 
+                        presence of an ALT allele.
+
+                controls:
+                        IDs of samples that you want to confirm absence
+                        of an ALT allele.
+
+                n_cases:
+                        Minimum number of cases required to carry an ALT
+                        allele. Alleles will be filtered unless carried
+                        by this number of cases or more. Default=0.
+
+                n_controls:
+                        Minimum number of controls required to carry an 
+                        ALT allele for it to be filtered. Alleles will 
+                        only be filtered if carried by this number of 
+                        controls or more. Default=0.
+
+                gq:     Minimum genotype quality score (GQ). Genotype 
+                        calls with a GQ lower than this value will be
+                        treated as no-calls. Default=0.
+
+                confirm_missing:
+                        If True, only keep a variant if all controls are
+                        not no-calls and are above the GQ threshold set
+                        by the 'gq' option. Default=False.
+
         '''
-        self.cases = []
-        self.controls = []
-        self.samples = []
-        self.n_cases = 0
-        self.n_controls = 0
-        self.min_gq = 0
+                        
         self.vcf = vcf
         self.confirm_missing = confirm_missing
         self._parse_sample_args(cases, controls, n_cases, n_controls, gq)
@@ -22,8 +48,8 @@ class SampleFilter(object):
     def filter(self, record, allele):
         '''
             For a given VcfRecord and ALT allele, return True if that 
-            allele should be filtered or not based on presence/absence
-            in cases and controls.
+            allele should be filtered based on presence/absence in cases
+            and controls.
         '''
         case_matches = 0
         control_matches = 0
@@ -114,6 +140,8 @@ class SampleFilter(object):
                             str.join(", ", s))
         self.cases = list(case_set)
         self.controls = list(control_set)
+        self.n_cases = None
+        self.n_controls = None
         if n_cases and len(self.cases) < n_cases:
             raise Exception("Number of cases specified by --n_cases is " + 
                             "greater than the number of cases specified by " +
@@ -131,31 +159,3 @@ class SampleFilter(object):
             self.n_controls = n_controls    
         
 
-class DeNovoFilter(SampleFilter):
-    ''' 
-        Identify and output variants occuring in a child and absent from 
-        the parents
-    '''
-
-    def __init__(self, vcf, child, mother, father, gq=0, confirm_het=False):
-        ''' Initialize with parent IDs, child ID and VcfReader object.'''
-        self.mother = mother
-        self.father = father
-        self.child = child
-        self.vcf = vcf
-        self.confirm_het = confirm_het
-        super().__init__(vcf, cases=[child], controls=[mother, father], 
-                         gq=gq, confirm_missing=True)
-
-    def filter(self, record, allele):
-        remove = super().filter(record, allele)
-        if remove:
-            return True
-        if self.confirm_het:
-            gts = record.parsed_gts(fields=['GT'], samples=self.samples)
-            if len(set(gts['GT'][child])) != 2:
-                return True
-        denovos = []
-        return False
-                        
-                    
