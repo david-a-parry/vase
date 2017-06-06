@@ -5,9 +5,10 @@ from .parse_vcf.parse_vcf import VcfReader, VcfHeader, VcfRecord
 from .dbsnp_filter import dbSnpFilter 
 from .gnomad_filter import GnomadFilter 
 from .vep_filter import VepFilter  
-from .sample_filter import SampleFilter, DeNovoFilter
+from .sample_filter import SampleFilter
 from .ped_file import PedFile, Family, Individual
-from .family_filter import FamilyFilter, RecessiveFilter, DominantFilter
+from .family_filter import FamilyFilter, ControlFilter
+from .family_filter import RecessiveFilter, DominantFilter, DeNovoFilter
 
 class VapeRunner(object):
 
@@ -39,30 +40,15 @@ class VapeRunner(object):
         self.dominant_filter = None
         self.recessive_filter = None
         self.family_filter = None
+        self.control_filter = None
         self.variant_cache = VariantCache()
         if args.de_novo:
-            self._get_de_novo_filters()
+            self._get_de_novo_filter()
         if args.biallelic:
-            self._get_family_filter()
-            self.recessive_filter = RecessiveFilter(self.input, 
-                                                    self.family_filter, 
-                                                    args.gq)
-            if not self.recessive_filter.affected:
-                msg = ("No samples fit a recessive model - can not use " + 
-                      "biallelic filtering")
-                if not self.dominant_filter and not self.de_novo_filters:
-                    raise Exception("Error: " + msg)
-                else:
-                    self.logger.warn(msg + ". Will continue with other " + 
-                                     "inheritance models.")
-                    self.recessive_filter = None
-            else:
-                for f,d in self.recessive_filter.get_header_fields().items():
-                    self.logger.debug("Adding RecessiveFilter annotation {}" 
-                                      .format(f))
-                    self.input.header.add_header_field(name=f, dictionary=d, 
-                                                       field_type='INFO')
-        #TODO get other VCF filters
+            self._get_recessive_filter()
+        if args.dominant:
+            self._get_dominant_filter()
+        self._check_got_inherit_filter()
 
     def run(self):
         ''' Run VCF filtering/annotation using args from bin/vape.py '''
@@ -96,17 +82,31 @@ class VapeRunner(object):
                 if sum(filter_alleles) == len(filter_alleles): 
                     #all alleles should be filtered
                     return
-        #TODO make de novo and recessive filtering work nicely together
-        filter_dominant = self.dom_filter(record, filter_alleles)
+        dom_filter_alleles = list(filter_alleles)
+        if self.control_filter:
+            for i in range(1, len(record.ALLELES)):
+                if dom_filter_alleles[i-1]: #no need to filter again
+                    continue
+                r = self.control_filter.filter(record, i)
+                if r:
+                    dom_filter_alleles[i-1] = True
+        denovo_hit = False
+        dom_hit = False
+        if self.dominant_filter:
+            dom_hit = self.dominant_filter.process_record(record,
+                                                          dom_filter_alleles)
+        if self.de_novo_filter:
+            denovo_hit = self.de_novo_filter.process_record(record,
+                                                            dom_filter_alleles)
         if self.recessive_filter:
             #if var is valid de novo or dominant, add to cache
             #UNCOMMENT LINE BELOW WHEN DOMINANT FILTERING ENABLED
             #dom_hit = sum(filter_dominant) != len(filter_dominant)
-            dom_hit = False #DELETE ME
+            keep_record_anyway = denovo_hit or dom_hit
             if (self.recessive_filter.process_record(record, filter_alleles, 
-                filter_csq) or dom_hit):
+                filter_csq) or keep_record_anyway):
                 self.variant_cache.add_record(record, filter_alleles, 
-                                              filter_csq, dom_hit)
+                                              filter_csq, keep_record_anyway)
             if self.variant_cache.output_ready:
                 #process PotentialRecessives
                 rec_ids = self.recessive_filter.process_potential_recessives()
@@ -115,46 +115,14 @@ class VapeRunner(object):
                     if var.can_output or var.var_id in rec_ids:
                         self.out.write(str(var.record) + '\n')
                 self.variant_cache.output_ready = []
+        elif self.de_novo_filter or self.dominant_filter:
+            if denovo_hit or dom_hit:
+                self.out.write(str(record) + '\n')
         else:
-            filter_alleles = filter_dominant
-            #no need for caching if no recessive filtering
             if sum(filter_alleles) == len(filter_alleles): 
                 return
             self.out.write(str(record) + '\n')
     
-    def dom_filter(self, record, ignore_alleles):
-        remove_alleles = [False] * (len(record.ALLELES) - 1)
-        keep_alleles = [False] * (len(record.ALLELES) - 1)
-        if self.de_novo_filters:
-            found_de_novo = False
-            de_novos = []
-            for i in range(len(record.ALLELES) - 1):
-                if ignore_alleles[i]:
-                    de_novos.append('.')
-                    continue
-                for f in self.de_novo_filters:
-                    r = f.filter(record, i + 1)
-                    if r:
-                        remove_alleles[i] = True
-                    else:
-                        found_de_novo = True
-                        keep_alleles[i] = True
-                        if len(de_novos) > i:
-                            de_novos[i] += '|' + f.child
-                        else:
-                            de_novos.append(f.child)
-                
-            if found_de_novo:
-                inf = {'VAPE_de_novo' : str.join(",", de_novos)}
-                record.add_info_fields(info=inf, append_existing=True)
-        for i in range(len(remove_alleles)):
-            if remove_alleles[i] and not keep_alleles[i]:
-                ignore_alleles[i] = True
-        if self.dominant_filter:
-            #TODO - add dominant inheritance filtering
-            pass
-        return ignore_alleles
-
     def finish_up(self):
         if self.recessive_filter:
             rec_ids = self.recessive_filter.process_potential_recessives()
@@ -331,69 +299,11 @@ class VapeRunner(object):
             fh = sys.stdout
         return fh
 
-    def _get_de_novo_filters(self):
-        if not self.ped:
-            raise Exception("--de_novo argument requires a PED file but no " +
-                            "PED was specified. Please specify a PED file " + 
-                            "with at least one parent-child trio using the " + 
-                            "--ped argument.")
-
-        fams = set()
-        self.de_novo_filters = []
-        num_trios = 0
-        for iid in self.ped.get_affected():
-            if iid in self.input.header.samples:
-                self.logger.debug("Ped sample {} is in VCF" .format(iid))
-                if (self.ped.individuals[iid].mother and 
-                    self.ped.individuals[iid].father):
-                    #must have both parents specified present in PED 
-                    if (self.ped.individuals[iid].mother in 
-                        self.input.header.samples and 
-                        self.ped.individuals[iid].father in 
-                        self.input.header.samples):
-                        #and must have both parents present in VCF
-                        df = DeNovoFilter(vcf=self.input, child=iid,
-                                       mother=self.ped.individuals[iid].mother,
-                                       father=self.ped.individuals[iid].father,
-                                       gq=self.args.gq)
-                        self.de_novo_filters.append(df)
-                        fams.add(self.ped.individuals[iid].fid)
-                        num_trios += 1
-                        self.logger.debug("Ped sample {} has " .format(iid) +
-                                          "both  parents in VCF and can be "+
-                                          "de novo filtered")
-                else:
-                    self.logger.debug("Ped sample {} does not " .format(iid) + 
-                                      "have both parents in VCF")
-            else:
-                self.logger.debug("Ped sample {} not in VCF" .format(iid))
-        self.logger.info("Identified {} parent-child trios " .format(num_trios) 
-                  + "in {} families present in PED and VCF " .format(len(fams))
-                  + "from {} total families in PED." 
-                    .format(len(self.ped.families)))
-        if not num_trios:
-            e = Exception("No parent-child trios identified from PED and VCF" +
-                          " - please check your PED and VCF sample IDs")
-            self.logger.exception(e)
-            raise e
-        
-        self.input.header.add_header_field(
-            field_type='INFO',
-            name='VAPE_de_novo', 
-            dictionary={
-                         'Number' : 'A',
-                         'Type' : 'String',
-                         'Description' : '"Sample IDs in which an ALT allele' +
-                                         ' appears to have arisen de novo ' +  
-                                         'based on the absence of an allele ' +
-                                         'call in either parent"',
-            })
-    
     def _get_family_filter(self):
         if self.family_filter is not None:
             return self.family_filter
         if not self.ped:
-            raise Exception("inheritance filtering options require a PED " + 
+            raise Exception("Inheritance filtering options require a PED " + 
                             "file specified using --ped")
         self.family_filter = FamilyFilter(ped=self.ped, vcf=self.input,
                                           gq=self.args.gq, 
@@ -413,6 +323,82 @@ class VapeRunner(object):
         ch.setLevel(self.logger.level)
         ch.setFormatter(formatter)
         self.logger.addHandler(ch)
+
+    def _check_got_inherit_filter(self):
+        if self.args.de_novo or self.args.biallelic or self.args.dominant:
+            if (not self.recessive_filter and not self.de_novo_filter and
+                not self.dominant_filter):
+                raise Exception("No inheritance filters could be created " + 
+                                "with current settings. Please check your " +
+                                "ped/sample inputs or run without --biallelic"+
+                                "/--dominant/--de_novo options.")
+
+    def _get_dominant_filter(self):
+        self._get_family_filter()
+        self._get_control_filter()
+        self.dominant_filter = DominantFilter(self.input, self.family_filter,
+                                              self.args.gq)
+        if not self.dominant_filter.affected:
+            msg = ("No samples fit a dominant model - can not use dominant " + 
+                   "filtering")
+            if not self.args.recessive and not self.args.de_novo:
+                raise Exception("Error: " + msg)
+            else:
+                self.logger.warn(msg + ". Will continue with other models.")
+                self.recessive_filter = None
+        else:
+            for f,d in self.dominant_filter.get_header_fields().items():
+                self.logger.debug("Adding DominantFilter annotation {}" 
+                                  .format(f))
+                self.input.header.add_header_field(name=f, dictionary=d, 
+                                                   field_type='INFO')
+
+    def _get_de_novo_filter(self):
+        self._get_family_filter()
+        self._get_control_filter()
+        self.de_novo_filter = DeNovoFilter(self.input, self.family_filter, 
+                                           self.args.gq)
+        if not self.de_novo_filter.affected:
+            msg = ("No samples fit a de novo model - can not use de novo " + 
+                   "filtering")
+            if not self.args.recessive and not self.args.dominant:
+                raise Exception("Error: " + msg)
+            else:
+                self.logger.warn(msg + ". Will continue with other models.")
+                self.recessive_filter = None
+        else:
+            for f,d in self.de_novo_filter.get_header_fields().items():
+                self.logger.debug("Adding DeNovoFilter annotation {}" 
+                                  .format(f))
+                self.input.header.add_header_field(name=f, dictionary=d, 
+                                                   field_type='INFO')
+
+    def _get_recessive_filter(self):
+        self._get_family_filter()
+        self.recessive_filter = RecessiveFilter(self.input,
+                                                self.family_filter, 
+                                                self.args.gq)
+        if not self.recessive_filter.affected:
+            msg = ("No samples fit a recessive model - can not use biallelic" + 
+                  " filtering")
+            if not self.args.de_novo and not self.args.dominant:
+                raise Exception("Error: " + msg)
+            else:
+                self.logger.warn(msg + ". Will continue with other models.")
+                self.recessive_filter = None
+        else:
+            for f,d in self.recessive_filter.get_header_fields().items():
+                self.logger.debug("Adding RecessiveFilter annotation {}" 
+                                  .format(f))
+                self.input.header.add_header_field(name=f, dictionary=d, 
+                                                   field_type='INFO')
+
+    def _get_control_filter(self):
+        if self.control_filter:
+            return
+        self.control_filter = ControlFilter(self.input, self.family_filter,
+                                            self.args.gq)
+
 
 
 class VariantCache(object):
