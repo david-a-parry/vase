@@ -229,8 +229,6 @@ class RecessiveFilter(InheritanceFilter):
                  exclude_denovo=False):
         '''
             Arguments:
-                    vcf:    VcfReader object from parse_vcf.py
-                    
                     family_filter: 
                             FamilyFilter object
 
@@ -252,6 +250,7 @@ class RecessiveFilter(InheritanceFilter):
                             Default = False.
                             
         '''
+        self.prefix = "VAPE_biallelic"
         self.header_fields = [("VAPE_biallelic_homozygous", 
                '"Variants that constitute homozygous biallelic changes ' + 
                ' parsed by {}"' .format(type(self).__name__)),
@@ -379,7 +378,7 @@ class RecessiveFilter(InheritanceFilter):
                         stored = True
                         self._last_added = OrderedDict()
                         alt_counts = self._get_allele_counts(alt, gts)
-                        pr = PotentialRecessive(record=record, allele=alt,
+                        pr = PotentialSegregant(record=record, allele=alt,
                                                 csqs=csqs, 
                                                 allele_counts=alt_counts, 
                                                 families=fams_with_allele)
@@ -402,16 +401,18 @@ class RecessiveFilter(InheritanceFilter):
 
     def process_potential_recessives(self):
         ''' 
-            Check whether stored PotentialRecessive alleles make up 
+            Check whether stored PotentialSegregant alleles make up 
             biallelic variation in the same transcript for affected 
             individuals/families. Adds labels to INFO fields of VCF 
             records and returns a list of 'var_ids' of variants that 
             constitute biallelic variation.
 
-            Clears the cache of stored PotentialRecessive alleles.
+            Clears the cache of stored PotentialSegregant alleles.
         '''
         segregating = dict() #keys are alt_ids, values are SegregatingBiallelic 
         for feat, prs in self._potential_recessives.items():
+            feat_segregating = [] #list of tuples of values for creating SegregatingBiallelic 
+            fam_count = 0 #no. families with biallelic combination
             un_hets = defaultdict(list)  #store het alleles carried by each unaffected
             aff_hets = defaultdict(list) #store het alleles carried by each affected
             biallelics = defaultdict(list)  #store biallelic combinations for affecteds
@@ -470,17 +471,21 @@ class RecessiveFilter(InheritanceFilter):
                             else:
                                 model = 'compound_het'
                             for bi_pr in (prs[x] for x in bi):
-                                if bi_pr in segregating:
-                                    segregating[bi_pr].add_samples(affs, fid, 
-                                           model, feat, de_novo[bi_pr.alt_id])
-                                else:
-                                    segregating[bi_pr] = SegregatingBiallelic(
-                                                  bi_pr, affs, fid, model,
-                                                  feat, de_novo[bi_pr.alt_id])
+                                feat_segregating.append((bi_pr, affs, fid, 
+                                                         model, feat, 
+                                                         de_novo[bi_pr.alt_id], 
+                                                         self.prefix))
+                                fam_count += 1
+            if fam_count >= self.min_families:
+                for tp in feat_segregating:
+                    if tp[0] in segregating:
+                        segregating[tp[0]].add_samples(*tp[1:6])
+                    else:
+                        segregating[tp[0]] = SegregatingVariant(*tp)
         b_var_ids = set()
         for sb in segregating.values():
             sb.annotate_records()
-            b_var_ids.add(sb.recessive.var_id)
+            b_var_ids.add(sb.segregant.var_id)
         #clear the cache except for the last entry which will be a new gene
         self._potential_recessives = self._last_added
         self._last_added = dict()
@@ -552,36 +557,38 @@ class RecessiveFilter(InheritanceFilter):
         return a_counts
 
         
-class SegregatingBiallelic(object):
+class SegregatingVariant(object):
     '''
         Stores details of alleles that segregate in a manner consistent
-        with recessive inheritance.
+        with inheritance pattern.
     '''
 
     __slots__ = ['recessive', 'samples', 'families', 'model', 'features', 
-                 'de_novos']
+                 'segregant', 'prefix', 'de_novos']
 
-    def __init__(self, recessive, samples, family, model, feature, de_novos):
+    def __init__(self, segregant, samples, family, model, feature, 
+                 de_novos=(), prefix='VAPE_segregant'):
         ''' 
-            Initialize with a PotentialRecessive object, an iterable of
-            sample IDs carrying the PotentialRecessives a string 
+            Initialize with a PotentialSegregant object, an iterable of
+            sample IDs carrying the PotentialSegregant a string 
             indicating the model of inheritance (e.g. 'compound_het'),
             the name of the associated feature (e.g. a transcript 
-            ID) and a list of individuals for whom the allele appears 
-            to have arisen de novo.
+            ID), prefix for INFO fields and a list of individuals for 
+            whom the allele appears to have arisen de novo.
         '''
-        self.recessive = recessive
+        self.segregant = segregant
         self.samples = list(samples)
         self.families = set([family])
         self.model = [model] * len(self.samples)
         self.features = set([feature])
+        self.prefix = prefix
         self.de_novos = set(de_novos)
 
     def __eq__(self, other):
-        return self.recessive == other.recessive
+        return self.segregant == other.segregant
 
     def __hash__(self):
-        return hash(self.recessive)
+        return hash(self.segregant)
 
     def add_samples(self, samples, family, model, feature, de_novos):
         ''' Add samples with corresponding model of inheritance '''
@@ -592,37 +599,37 @@ class SegregatingBiallelic(object):
         self.de_novos.update(de_novos)
 
     def annotate_records(self):
-        ''' Add VapeBiallelic INFO field annotations for VcfRecords '''
+        ''' Add INFO field annotations for VcfRecords '''
         annots = defaultdict(set)
         for i in range(len(self.model)):
-            k = 'VAPE_biallelic_' + self.model[i]
+            k = self.prefix + "_" + self.model[i]
             annots[k].add(self.samples[i])
         for k in annots:
             annots[k] = str.join("|", sorted(annots[k]))
-        annots['VAPE_biallelic_families'] = str.join("|", 
+        annots[self.prefix + '_families'] = str.join("|", 
                                                      sorted(self.families))
-        annots['VAPE_biallelic_features'] = str.join("|", 
+        annots[self.prefix + '_features'] = str.join("|", 
                                                      sorted(self.features))
         if self.de_novos:
-            annots['VAPE_biallelic_de_novo'] = str.join("|", 
+            annots[self.prefix + '_de_novo'] = str.join("|", 
                                                         sorted(self.de_novos))
         annots = self._convert_annotations(annots)
-        self.recessive.record.add_info_fields(annots)
+        self.segregant.record.add_info_fields(annots)
 
     def _convert_annotations(self, annots):
         ''' Convert to per-allele (Number=A) format for INFO field '''
         converted_annots = dict()
         for k,v in annots.items():
-            allele_fields = ['.'] * (len(self.recessive.record.ALLELES) -1)
-            if k in self.recessive.record.INFO_FIELDS:
-                allele_fields = self.recessive.record.INFO_FIELDS[k].split(',')
-            i = self.recessive.allele - 1
+            allele_fields = ['.'] * (len(self.segregant.record.ALLELES) -1)
+            if k in self.segregant.record.INFO_FIELDS:
+                allele_fields = self.segregant.record.INFO_FIELDS[k].split(',')
+            i = self.segregant.allele - 1
             allele_fields[i] = v
             converted_annots[k] = str.join(",", allele_fields)
         return converted_annots
             
 
-class PotentialRecessive(object):
+class PotentialSegregant(object):
     ''' 
         Class for storing variant details for records that might make up
         biallelic variants in affected samples.
@@ -649,7 +656,7 @@ class PotentialRecessive(object):
 
 class DominantFilter(InheritanceFilter):
     '''
-        Identify variants that fit a dominant recessive pattern in 
+        Identify variants that fit a dominant pattern in 
         given families.
     '''
 
@@ -672,6 +679,7 @@ class DominantFilter(InheritanceFilter):
                         called as heterozygous. Default=False.
 
         '''
+        self.prefix = "VAPE_dominant"
         self.header_fields = [("VAPE_dominant", 
                     '"Alleles that segregate according to a dominant ' + 
                     'inheritance pattern in an affected sample as' + 
@@ -804,6 +812,7 @@ class DeNovoFilter(InheritanceFilter):
                         called as heterozygous. Default=False.
 
         '''
+        self.prefix = "VAPE_de_novo"
         self.header_fields = [("VAPE_de_novo", 
                    '"Alleles that constitute de novo occurence in a child' + 
                    ' parsed by {}"' .format(type(self).__name__)),
@@ -841,7 +850,7 @@ class DeNovoFilter(InheritanceFilter):
                 ignore_alleles:
                         List of booleans indicating for each ALT in 
                         order whether it should be ignored in relation
-                        to possible recessive variation (e.g. if MAF is
+                        to possible de novo  variation (e.g. if MAF is
                         too high, no likely pathogenic consequence 
                         etc.). This will normally have been generated 
                         by VapeRunner via VcfFilter and/or VepFilter
