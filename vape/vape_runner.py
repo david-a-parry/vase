@@ -42,6 +42,7 @@ class VapeRunner(object):
         self.family_filter = None
         self.control_filter = None
         self.variant_cache = VariantCache()
+        self.use_cache = False
         if args.de_novo:
             self._get_de_novo_filter()
         if args.biallelic:
@@ -92,23 +93,36 @@ class VapeRunner(object):
                     dom_filter_alleles[i-1] = True
         denovo_hit = False
         dom_hit = False
+        recessive_hits = False
         if self.dominant_filter:
             dom_hit = self.dominant_filter.process_record(record,
-                                                          dom_filter_alleles)
+                                                          dom_filter_alleles, 
+                                                          filter_csq)
         if self.de_novo_filter:
             denovo_hit = self.de_novo_filter.process_record(record,
                                                             dom_filter_alleles)
         if self.recessive_filter:
-            keep_record_anyway = denovo_hit or dom_hit
-            if (self.recessive_filter.process_record(record, filter_alleles, 
-                filter_csq) or keep_record_anyway):
+            recessive_hit = self.recessive_filter.process_record(record, 
+                                                    filter_alleles, filter_csq) 
+        if self.use_cache:
+            if denovo_hit or dom_hit or recessive_hit:
+                keep_record_anyway = False
+                if self.args.min_families <= 1:
+                    keep_record_anyway = denovo_hit or dom_hit
                 self.variant_cache.add_record(record, keep_record_anyway)
             if self.variant_cache.output_ready:
                 #process PotentialRecessives
-                rec_ids = self.recessive_filter.process_potential_recessives()
+                keep_ids = set()
+                if self.recessive_filter:
+                    keep_ids.update(
+                          self.recessive_filter.process_potential_recessives())
+                if self.dominant_filter and self.args.min_families > 1:
+                    keep_ids.update(self.dominant_filter.process_dominants())
+                if self.de_novo_filter and self.args.min_families > 1:
+                    keep_ids.update(self.de_novo_filter.process_de_novos())
                 #output records as appropriate
                 for var in self.variant_cache.output_ready:
-                    if var.can_output or var.var_id in rec_ids:
+                    if var.can_output or var.var_id in keep_ids:
                         self.out.write(str(var.record) + '\n')
                 self.variant_cache.output_ready = []
         elif self.de_novo_filter or self.dominant_filter:
@@ -332,7 +346,8 @@ class VapeRunner(object):
     def _get_dominant_filter(self):
         self._get_family_filter()
         self._get_control_filter()
-        self.dominant_filter = DominantFilter(self.family_filter, self.args.gq)
+        self.dominant_filter = DominantFilter(self.family_filter, self.args.gq,
+                                              self.args.min_families)
         if not self.dominant_filter.affected:
             msg = ("No samples fit a dominant model - can not use dominant " + 
                    "filtering")
@@ -347,11 +362,14 @@ class VapeRunner(object):
                                   .format(f))
                 self.input.header.add_header_field(name=f, dictionary=d, 
                                                    field_type='INFO')
+                if self.args.min_families > 1:
+                    self.use_cache = True
 
     def _get_de_novo_filter(self):
         self._get_family_filter()
         self._get_control_filter()
-        self.de_novo_filter = DeNovoFilter(self.family_filter, self.args.gq)
+        self.de_novo_filter = DeNovoFilter(self.family_filter, self.args.gq,
+                                           self.args.min_families)
         if not self.de_novo_filter.affected:
             msg = ("No samples fit a de novo model - can not use de novo " + 
                    "filtering")
@@ -366,11 +384,14 @@ class VapeRunner(object):
                                   .format(f))
                 self.input.header.add_header_field(name=f, dictionary=d, 
                                                    field_type='INFO')
+                if self.args.min_families > 1:
+                    self.use_cache = True
 
     def _get_recessive_filter(self):
         self._get_family_filter()
         self.recessive_filter = RecessiveFilter(self.family_filter, 
-                                                self.args.gq)
+                                                self.args.gq, 
+                                                self.args.min_families)
         if not self.recessive_filter.affected:
             msg = ("No samples fit a recessive model - can not use biallelic" + 
                   " filtering")
@@ -385,6 +406,7 @@ class VapeRunner(object):
                                   .format(f))
                 self.input.header.add_header_field(name=f, dictionary=d, 
                                                    field_type='INFO')
+                self.use_cache = True
 
     def _get_control_filter(self):
         if self.control_filter:

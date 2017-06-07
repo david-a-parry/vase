@@ -367,6 +367,14 @@ file specified by the --ped argument.
 
 ''')
 
+    sample_args.add_argument(
+'--min_families', type=int, default=1, help=
+'''Minimum number of families (or unrelated samples)
+required to contain a qualifying dominant/de novo 
+or biallelic combination of variants in a feature
+before they are output. Default = 1.
+
+''')
     #end of args
     return parser.parse_args()
 
