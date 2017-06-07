@@ -181,9 +181,10 @@ class InheritanceFilter(object):
         object.
     '''
 
-    def __init__(self, vcf, family_filter, gq=0):
+    def __init__(self, family_filter, gq=0, min_families=0):
         self.family_filter = family_filter
         self.gq = gq #setting to 0 should allow VCFs without GQ information
+        self.min_families = min_families
         self.ped = family_filter.ped
         self.samples = family_filter.vcf_samples
         self.unaffected = family_filter.vcf_unaffected
@@ -224,7 +225,7 @@ class RecessiveFilter(InheritanceFilter):
         genetic cause of disease. It will not cope with phenocopies, 
         pseudodominance or other more complicated inheritance patterns.
     '''
-    def __init__(self, vcf, family_filter, gq=0, strict=False, 
+    def __init__(self, family_filter, gq=0, strict=False, 
                  exclude_denovo=False):
         '''
             Arguments:
@@ -265,7 +266,7 @@ class RecessiveFilter(InheritanceFilter):
                '"Features (e.g. transcripts) that contain qualifying ' + 
                'biallelic variants parsed by {}"' .format(
                 type(self).__name__)),]
-        super().__init__(vcf, family_filter, gq)
+        super().__init__(family_filter, gq)
         self.families = tuple(x for x in self.family_filter.inheritance_patterns 
                              if 'recessive' in 
                              self.family_filter.inheritance_patterns[x])
@@ -652,14 +653,12 @@ class DominantFilter(InheritanceFilter):
         given families.
     '''
 
-    def __init__(self, vcf, family_filter, gq=0):
+    def __init__(self, family_filter, gq=0, min_families=0):
         ''' 
             Initialize with parent IDs, children IDs and VcfReader 
             object.
             
             Args:
-                vcf:    VcfReader object from parse_vcf.py
-                
                 family_filter: 
                         FamilyFilter object
 
@@ -679,7 +678,7 @@ class DominantFilter(InheritanceFilter):
                     ' parsed by {}"' .format(type(self).__name__)),
                     ('VAPE_dominant_families',
                     '"Family IDs for VAPE_dominant alleles"')]
-        super().__init__(vcf, family_filter, gq)
+        super().__init__(family_filter, gq)
         self.families = tuple(x for x in self.family_filter.inheritance_patterns 
                              if 'dominant' in 
                              self.family_filter.inheritance_patterns[x])
@@ -693,8 +692,9 @@ class DominantFilter(InheritanceFilter):
             f_unaff = tuple(x for x in self.ped.families[fam].get_unaffected() 
                             if (x in self.unaffected and x not in  
                             self.family_filter.obligate_carriers[fam]))
-            dom_filter = SampleFilter(vcf, cases=f_aff, controls=f_unaff, 
-                                      gq=gq, confirm_missing=True)
+            dom_filter = SampleFilter(family_filter.vcf, cases=f_aff, 
+                                      controls=f_unaff, gq=gq, 
+                                      confirm_missing=True)
             self.filters[fam] = dom_filter 
 
     def process_record(self, record, ignore_alleles=[]):
@@ -785,14 +785,12 @@ class DeNovoFilter(InheritanceFilter):
         the parents.
     '''
 
-    def __init__(self, vcf, family_filter, gq=0, confirm_het=False):
+    def __init__(self, family_filter, gq=0, confirm_het=False):
         ''' 
             Initialize with parent IDs, children IDs and VcfReader 
             object.
             
             Args:
-                vcf:    VcfReader object from parse_vcf.py
-                
                 family_filter: 
                         FamilyFilter object
 
@@ -811,7 +809,7 @@ class DeNovoFilter(InheritanceFilter):
                    ' parsed by {}"' .format(type(self).__name__)),
                     ('VAPE_de_novo_families',
                     '"Family IDs for VAPE_de_novo alleles"')]
-        super().__init__(vcf, family_filter, gq)
+        super().__init__(family_filter, gq)
         self.families = tuple(x for x in self.family_filter.inheritance_patterns 
                              if 'de_novo' in 
                              self.family_filter.inheritance_patterns[x])
@@ -828,7 +826,7 @@ class DeNovoFilter(InheritanceFilter):
                 if len(pars) == 2:
                     par_child_combos[pars].append(aff)
             for parents,children in par_child_combos.items():
-                par_filter = SampleFilter(vcf, cases=children, 
+                par_filter = SampleFilter(family_filter.vcf, cases=children, 
                                           controls=parents, gq=gq, 
                                           confirm_missing=True)
                 self.filters[fam].append(par_filter)
