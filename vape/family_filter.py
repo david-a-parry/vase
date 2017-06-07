@@ -889,7 +889,6 @@ class DeNovoFilter(InheritanceFilter):
                                     'VAPE_de_novo_families' : str.join(",",
                                                               fam_per_allele)})
             return True
-            return True
         return False
 
    
