@@ -218,7 +218,7 @@ using population allele frequencies
 
 ''')
     file_args.add_argument(
-'-f', '--freq', type=float, help=
+'-f', '--freq', '--max_freq', type=float, help=
 '''Allele frequency cutoff (between 0 and 1). Used 
 for extenal allele frequency sources such as 
 --dbsnp or --gnomad files. Alleles/variants with
