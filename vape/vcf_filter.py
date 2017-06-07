@@ -141,7 +141,7 @@ class VcfFilter(object):
                             an = float(an)
                             ac = float(ac)
                             af = ac/an
-                            annot[f] = "{:.4e}".format(af)
+                            annot[f] = "{:g}".format(af)
                             if self.freq is not None:
                                 if af >= self.freq:
                                     do_filter = True
