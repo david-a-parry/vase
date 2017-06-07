@@ -99,9 +99,6 @@ class VapeRunner(object):
             denovo_hit = self.de_novo_filter.process_record(record,
                                                             dom_filter_alleles)
         if self.recessive_filter:
-            #if var is valid de novo or dominant, add to cache
-            #UNCOMMENT LINE BELOW WHEN DOMINANT FILTERING ENABLED
-            #dom_hit = sum(filter_dominant) != len(filter_dominant)
             keep_record_anyway = denovo_hit or dom_hit
             if (self.recessive_filter.process_record(record, filter_alleles, 
                 filter_csq) or keep_record_anyway):
@@ -335,8 +332,7 @@ class VapeRunner(object):
     def _get_dominant_filter(self):
         self._get_family_filter()
         self._get_control_filter()
-        self.dominant_filter = DominantFilter(self.input, self.family_filter,
-                                              self.args.gq)
+        self.dominant_filter = DominantFilter(self.family_filter, self.args.gq)
         if not self.dominant_filter.affected:
             msg = ("No samples fit a dominant model - can not use dominant " + 
                    "filtering")
@@ -355,8 +351,7 @@ class VapeRunner(object):
     def _get_de_novo_filter(self):
         self._get_family_filter()
         self._get_control_filter()
-        self.de_novo_filter = DeNovoFilter(self.input, self.family_filter, 
-                                           self.args.gq)
+        self.de_novo_filter = DeNovoFilter(self.family_filter, self.args.gq)
         if not self.de_novo_filter.affected:
             msg = ("No samples fit a de novo model - can not use de novo " + 
                    "filtering")
@@ -374,8 +369,7 @@ class VapeRunner(object):
 
     def _get_recessive_filter(self):
         self._get_family_filter()
-        self.recessive_filter = RecessiveFilter(self.input,
-                                                self.family_filter, 
+        self.recessive_filter = RecessiveFilter(self.family_filter, 
                                                 self.args.gq)
         if not self.recessive_filter.affected:
             msg = ("No samples fit a recessive model - can not use biallelic" + 
