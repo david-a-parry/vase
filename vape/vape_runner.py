@@ -105,8 +105,7 @@ class VapeRunner(object):
             keep_record_anyway = denovo_hit or dom_hit
             if (self.recessive_filter.process_record(record, filter_alleles, 
                 filter_csq) or keep_record_anyway):
-                self.variant_cache.add_record(record, filter_alleles, 
-                                              filter_csq, keep_record_anyway)
+                self.variant_cache.add_record(record, keep_record_anyway)
             if self.variant_cache.output_ready:
                 #process PotentialRecessives
                 rec_ids = self.recessive_filter.process_potential_recessives()
@@ -418,8 +417,7 @@ class VariantCache(object):
         self.features = set()
         self.output_ready = []
 
-    def add_record(self, record, ignore_alleles=[], ignore_csq=[],
-                   can_output=False):
+    def add_record(self, record, can_output=False):
         these_feats = set([x['Feature'] for x in record.CSQ])
         if self.features and these_feats.isdisjoint(self.features):
             self.output_ready = self.cache 
@@ -427,8 +425,7 @@ class VariantCache(object):
             self.features = these_feats
         else:
             self.features.update(these_feats)
-        self.cache.append( CachedVariant(record, ignore_alleles, ignore_csq,
-                                           can_output) )
+        self.cache.append( CachedVariant(record, can_output) )
         
 
 class CachedVariant(object):
@@ -438,16 +435,12 @@ class CachedVariant(object):
         recessive inheritance pattern.
     '''
 
-    __slots__ = ['record', 'can_output', 'var_id', 'ignore_alleles', 
-                 'ignore_csq']
+    __slots__ = ['record', 'can_output', 'var_id']
 
-    def __init__(self, record, ignore_alleles=[], ignore_csq=[], 
-                 can_output=False):
+    def __init__(self, record, can_output=False):
         self.record = record
         self.can_output = can_output
-        self.ignore_alleles = ignore_alleles    #DO WE NEED THIS?
-        self.ignore_csq = ignore_csq            #DO WE NEED THIS?
-        self.var_id = "{}:{}-{}/{}" .format(record.CHROM, record.POS, record.REF,
-                                       record.ALT)
+        self.var_id = "{}:{}-{}/{}" .format(record.CHROM, record.POS, 
+                                            record.REF, record.ALT)
 
         
