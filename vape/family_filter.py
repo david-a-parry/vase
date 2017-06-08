@@ -797,7 +797,9 @@ class DeNovoFilter(InheritanceFilter):
                           if x in self.affected)
             par_child_combos = defaultdict(list)
             for aff in f_aff:
-                pars = tuple(self.ped.families[fam].individuals[aff].parents)
+                pars = tuple(x for x in 
+                             self.ped.families[fam].individuals[aff].parents
+                             if x in self.samples)
                 if len(pars) == 2:
                     par_child_combos[pars].append(aff)
             for parents,children in par_child_combos.items():
