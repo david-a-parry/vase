@@ -594,7 +594,7 @@ class DominantFilter(InheritanceFilter):
                     ' parsed by {}"' .format(type(self).__name__)),
                     ('VAPE_dominant_families',
                     '"Family IDs for VAPE_dominant alleles"'),
-                    ("VAPE_biallelic_features", 
+                    ("VAPE_dominant_features", 
                     '"Features (e.g. transcripts) that contain qualifying ' + 
                     'dominant variants parsed by {}"' .format(
                     type(self).__name__)),]
@@ -610,10 +610,12 @@ class DominantFilter(InheritanceFilter):
         for fam in self.families:
             f_aff = tuple(x for x in self.ped.families[fam].get_affected() 
                           if (x in self.affected or 
-                          x in self.obligate_carriers[fam]))
+                          x in self.family_filter.obligate_carriers[fam]))
             f_unaff = tuple(x for x in self.ped.families[fam].get_unaffected() 
                             if (x in self.unaffected and x not in  
                             self.family_filter.obligate_carriers[fam]))
+            self.obligate_carriers = tuple(x for x in f_aff if x in 
+                                     self.family_filter.obligate_carriers[fam])
             dom_filter = SampleFilter(family_filter.vcf, cases=f_aff, 
                                       controls=f_unaff, gq=gq, 
                                       confirm_missing=True)
@@ -659,25 +661,29 @@ class DominantFilter(InheritanceFilter):
         for i in range(len(dom_alleles)):
             if not dom_alleles[i]:
                 continue
+            allele = i + 1
+            csqs = []
             try:
-                csqs = []
                 for j in range(len(record.CSQ)):
                     if ignore_csq and ignore_csq[j]:
                         continue
                     if record.CSQ[j]['alt_index'] == allele:
                         #store record and csq details
                         csqs.append(record.CSQ[j])
-                if self.min_families <= 1 or csqs:
-                    pd = PotentialSegregant(record=record, allele=allele, 
-                                            csqs=csqs, allele_counts=[],
-                                            families=fam_alleles[i])
-                    segs.append(pd)
             except HeaderError:
-                raise Exception("Could not identify CSQ or ANN " +
-                                "fields in VCF header. Please " +
-                                "ensure your input is annotated " +
-                                "with Ensembl's VEP to perform " + 
-                                "dominant filtering.")
+                if self.min_familes > 1:
+                    raise Exception("Could not identify CSQ or ANN fields in" +
+                                    " VCF header. Please ensure your input " +
+                                    "is annotated with Ensembl's VEP to " + 
+                                    "perform dominant filtering.")
+            if self.min_families <= 1 or csqs:
+                gts = record.parsed_gts(fields=self._gt_fields, 
+                                        samples=self.samples)
+                a_counts = self._get_allele_counts(allele, gts)
+                pd = PotentialSegregant(record=record, allele=allele, 
+                                        csqs=csqs, allele_counts=a_counts,
+                                        families=fam_alleles[i])
+                segs.append(pd)
         for seg in segs:
             if self.min_families > 1:
                 for feat,od in self._last_added.items():
@@ -689,10 +695,17 @@ class DominantFilter(InheritanceFilter):
                 for feat in seg.features:
                     self._last_added[feat] = OrderedDict([(seg.alt_id, seg)])
             else:
-                samps = (x for x in self.affected 
-                         if self.ped.fid_from_iid(x) in seg.families)
-                sv = SegregatingVariant(seg, samps, seg.families, 'dominant', 
+                affs = (x for x in self.affected 
+                         if x not in self.obligate_carriers and 
+                         self.ped.fid_from_iid(x) in seg.families)
+                sv = SegregatingVariant(seg, affs, seg.families, 'dominant', 
                                         seg.features, [], self.prefix)
+                obcs = tuple(x for x in self.obligate_carriers if 
+                             self.ped.fid_from_iid(x) in seg.families)
+                if obcs:
+                    obfs = set(self.ped.fid_from_iid(x) for x in obcs)
+                    sv.add_samples(obcs, obfs, 'dominant_unaffected_carrier',
+                                   seg.features, [])
                 sv.annotate_record()
         return len(segs) > 0
 
@@ -722,39 +735,10 @@ class DominantFilter(InheritanceFilter):
                                             self.prefix)
                     sv.annotate_record()
         #clear the cache except for the last entry which will be a new gene
-        self._potential_recessives = self._last_added
+        self._potential_dominants = self._last_added
         self._last_added = OrderedDict()
         return d_ids
 
-class ControlFilter(SampleFilter):
-    ''' Filter variants if they are present in a control sample. '''
-
-    def __init__(self, vcf, family_filter, gq=0, n_controls=0):
-        '''
-            Args:
-                vcf:    Input VcfReader object.
-
-                family_filter:
-                        FamilyFilter object containing information on 
-                        which samples are controls in the input VCF.
-
-                gq:     Minimum genotype quality score. Genotype calls 
-                        with a GQ lower than this value will be treated
-                        as as no-calls. Input without GQ data can be 
-                        used if gq=0. Default=0.
-        
-                
-                n_controls:
-                        Minimum number of controls required to carry an 
-                        ALT allele for it to be filtered. Alleles will 
-                        only be filtered if carried by this number of 
-                        controls or more. Default=0.
-
-        '''
-            
-        super().__init__(vcf, controls=family_filter.unaffected, gq=gq, 
-                         n_controls=0, confirm_missing=False)
-        
 
 class DeNovoFilter(InheritanceFilter):
     ''' 
@@ -792,15 +776,22 @@ class DeNovoFilter(InheritanceFilter):
                    '"Alleles that constitute de novo occurence in a child' + 
                    ' parsed by {}"' .format(type(self).__name__)),
                     ('VAPE_de_novo_families',
-                    '"Family IDs for VAPE_de_novo alleles"')]
+                    '"Family IDs for VAPE_de_novo alleles"'),
+                    ("VAPE_dominant_features", 
+                    '"Features (e.g. transcripts) that contain qualifying ' + 
+                    'de novo variants parsed by {}"' .format(
+                    type(self).__name__)),]
         super().__init__(family_filter, gq)
         self.families = tuple(x for x in self.family_filter.inheritance_patterns 
                              if 'de_novo' in 
                              self.family_filter.inheritance_patterns[x])
         self.affected = tuple(x for x in family_filter.vcf_affected if 
                              self.ped.individuals[x].fid in self.families)
+        self._potential_denovos = dict()
+        self._last_added = OrderedDict()
         self.confirm_het = confirm_het
         self.filters = defaultdict(list)
+        self.prefix = "VAPE_de_novo"
         for fam in self.families:
             f_aff = tuple(x for x in self.ped.families[fam].get_affected() 
                           if x in self.affected)
@@ -815,7 +806,7 @@ class DeNovoFilter(InheritanceFilter):
                                           confirm_missing=True)
                 self.filters[fam].append(par_filter)
         
-    def process_record(self, record, ignore_alleles=[]):
+    def process_record(self, record, ignore_alleles=[], ignore_csq=[]):
         '''
             Returns True if allele is an apparent de novo variant.
 
@@ -844,10 +835,8 @@ class DeNovoFilter(InheritanceFilter):
                 for dfilter in filters:
                     is_denovo = not dfilter.filter(record, allele)
                     if is_denovo:
-                        if self.confirm_het:
-                            if self.confirm_heterozygous(record, dfilter.cases):
-                                dns.append(dfilter.cases)
-                        else:
+                        if (not self.confirm_het or 
+                            self.confirm_heterozygous(record, dfilter.cases)):
                             dns.append(dfilter.cases)
                             self.family_filter.logger.debug("Apparent de " + 
                                 "novo allele {}:{}-{}/{} ".format(
@@ -855,25 +844,114 @@ class DeNovoFilter(InheritanceFilter):
                                 record.ALLELES[allele]) + "present in {} "
                                 .format(dfilter.cases) + "and absent in {}"
                                 .format(dfilter.controls))
-                if len(dns) == len(filters):
+                if len(dns) == len(filters): #all affecteds in fam have de novo
                     ([denovo_alleles[i].extend(x) for x in dns])
                     fam_alleles[i].append(fam)
-        if sum(len(l) for l in denovo_alleles):
-            #at least one de novo allele in at least one family
-            dns_per_allele = ['.'] * (len(record.ALLELES) -1)
-            fam_per_allele = ['.'] * (len(record.ALLELES) -1)
-            for i in range(len(denovo_alleles)):
-                if denovo_alleles[i]:
-                    dns_per_allele[i] = str.join("|", denovo_alleles[i])
-                    fam_per_allele[i] = str.join("|", fam_alleles[i])
-            record.add_info_fields({'VAPE_de_novo' : str.join(',', 
-                                                              dns_per_allele),
-                                    'VAPE_de_novo_families' : str.join(",",
-                                                              fam_per_allele)})
-            return True
-        return False
+        segs = []
+        for i in range(len(denovo_alleles)):
+            if not denovo_alleles[i]:
+                continue
+            csqs = []
+            try:
+                for j in range(len(record.CSQ)):
+                    if ignore_csq and ignore_csq[j]:
+                        continue
+                    if record.CSQ[j]['alt_index'] == allele:
+                        #store record and csq details
+                        csqs.append(record.CSQ[j])
+            except HeaderError:
+                if self.min_families > 1:
+                    raise Exception("Could not identify CSQ or ANN fields in" +
+                                    " VCF header. Please ensure your input " +
+                                    "is annotated with Ensembl's VEP to " + 
+                                    "perform de novo filtering.")
+            if self.min_families <= 1 or csqs:
+                gts = record.parsed_gts(fields=self._gt_fields, 
+                                        samples=self.samples)
+                a_counts = self._get_allele_counts(allele, gts)
+                pd = PotentialSegregant(record=record, allele=allele, 
+                                        csqs=csqs, allele_counts=a_counts,
+                                        families=fam_alleles[i])
+                segs.append(pd)
+        for seg in segs:
+            if self.min_families > 1:
+                for feat,od in self._last_added.items():
+                    if feat in self._potential_denovos:
+                        self._potential_denovos[feat].update(od)
+                    else:
+                        self._potential_denovos[feat] = od
+                self._last_added = OrderedDict()
+                for feat in seg.features:
+                    self._last_added[feat] = OrderedDict([(seg.alt_id, seg)])
+            else:
+                affs = (x for x in self.affected if self.ped.fid_from_iid(x) 
+                        in seg.families)
+                sv = SegregatingVariant(seg, affs, seg.families, 'dominant',
+                                        seg.features, [], self.prefix)
+                sv.annotate_record()
+        return len(segs) > 0
 
-           
+    def process_de_novos(self):
+        #FIX THIS - THIS IS DUPLICATED CODE FROM DominantFilter
+        ''' 
+            Check whether stored PotentialSegregant alleles make up 
+            de novo dominant variation in the same transcript for the 
+            minimum number of families. Adds labels to INFO fields of 
+            VCF records and returns a list of 'var_ids' of variants that
+            constitute de novo dominant variation.
+
+            Clears the cache of stored PotentialSegregant alleles.
+        '''
+        d_ids = set() 
+        for feat, pds in self._potential_denovos.items():
+            feat_fams = set()
+            for pid,p in pds.items():
+                feat_fams.add(p.familes)
+            if len(feat_fams) >= self.min_families:
+                for p in pds.values():
+                    d_ids.add(p.var_id)
+                    samps = (x for x in self.affected 
+                             if self.ped.fid_from_iid(x) in p.families)
+                    sv = SegregatingVariant(seg, samps, seg.families, 
+                                            'dominant', sv.feats, [], 
+                                            self.prefix)
+                    sv.annotate_record()
+        #clear the cache except for the last entry which will be a new gene
+        self._potential_denovos = self._last_added
+        self._last_added = OrderedDict()
+        return d_ids
+      
+
+class ControlFilter(SampleFilter):
+    ''' Filter variants if they are present in a control sample. '''
+
+    def __init__(self, vcf, family_filter, gq=0, n_controls=0):
+        '''
+            Args:
+                vcf:    Input VcfReader object.
+
+                family_filter:
+                        FamilyFilter object containing information on 
+                        which samples are controls in the input VCF.
+
+                gq:     Minimum genotype quality score. Genotype calls 
+                        with a GQ lower than this value will be treated
+                        as as no-calls. Input without GQ data can be 
+                        used if gq=0. Default=0.
+        
+                
+                n_controls:
+                        Minimum number of controls required to carry an 
+                        ALT allele for it to be filtered. Alleles will 
+                        only be filtered if carried by this number of 
+                        controls or more. Default=0.
+
+        '''
+            
+        super().__init__(vcf, controls=family_filter.unaffected, gq=gq, 
+                         n_controls=0, confirm_missing=False)
+
+
 class SegregatingVariant(object):
     '''
         Stores details of alleles that segregate in a manner consistent
