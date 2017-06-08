@@ -107,7 +107,7 @@ class VapeRunner(object):
         if self.use_cache:
             if denovo_hit or dom_hit or recessive_hit:
                 keep_record_anyway = False
-                if self.args.min_families <= 1:
+                if self.args.min_families < 2:
                     keep_record_anyway = denovo_hit or dom_hit
                 self.variant_cache.add_record(record, keep_record_anyway)
             if self.variant_cache.output_ready:
@@ -134,12 +134,19 @@ class VapeRunner(object):
             self.out.write(str(record) + '\n')
     
     def finish_up(self):
-        if self.recessive_filter:
-            rec_ids = self.recessive_filter.process_potential_recessives()
-            #output records as appropriate
+        if self.use_cache:
+            keep_ids = set()
+            if self.recessive_filter:
+                keep_ids.update(
+                          self.recessive_filter.process_potential_recessives())
+            if self.dominant_filter and self.args.min_families > 1:
+                keep_ids.update(self.dominant_filter.process_dominants())
+            if self.de_novo_filter and self.args.min_families > 1:
+                keep_ids.update(self.de_novo_filter.process_de_novos())
+                #output records as appropriate
             for var in (self.variant_cache.output_ready + 
                         self.variant_cache.cache):
-                if var.can_output or var.var_id in rec_ids:
+                if var.can_output or var.var_id in keep_ids:
                     self.out.write(str(var.record) + '\n')
             self.variant_cache.output_ready = []
 
@@ -355,7 +362,7 @@ class VapeRunner(object):
                 raise Exception("Error: " + msg)
             else:
                 self.logger.warn(msg + ". Will continue with other models.")
-                self.recessive_filter = None
+                self.dominant_filter = None
         else:
             for f,d in self.dominant_filter.get_header_fields().items():
                 self.logger.debug("Adding DominantFilter annotation {}" 
@@ -377,7 +384,7 @@ class VapeRunner(object):
                 raise Exception("Error: " + msg)
             else:
                 self.logger.warn(msg + ". Will continue with other models.")
-                self.recessive_filter = None
+                self.de_novo_filter = None
         else:
             for f,d in self.de_novo_filter.get_header_fields().items():
                 self.logger.debug("Adding DeNovoFilter annotation {}" 
@@ -401,12 +408,12 @@ class VapeRunner(object):
                 self.logger.warn(msg + ". Will continue with other models.")
                 self.recessive_filter = None
         else:
+            self.use_cache = True
             for f,d in self.recessive_filter.get_header_fields().items():
                 self.logger.debug("Adding RecessiveFilter annotation {}" 
                                   .format(f))
                 self.input.header.add_header_field(name=f, dictionary=d, 
                                                    field_type='INFO')
-                self.use_cache = True
 
     def _get_control_filter(self):
         if self.control_filter:
