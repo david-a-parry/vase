@@ -93,7 +93,7 @@ class VapeRunner(object):
                     dom_filter_alleles[i-1] = True
         denovo_hit = False
         dom_hit = False
-        recessive_hits = False
+        recessive_hit = False
         if self.dominant_filter:
             dom_hit = self.dominant_filter.process_record(record,
                                                           dom_filter_alleles, 
@@ -351,7 +351,7 @@ class VapeRunner(object):
         if not self.dominant_filter.affected:
             msg = ("No samples fit a dominant model - can not use dominant " + 
                    "filtering")
-            if not self.args.recessive and not self.args.de_novo:
+            if not self.args.biallelic and not self.args.de_novo:
                 raise Exception("Error: " + msg)
             else:
                 self.logger.warn(msg + ". Will continue with other models.")
@@ -373,7 +373,7 @@ class VapeRunner(object):
         if not self.de_novo_filter.affected:
             msg = ("No samples fit a de novo model - can not use de novo " + 
                    "filtering")
-            if not self.args.recessive and not self.args.dominant:
+            if not self.args.biallelic and not self.args.dominant:
                 raise Exception("Error: " + msg)
             else:
                 self.logger.warn(msg + ". Will continue with other models.")
