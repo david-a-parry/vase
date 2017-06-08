@@ -191,6 +191,8 @@ class InheritanceFilter(object):
         self._gt_fields = ['GT']
         if self.gq:
             self._gt_fields.append('GQ')
+        self._prev_coordinate = (None, None)  # to ensure records are processed 
+        self._processed_contigs = set()       # in coordinate order
 
     def get_header_fields(self):
         ''' 
@@ -228,6 +230,24 @@ class InheritanceFilter(object):
             else:
                 a_counts[samp] = gts['GT'][samp].count(allele)
         return a_counts
+
+    def _check_sorted(self, record):
+        if self._prev_coordinate[0] != record.CHROM:
+            if record.CHROM in self._processed_contigs:
+                raise Exception("Input must be sorted by chromosome and " + 
+                                "position for recessive filtering. " + 
+                                "Contig '{}' " .format(record.CHROM) + 
+                                "encountered before and after contig " + 
+                                "'{}'." .format(self._prev_coordinate[0]))
+            if self._prev_coordinate[0] is not None:
+                self._processed_contigs.add(self._prev_coordinate[0])
+        elif record.POS < self._prev_coordinate[1]:
+            raise Exception("Input must be sorted by chromosome and position" + 
+                            "for inheritance filtering. Encountered position" + 
+                            " {}:{} after {}:{}" .format(record.CHROM, 
+                             record.POS, self._prev_coordinate[0], 
+                             self._prev_coordinate[1]))
+        self._prev_coordinate = (record.CHROM, record.POS)
 
     def process_record(self, record):
         '''Return True if record should be printed/kept'''
@@ -295,9 +315,9 @@ class RecessiveFilter(InheritanceFilter):
         for fid in self.families:
             self._fam_to_aff[fid] = set(x for x in 
                                         self.ped.families[fid].get_affected()
-                                        if x in self.affected)
-        self._prev_coordinate = (None, None)  # to ensure records are processed 
-        self._processed_contigs = set()       # in coordinate order
+                                        if x in self.affected)  
+            self.family_filter.logger.info("Analysing family {} ".format(fid) +
+                                           "under a recessive model")
         self.strict = strict
         self.exclude_denovo = exclude_denovo
         self._potential_recessives = dict()
@@ -338,22 +358,7 @@ class RecessiveFilter(InheritanceFilter):
 
         '''
         stored = False
-        if self._prev_coordinate[0] != record.CHROM:
-            if record.CHROM in self._processed_contigs:
-                raise Exception("Input must be sorted by chromosome and " + 
-                                "position for recessive filtering. " + 
-                                "Contig '{}' " .format(record.CHROM) + 
-                                "encountered before and after contig " + 
-                                "'{}'." .format(self._prev_coordinate[0]))
-            if self._prev_coordinate[0] is not None:
-                self._processed_contigs.add(self._prev_coordinate[0])
-        elif record.POS < self._prev_coordinate[1]:
-            raise Exception("Input must be sorted by chromosome and position" + 
-                            "for recessive filtering. Encountered position " + 
-                            "{}:{} after {}:{}" .format(record.CHROM, 
-                             record.POS, self._prev_coordinate[0], 
-                             self._prev_coordinate[1]))
-        self._prev_coordinate = (record.CHROM, record.POS)
+        self._check_sorted(record)
         gts = record.parsed_gts(fields=self._gt_fields, samples=self.samples)
         skip_fam = set()
         for i in range(len(record.ALLELES) -1):
@@ -598,7 +603,7 @@ class DominantFilter(InheritanceFilter):
                     '"Features (e.g. transcripts) that contain qualifying ' + 
                     'dominant variants parsed by {}"' .format(
                     type(self).__name__)),]
-        super().__init__(family_filter, gq)
+        super().__init__(family_filter, gq, min_families)
         self.families = tuple(x for x in self.family_filter.inheritance_patterns 
                              if 'dominant' in 
                              self.family_filter.inheritance_patterns[x])
@@ -620,6 +625,8 @@ class DominantFilter(InheritanceFilter):
                                       controls=f_unaff, gq=gq, 
                                       confirm_missing=True)
             self.filters[fam] = dom_filter 
+            self.family_filter.logger.info("Analysing family {} under a " + 
+                                           "dominant model")
 
     def process_record(self, record, ignore_alleles=[], ignore_csq=[]):
         '''
@@ -632,7 +639,7 @@ class DominantFilter(InheritanceFilter):
                 ignore_alleles:
                         List of booleans indicating for each ALT in 
                         order whether it should be ignored in relation
-                        to possible recessive variation (e.g. if MAF is
+                        to possible dominant variation (e.g. if MAF is
                         too high, no likely pathogenic consequence 
                         etc.). This will normally have been generated 
                         by VapeRunner via VcfFilter and/or VepFilter
@@ -641,6 +648,8 @@ class DominantFilter(InheritanceFilter):
         '''
         dom_alleles = ([[] for i in range(len(record.ALLELES) - 1)])
         fam_alleles = ([[] for i in range(len(record.ALLELES) - 1)])
+        if self.min_families > 1:
+            self._check_sorted(record)
         for i in range(len(record.ALLELES) - 1):
             if ignore_alleles[i]:
                 continue
@@ -671,7 +680,7 @@ class DominantFilter(InheritanceFilter):
                         #store record and csq details
                         csqs.append(record.CSQ[j])
             except HeaderError:
-                if self.min_familes > 1:
+                if self.min_families > 1:
                     raise Exception("Could not identify CSQ or ANN fields in" +
                                     " VCF header. Please ensure your input " +
                                     "is annotated with Ensembl's VEP to " + 
@@ -720,20 +729,31 @@ class DominantFilter(InheritanceFilter):
 
             Clears the cache of stored PotentialSegregant alleles.
         '''
-        d_ids = set() 
+        sds = dict()
+        d_ids = set()
+        if not self._potential_dominants: 
+            #if cache is empy, we never encountered the next set of features
+            self._potential_dominants = self._last_added
+            self._last_added = OrderedDict()
         for feat, pds in self._potential_dominants.items():
             feat_fams = set()
             for pid,p in pds.items():
-                feat_fams.add(p.familes)
+                feat_fams.update(p.families)
             if len(feat_fams) >= self.min_families:
                 for p in pds.values():
                     d_ids.add(p.var_id)
                     samps = (x for x in self.affected 
                              if self.ped.fid_from_iid(x) in p.families)
-                    sv = SegregatingVariant(seg, samps, seg.families, 
-                                            'dominant', sv.feats, [], 
-                                            self.prefix)
-                    sv.annotate_record()
+                    if p.alt_id in sds:
+                        sds[p.alt_id].add_samples(samps, p.families, 
+                                                  'dominant', [feat], [])
+                    else:
+                        sv = SegregatingVariant(p, samps, p.families, 
+                                                'dominant', [feat], [], 
+                                                self.prefix)
+                        sds[p.alt_id] = sv
+        for sv in sds.values():
+            sv.annotate_record()
         #clear the cache except for the last entry which will be a new gene
         self._potential_dominants = self._last_added
         self._last_added = OrderedDict()
@@ -772,16 +792,16 @@ class DeNovoFilter(InheritanceFilter):
 
         '''
         self.prefix = "VAPE_de_novo"
-        self.header_fields = [("VAPE_de_novo", 
+        self.header_fields = [("VAPE_de_novo_dominant", 
                    '"Alleles that constitute de novo occurence in a child' + 
                    ' parsed by {}"' .format(type(self).__name__)),
                     ('VAPE_de_novo_families',
                     '"Family IDs for VAPE_de_novo alleles"'),
-                    ("VAPE_dominant_features", 
+                    ("VAPE_de_novo_features", 
                     '"Features (e.g. transcripts) that contain qualifying ' + 
                     'de novo variants parsed by {}"' .format(
                     type(self).__name__)),]
-        super().__init__(family_filter, gq)
+        super().__init__(family_filter, gq, min_families)
         self.families = tuple(x for x in self.family_filter.inheritance_patterns 
                              if 'de_novo' in 
                              self.family_filter.inheritance_patterns[x])
@@ -807,6 +827,11 @@ class DeNovoFilter(InheritanceFilter):
                                           controls=parents, gq=gq, 
                                           confirm_missing=True)
                 self.filters[fam].append(par_filter)
+                self.family_filter.logger.info(
+                    "Analysing family {} parents ({}) and children ({})"
+                    .format(fam, str.join(", ", parents), 
+                     str.join(", ", children)) + " combinations under a de " +
+                    "novo dominant model")
         
     def process_record(self, record, ignore_alleles=[], ignore_csq=[]):
         '''
@@ -825,6 +850,8 @@ class DeNovoFilter(InheritanceFilter):
                         classes.
 
         '''
+        if self.min_families > 1:
+            self._check_sorted(record)
         denovo_alleles = ([[] for i in range(len(record.ALLELES) - 1)])
         fam_alleles = ([[] for i in range(len(record.ALLELES) - 1)])
         for i in range(len(record.ALLELES) - 1):
@@ -904,20 +931,31 @@ class DeNovoFilter(InheritanceFilter):
 
             Clears the cache of stored PotentialSegregant alleles.
         '''
-        d_ids = set() 
+        sds = dict()
+        d_ids = set()
+        if not self._potential_denovos: 
+            #if cache is empy, we never encountered the next set of features
+            self._potential_denovos = self._last_added
+            self._last_added = OrderedDict()
         for feat, pds in self._potential_denovos.items():
             feat_fams = set()
             for pid,p in pds.items():
-                feat_fams.add(p.familes)
+                feat_fams.update(p.families)
             if len(feat_fams) >= self.min_families:
                 for p in pds.values():
                     d_ids.add(p.var_id)
                     samps = (x for x in self.affected 
                              if self.ped.fid_from_iid(x) in p.families)
-                    sv = SegregatingVariant(seg, samps, seg.families, 
-                                            'dominant', sv.feats, [], 
-                                            self.prefix)
-                    sv.annotate_record()
+                    if p.alt_id in sds:
+                        sds[p.alt_id].add_samples(samps, p.families, 
+                                                  'dominant', [feat], [])
+                    else:
+                        sv = SegregatingVariant(p, samps, p.families, 
+                                                'dominant', [feat], [], 
+                                                self.prefix)
+                        sds[p.alt_id] = sv
+        for sv in sds.values():
+            sv.annotate_record()
         #clear the cache except for the last entry which will be a new gene
         self._potential_denovos = self._last_added
         self._last_added = OrderedDict()
