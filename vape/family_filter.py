@@ -987,9 +987,10 @@ class ControlFilter(SampleFilter):
                         controls or more. Default=0.
 
         '''
-            
-        super().__init__(vcf, controls=family_filter.unaffected, gq=gq, 
-                         n_controls=0, confirm_missing=False)
+        if n_controls and n_controls > len(family_filter.vcf_unaffected):
+            n_controls = len(family_filter.vcf_unaffected)
+        super().__init__(vcf, controls=family_filter.vcf_unaffected, gq=gq, 
+                         n_controls=n_controls, confirm_missing=False)
 
 
 class SegregatingVariant(object):
