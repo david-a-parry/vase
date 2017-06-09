@@ -23,7 +23,6 @@ class PedFile(object):
     '''
 
     def __init__(self, filename):
-        
         self.filename = filename
         self.families = {}
         self.individuals = {}
@@ -37,20 +36,24 @@ class PedFile(object):
             if not line: continue   #skip blanks
             cols = line.split()
             if len(cols) < 6:
-                raise Exception("Not enough fields for PED file " + 
-                                "'{}'.\n" .format(self.filename) + 
-                                "Offending line was: {}" .format(line))
+                raise PedError("Not enough fields for PED file '{}'.\n" 
+                              .format(self.filename) + "Offending line: {}" 
+                              .format(line))
             indv = Individual(*cols[:6])
-            if indv.iid in self.individuals:
-                raise PedError("Duplicate individual ID '{}'".format(indv.iid)+
-                               "in PED file '{}'. " . format(self.filename) + 
-                               "Please ensure all individual IDs are unique.")
-            self.individuals[indv.iid] = indv
-            if indv.fid in self.families:
-                self.families[indv.fid].add_individual(indv)
-            else:
-                fam = Family(indv.fid, [indv])
-                self.families[indv.fid] = fam
+            self.add_individual(indv)
+
+    def add_individual(self, indv):
+        ''' Add an Individual object to the Ped '''
+        if indv.iid in self.individuals:
+            raise PedError("Duplicate individual ID '{}'".format(indv.iid)+
+                           "added to PedFile '{}'. " . format(self.filename) + 
+                           "Please ensure all individual IDs are unique.")
+        self.individuals[indv.iid] = indv
+        if indv.fid in self.families:
+            self.families[indv.fid].add_individual(indv)
+        else:
+            fam = Family(indv.fid, [indv])
+            self.families[indv.fid] = fam
 
     def get_affected(self):
         return (i for i in self.individuals 
