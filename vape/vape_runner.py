@@ -111,20 +111,7 @@ class VapeRunner(object):
                     keep_record_anyway = denovo_hit or dom_hit
                 self.variant_cache.add_record(record, keep_record_anyway)
             if self.variant_cache.output_ready:
-                #process PotentialRecessives
-                keep_ids = set()
-                if self.recessive_filter:
-                    keep_ids.update(
-                          self.recessive_filter.process_potential_recessives())
-                if self.dominant_filter and self.args.min_families > 1:
-                    keep_ids.update(self.dominant_filter.process_dominants())
-                if self.de_novo_filter and self.args.min_families > 1:
-                    keep_ids.update(self.de_novo_filter.process_de_novos())
-                #output records as appropriate
-                for var in self.variant_cache.output_ready:
-                    if var.can_output or var.var_id in keep_ids:
-                        self.out.write(str(var.record) + '\n')
-                self.variant_cache.output_ready = []
+                self.output_cache()
         elif self.de_novo_filter or self.dominant_filter:
             if denovo_hit or dom_hit:
                 self.out.write(str(record) + '\n')
@@ -133,23 +120,24 @@ class VapeRunner(object):
                 return
             self.out.write(str(record) + '\n')
     
+    def output_cache(self):
+        keep_ids = set()
+        if self.recessive_filter:
+            keep_ids.update(
+                          self.recessive_filter.process_potential_recessives())
+        if self.dominant_filter and self.args.min_families > 1:
+            keep_ids.update(self.dominant_filter.process_dominants())
+        if self.de_novo_filter and self.args.min_families > 1:
+            keep_ids.update(self.de_novo_filter.process_de_novos())
+        for var in self.variant_cache.output_ready:
+            if var.can_output or var.var_id in keep_ids:
+                self.out.write(str(var.record) + '\n')
+        self.variant_cache.output_ready = []
+
     def finish_up(self):
         if self.use_cache:
-            keep_ids = set()
-            if self.recessive_filter:
-                keep_ids.update(
-                          self.recessive_filter.process_potential_recessives())
-            if self.dominant_filter and self.args.min_families > 1:
-                keep_ids.update(self.dominant_filter.process_dominants())
-            if self.de_novo_filter and self.args.min_families > 1:
-                keep_ids.update(self.de_novo_filter.process_de_novos())
-                #output records as appropriate
-            for var in (self.variant_cache.output_ready + 
-                        self.variant_cache.cache):
-                if var.can_output or var.var_id in keep_ids:
-                    self.out.write(str(var.record) + '\n')
-            self.variant_cache.output_ready = []
-
+            self.variant_cache.output_ready += self.variant_cache.cache
+            self.output_cache()
 
     def filter_alleles_external(self, record):
         ''' 
@@ -419,8 +407,7 @@ class VapeRunner(object):
         if self.control_filter:
             return
         self.control_filter = ControlFilter(self.input, self.family_filter,
-                                            self.args.gq)
-
+                                            self.args.gq, self.args.n_controls)
 
 
 class VariantCache(object):
@@ -448,7 +435,7 @@ class VariantCache(object):
             self.features = these_feats
         else:
             self.features.update(these_feats)
-        self.cache.append( CachedVariant(record, can_output) )
+        self.cache.append(CachedVariant(record, can_output))
         
 
 class CachedVariant(object):
