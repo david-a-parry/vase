@@ -252,8 +252,14 @@ builds later than this version will be filtered.
 
 ''')
     file_args.add_argument(
+'--filter_known', action='store_true', default=False, help=
+'''Filter any allele/variant present in any of the
+files supplied to --gnomad or --dbsnp arguments.
+
+''')
+    file_args.add_argument(
 '--filter_novel', action='store_true', default=False, help=
-'''Filter any allele/variant not present in 
+'''Filter any allele/variant NOT present in 
 any of the files supplied to --gnomad or --dbsnp
 arguments.
 
@@ -266,6 +272,16 @@ other settings provided to other Annotation File
 Arguments. This requires one of the files 
 provided to --dbsnp to have CLNSIG annotations 
 from ClinVar.
+
+''')
+    file_args.add_argument(
+'-ignore_existing', '--ignore_existing_annotations', action='store_true',
+default=False, help=
+'''Ignore previously added annotations from 
+dbSNP/gnomAD files that may be present in the 
+input VCF. Default behaviour is to use these 
+annotations for filtering if present and the 
+relevant arguments (e.g. --freq) are given.
 
 ''')
 
