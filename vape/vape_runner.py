@@ -10,6 +10,8 @@ from .ped_file import PedFile, Family, Individual
 from .family_filter import FamilyFilter, ControlFilter
 from .family_filter import RecessiveFilter, DominantFilter, DeNovoFilter
 
+
+
 class VapeRunner(object):
 
     def __init__(self, args):
@@ -17,8 +19,7 @@ class VapeRunner(object):
         self.args = args
         self._set_logger()
         self.input = VcfReader(self.args.input)
-        self.prev_annots, self.info_prefixes = self._get_prev_annotations()
-        self.new_annots = dict()
+        self._get_prev_annotations()
         self.out = self.get_output()
         self.vcf_filters = self.get_vcf_filter_classes()
         self.ped = None
@@ -50,6 +51,8 @@ class VapeRunner(object):
         if args.dominant:
             self._get_dominant_filter()
         self._check_got_inherit_filter()
+        self.var_written = 0
+        self.var_filtered = 0
 
     def run(self):
         ''' Run VCF filtering/annotation using args from bin/vape.py '''
@@ -65,6 +68,8 @@ class VapeRunner(object):
         self.finish_up()
         self.logger.info('Finished processing {} variants.' 
                              .format(var_count))
+        self.logger.info('{} variants filtered.' .format(self.var_filtered))
+        self.logger.info('{} variants written.' .format(self.var_written)) 
         if self.out is not sys.stdout:
             self.out.close()
 
@@ -74,6 +79,7 @@ class VapeRunner(object):
         filter_alleles, filter_csq = self.filter_alleles_external(record)
         if sum(filter_alleles) == len(filter_alleles): 
             #all alleles should be filtered
+            self.var_filtered += 1
             return
         if self.sample_filter:
             for i in range(1, len(record.ALLELES)):
@@ -82,6 +88,7 @@ class VapeRunner(object):
                     filter_alleles[i-1] = True
                 if sum(filter_alleles) == len(filter_alleles): 
                     #all alleles should be filtered
+                    self.var_filtered += 1
                     return
         dom_filter_alleles = list(filter_alleles)
         if self.control_filter:
@@ -117,7 +124,9 @@ class VapeRunner(object):
                 self.out.write(str(record) + '\n')
         else:
             if sum(filter_alleles) == len(filter_alleles): 
+                self.var_filtered += 1
                 return
+            self.var_written += 1
             self.out.write(str(record) + '\n')
     
     def output_cache(self):
@@ -132,6 +141,9 @@ class VapeRunner(object):
         for var in self.variant_cache.output_ready:
             if var.can_output or var.var_id in keep_ids:
                 self.out.write(str(var.record) + '\n')
+                self.var_written += 1
+            else:
+                self.var_filtered += 1
         self.variant_cache.output_ready = []
 
     def finish_up(self):
@@ -179,10 +191,34 @@ class VapeRunner(object):
                     keep_alleles[i] = True
                 if m[i]:
                     matched_alleles[i] = True
-        
+        if self.prev_freqs:
+            r,m = self.filter_on_existing_freq(record)
+            for i in range(len(r)):
+                if r[i]:
+                    remove_alleles[i] = True
+                if m[i]:
+                    matched_alleles[i] = True
+        if self.prev_builds:
+            r,m = self.filter_on_existing_build(record)
+            for i in range(len(r)):
+                if r[i]:
+                    remove_alleles[i] = True
+                if m[i]:
+                    matched_alleles[i] = True
+        if self.prev_clinvar:
+            k,m = self.filter_on_existing_clnsig(record)
+            for i in range(len(k)):
+                if k[i]:
+                    keep_alleles[i] = True
+                if m[i]:
+                    matched_alleles[i] = True   
         verdict = []
         for i in range(len(remove_alleles)):
-            if remove_alleles[i] and not keep_alleles[i]:
+            if keep_alleles[i]:
+                verdict.append(False)
+            elif remove_alleles[i]:
+                verdict.append(True)
+            elif self.args.filter_known and matched_alleles[i]:
                 verdict.append(True)
             elif self.args.filter_novel and not matched_alleles[i]:
                 verdict.append(True)
@@ -190,6 +226,58 @@ class VapeRunner(object):
                 verdict.append(False)
         return verdict, remove_csq
  
+    def filter_on_existing_freq(self, record):
+        remove  = [False] * (len(record.ALLELES) -1)
+        matched = [False] * (len(record.ALLELES) -1)
+        parsed = record.parsed_info_fields(fields=self.prev_freqs)
+        for annot in parsed:
+            if parsed[annot] is None:
+                continue
+            for i in range(len(remove)):
+                if parsed[annot][i] is not None:
+                    matched[i] = True
+                    if self.args.freq:
+                        if parsed[annot][i] >= self.args.freq:
+                            remove[i] = True
+                    if self.args.min_freq:
+                        if parsed[annot][i] < self.args.min_freq:
+                            remove[i] = True
+        return remove,matched
+
+    def filter_on_existing_build(self, record):
+        remove  = [False] * (len(record.ALLELES) -1)
+        matched = [False] * (len(record.ALLELES) -1)
+        parsed = record.parsed_info_fields(fields=self.prev_builds)
+        for annot in parsed:
+            if parsed[annot] is None:
+                continue
+            for i in range(len(remove)):
+                if parsed[annot][i] is not None:
+                    matched[i] = True
+                    if self.args.build:
+                        if parsed[annot][i] <= self.args.build:
+                            remove[i] = True
+                    if self.args.min_freq:
+                        if parsed[annot][i] > self.args.max_build:
+                            remove[i] = True
+        return remove,matched
+
+    def filter_on_existing_clnsig(self, record):
+        keep    = [False] * (len(record.ALLELES) -1)
+        matched = [False] * (len(record.ALLELES) -1)
+        parsed = record.parsed_info_fields(fields=self.prev_clinvar)
+        for annot in parsed:
+            if parsed[annot] is None:
+                continue
+            for i in range(len(remove)):
+                if parsed[annot][i] is not None:
+                    matched[i] = True
+                    if self.args.clinvar_path:
+                        if ([i for i in ['4', '5'] if i in 
+                            parsed[annot][i].split('|')]):
+                                keep[i] = True
+        return keep,matched
+
     def filter_global(self, record):
         ''' Return True if record fails any global variant filters.'''
         if self.args.pass_filters:
@@ -239,16 +327,56 @@ class VapeRunner(object):
         return filters
 
     def _get_prev_annotations(self):
-        annots = set()
-        prefixes = set()
+        self.prev_annots = set()
+        self.info_prefixes = set()
         for info in self.input.metadata['INFO']:
             match = re.search('^(VAPE_\w+)_\w+(_\d+)?', info)
             if match:
-                annots.add(info)
-                prefixes.add(match.group(1))
+                self.prev_annots.add(info)
+                self.info_prefixes.add(match.group(1))
                 self.logger.debug("Identified previously annotated VAPE INFO" +
                                   " field '{}'" .format(info))
-        return annots, prefixes
+        self._parse_prev_vcf_filter_annotations()
+
+    def _parse_prev_vcf_filter_annotations(self):
+        frq_annots = []
+        bld_annots = []
+        cln_annots = []
+        get_matching = self.args.filter_known or self.args.filter_novel
+        if (not self.args.ignore_existing_annotations and 
+           (self.args.freq or self.args.min_freq or get_matching)):
+            for annot in sorted(self.prev_annots):
+                match = re.search('^VAPE_dbSNP|gnomAD(_\d+)?_(CAF|AF)(_\w+)?', 
+                                  annot)
+                if match:
+                    if (self.input.metadata['INFO'][annot][-1]['Number'] == 'A' and 
+                        self.input.metadata['INFO'][annot][-1]['Type'] == 'Float'): 
+                        self.logger.info("Found previous allele frequency " + 
+                                          "annotation '{}'".format(annot))
+                        frq_annots.append(annot)
+        if (not self.args.ignore_existing_annotations and (self.args.build or 
+            self.args.max_build or get_matching)):
+            for annot in sorted(self.prev_annots):
+                match = re.search('^VAPE_dbSNP(_\d+)?_dbSNPBuildID', annot)
+                if match:
+                    if (self.input.metadata['INFO'][annot][-1]['Number'] == 'A' and 
+                      self.input.metadata['INFO'][annot][-1]['Type'] == 'Integer'): 
+                        self.logger.info("Found previous dbSNP build " + 
+                                          "annotation '{}'".format(annot))
+                        bld_annots.append(annot)
+        if (not self.args.ignore_existing_annotations and 
+            (self.args.clinvar_path or get_matching)):
+            for annot in sorted(self.prev_annots):
+                match = re.search('^VAPE_dbSNP(_\d+)?_CLNSIG', annot)
+                if match:
+                    if (self.input.metadata['INFO'][annot][-1]['Number'] == 'A' and 
+                      self.input.metadata['INFO'][annot][-1]['Type'] == 'String'): 
+                        self.logger.info("Found previous ClinVar " + 
+                                          "annotation '{}'".format(annot))
+                        cln_annots.append(annot)
+        self.prev_freqs = tuple(frq_annots)
+        self.prev_builds = tuple(bld_annots)
+        self.prev_clinvar = tuple(cln_annots)
 
     def check_info_prefix(self, name):
         if name in self.info_prefixes:
