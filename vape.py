@@ -392,9 +392,15 @@ before they are output. Default = 1.
 
 ''')
     #end of args
-    return parser.parse_args()
+    return parser
 
 if __name__ == '__main__':
-    vape_args = parse_args()
+    parser = parse_args()
+    vape_args = parser.parse_args()
+    if vape_args.filter_novel and vape_args.filter_known:
+        parser.print_usage()
+        sys.stderr.write("vape.py: error: --filter_known and --filter_novel " +
+                         "arguments can not be used together.\n")
+        sys.exit(2)
     vape_runner = VapeRunner(vape_args)
     vape_runner.run()
