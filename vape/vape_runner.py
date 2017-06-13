@@ -63,8 +63,10 @@ class VapeRunner(object):
             self.process_record(record)
             var_count += 1
             if not self.args.quiet:
-                sys.stderr.write('\r{} variants processed...\r' 
-                                 .format(var_count))
+                sys.stderr.write('\r{} variants processed,'.format(var_count) +
+                                 ' {} variants filtered, {} '
+                                 .format(self.var_filtered, self.var_written) +
+                                 'variants written...\r')
         self.finish_up()
         self.logger.info('Finished processing {} variants.' 
                              .format(var_count))
