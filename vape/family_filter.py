@@ -625,8 +625,8 @@ class DominantFilter(InheritanceFilter):
                                       controls=f_unaff, gq=gq, 
                                       confirm_missing=True)
             self.filters[fam] = dom_filter 
-            self.family_filter.logger.info("Analysing family {} under a " + 
-                                           "dominant model")
+            self.family_filter.logger.info("Analysing family {} ".format(fam) + 
+                                           "under a dominant model")
 
     def process_record(self, record, ignore_alleles=[], ignore_csq=[]):
         '''
