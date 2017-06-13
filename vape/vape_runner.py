@@ -59,15 +59,18 @@ class VapeRunner(object):
         self.logger.info('Starting variant processing')
         self.print_header()
         var_count = 0
+        prog_string = ''
         for record in self.input.parser:
             self.process_record(record)
             var_count += 1
             if not self.args.quiet:
-                sys.stderr.write('\r{} variants processed,'.format(var_count) +
-                                 ' {} variants filtered, {} '
-                                 .format(self.var_filtered, self.var_written) +
-                                 'variants written...\r')
+                prog_string = ('\r{} variants processed,'.format(var_count) +
+                              ' {} variants filtered, {} variants written...'
+                                 .format(self.var_filtered, self.var_written))
+                sys.stderr.write(prog_string)
         self.finish_up()
+        if prog_string:
+            sys.stderr.write('\r' + '-' * len(prog_string) + '\n')
         self.logger.info('Finished processing {} variants.' 
                              .format(var_count))
         self.logger.info('{} variants filtered.' .format(self.var_filtered))
