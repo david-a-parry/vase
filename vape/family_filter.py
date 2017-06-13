@@ -44,15 +44,7 @@ class FamilyFilter(object):
                         displayed. Defaults to logging.WARNING
     
         '''
-        self.logger = logging.getLogger(__name__)
-        if not self.logger.hasHandlers():
-            self.logger.setLevel(logging_level)
-            formatter = logging.Formatter(
-                        '[%(asctime)s] %(name)s - %(levelname)s - %(message)s')
-            ch = logging.StreamHandler()
-            ch.setLevel(self.logger.level)
-            ch.setFormatter(formatter)
-            self.logger.addHandler(ch)
+        self.logger = self._get_logger(logging_level)
         self.affected = tuple(ped.get_affected())
         self.unaffected = tuple(ped.get_unaffected())
         self.obligate_carriers = dict()
@@ -173,6 +165,18 @@ class FamilyFilter(object):
                                  "analysed under a dominant model")
                 self.inheritance_patterns[fid].append('dominant')
                 self.obligate_carriers[fid] = tuple(obligate_carriers)
+
+    def _get_logger(self, logging_level):
+        logger = logging.getLogger(__name__)
+        if not logger.hasHandlers():
+            logger.setLevel(logging_level)
+            formatter = logging.Formatter(
+                        '[%(asctime)s] %(name)s - %(levelname)s - %(message)s')
+            ch = logging.StreamHandler()
+            ch.setLevel(logger.level)
+            ch.setFormatter(formatter)
+            logger.addHandler(ch)
+        return logger
             
 class InheritanceFilter(object):
     
