@@ -382,13 +382,44 @@ dominant inheritance in cases present in the PED
 file specified by the --ped argument. 
 
 ''')
-
     sample_args.add_argument(
 '--min_families', type=int, default=1, help=
 '''Minimum number of families (or unrelated samples)
 required to contain a qualifying dominant/de novo 
 or biallelic combination of variants in a feature
 before they are output. Default = 1.
+
+''')
+    sample_args.add_argument(
+'--singleton_recessive', default=[], nargs='+', metavar='SAMPLE_ID', help=
+'''One or more samples to treat as unrelated 
+individuals and identify variants matching a 
+recessive inheritance pattern.
+
+''')
+    sample_args.add_argument(
+'--singleton_dominant', default=[], nargs='+', metavar='SAMPLE_ID', help=
+'''One or more samples to treat as unrelated 
+individuals and identify variants matching a 
+dominant inheritance pattern.
+
+''')
+    sample_args.add_argument(
+'-seg_controls', '--seg_controls', default=[], nargs='+', metavar='SAMPLE_ID', 
+help=
+'''One or more sample IDs to treat as controls for
+segregation analysis only. Useful if you want to
+specify controls to use for rejecting compound
+heterozygous combinations of variants or 
+homozygous variants when using --biallelic option.
+Unlike the --controls option, alleles/variants 
+present in these samples will only be used for 
+filtering when looking at inheritance patterns in
+families present in a PED file or samples 
+specified with --singleton_recessive or 
+--singleton_dominant options. This option is not
+necessary if your unaffected samples are already
+present in your PED file specified with --ped.
 
 ''')
     #end of args

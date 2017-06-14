@@ -1,4 +1,4 @@
-
+import io
 
 class PedFile(object):
     ''' 
@@ -26,8 +26,11 @@ class PedFile(object):
         self.filename = filename
         self.families = {}
         self.individuals = {}
-        with open (filename) as ped:
-            self._parse_ped(ped)
+        if type(filename) == io.StringIO:
+            self._parse_ped(filename)
+        else:
+            with open (filename) as ped:
+                self._parse_ped(ped)
 
     def _parse_ped(self, fh):
         for line in fh:

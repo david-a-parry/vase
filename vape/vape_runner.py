@@ -1,15 +1,15 @@
 import sys
 import re
 import logging
+import io
 from .parse_vcf.parse_vcf import VcfReader, VcfHeader, VcfRecord 
 from .dbsnp_filter import dbSnpFilter 
 from .gnomad_filter import GnomadFilter 
 from .vep_filter import VepFilter  
 from .sample_filter import SampleFilter
-from .ped_file import PedFile, Family, Individual
+from .ped_file import PedFile, Family, Individual, PedError
 from .family_filter import FamilyFilter, ControlFilter
 from .family_filter import RecessiveFilter, DominantFilter, DeNovoFilter
-
 
 
 class VapeRunner(object):
@@ -46,9 +46,9 @@ class VapeRunner(object):
         self.use_cache = False
         if args.de_novo:
             self._get_de_novo_filter()
-        if args.biallelic:
+        if args.biallelic or args.singleton_recessive:
             self._get_recessive_filter()
-        if args.dominant:
+        if args.dominant or args.singleton_dominant:
             self._get_dominant_filter()
         self._check_got_inherit_filter()
         self.var_written = 0
@@ -64,9 +64,9 @@ class VapeRunner(object):
             self.process_record(record)
             var_count += 1
             if not self.args.quiet:
-                prog_string = ('\r{} variants processed,'.format(var_count) +
-                              ' {} variants filtered, {} variants written...'
-                                 .format(self.var_filtered, self.var_written))
+                prog_string = ('\r{} variants processed, '.format(var_count) +
+                               '{} variants filtered, {} variants written...'
+                               .format(self.var_filtered, self.var_written))
                 sys.stderr.write(prog_string)
         self.finish_up()
         if prog_string:
@@ -440,12 +440,55 @@ class VapeRunner(object):
     def _get_family_filter(self):
         if self.family_filter is not None:
             return self.family_filter
+        infer = True
+        no_ped = False
         if not self.ped:
-            raise Exception("Inheritance filtering options require a PED " + 
-                            "file specified using --ped")
+            if (not self.args.singleton_recessive and 
+                not  self.args.singleton_dominant):
+                raise Exception("Inheritance filtering options require a " + 
+                                "PED file specified using --ped or else " + 
+                                "samples specified using " + 
+                                "--singleton_recessive or " +
+                                "--singleton_dominant arguments")
+            else:
+                self.ped = self._make_ped_io()
+                no_ped = True
+                infer = False
         self.family_filter = FamilyFilter(ped=self.ped, vcf=self.input,
                                           gq=self.args.gq, 
+                                          infer_inheritance=infer,
                                           logging_level=self.logger.level)
+        
+        for s in self.args.seg_controls: 
+            indv = Individual(s, s, 0, 0, 0, 1)
+            try:
+                self.ped.add_individual(indv)
+            except PedError:
+                pass
+        if not no_ped:
+            for s in set(self.args.singleton_recessive + 
+                         self.args.singleton_dominant):
+                indv = Individual(s, s, 0, 0, 0, 2)
+                try:
+                    self.ped.add_individual(indv)
+                except PedError:
+                    raise Exception("Sample '{}' ".format(s) + "specified as" +
+                                    " either --singleton_recessive or " +
+                                    "--singleton_dominant already exists in" +
+                                    " PED file {}" .format(self.ped.filename))
+        for s in set(self.args.singleton_dominant):
+            self.family_filter.inheritance_patterns[s].append('dominant')
+        for s in set(self.args.singleton_recessive):
+            self.family_filter.inheritance_patterns[s].append('recessive')
+            
+
+    def _make_ped_io(self):
+        p_string = ''
+        for s in set(self.args.singleton_recessive + 
+                     self.args.singleton_dominant):
+            p_string += str.join("\t", (s, s, "0", "0", "0", "2")) + "\n" 
+        ped = io.StringIO(p_string)
+        return PedFile(ped)
 
     def _set_logger(self):
         self.logger = logging.getLogger("VAPE")

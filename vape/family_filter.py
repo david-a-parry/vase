@@ -11,8 +11,8 @@ class FamilyFilter(object):
     
     '''
 
-    def __init__(self, ped, vcf, inheritance_pattern=None, gq=0,
-                 logging_level=logging.WARNING):
+    def __init__(self, ped, vcf, infer_inheritance=True, 
+                 force_inheritance=None, gq=0, logging_level=logging.WARNING):
         ''' 
             Initialize with Family object from ped_file.py and a 
             VcfReader object from parse_vcf.py. You may also specify an
@@ -29,15 +29,23 @@ class FamilyFilter(object):
                         some of the affected individuals in the given 
                         family.
 
-                inheritance_pattern:
-                        Optionally specify the inheritance pattern(s) to 
-                        test - either 'dominant' or 'recessive' is 
-                        allowed. If not specified, the appropriate
-                        patterns will be inferred from family structure.
+                infer_inheritance:
+                        If True, infer possible inheritance patterns 
+                        for each family in the PedFile. Inferred patterns 
+                        are stored in self.inheritance_patterns dict 
+                        (keys are families, values are lists of 
+                        inheritance patterns).
+
+                force_inheritance:
+                        Optionally specify an inheritance pattern to 
+                        test for each family - either 'dominant' or 
+                        'recessive' is allowed. If infer_inheritance is
+                        True, these patterns will be tested in addition
+                        to inferred patterns.
 
                 gq:     Minimum genotype quality score. Genotype calls 
                         with a GQ lower than this value will be treated
-                        as no-calls.
+                        as no-calls. Default = 0.
 
                 logging_level: 
                         The level at which logging messages are 
@@ -61,12 +69,16 @@ class FamilyFilter(object):
         self.vcf_unaffected = tuple(x for x in self.unaffected 
                                     if x in self.vcf.header.samples)
         self.vcf_samples = self.vcf_affected + self.vcf_unaffected
-        if inheritance_pattern is None:
-            self.inheritance_patterns = dict()
+        self.inheritance_patterns = defaultdict(list)
+        if infer_inheritance:
             self._infer_inheritance()
-        else:
-            #TODO - assign inheritance for each family 
-            pass
+        if force_inheritance:
+            if force_inheritance not in ('dominant', 'recessive'):
+                raise Exception("Unrecognised inheritance pattern specified " +
+                                "with 'force_inheritance' argument. Valid " +
+                                "options are 'dominant' or 'recessive'.")
+            for fid in self.ped.families:
+                self.inheritance_patterns[fid].append(force_inheritance)
 
     def _infer_inheritance(self):
         ''' 
@@ -146,7 +158,6 @@ class FamilyFilter(object):
                             break
                 if shared_pars:
                     denovo = True
-            #TODO - Check who is present in VCF and arrange filtering appropriately
             
             self.inheritance_patterns[fid] = []
             if recessive:
@@ -177,6 +188,7 @@ class FamilyFilter(object):
             ch.setFormatter(formatter)
             logger.addHandler(ch)
         return logger
+
             
 class InheritanceFilter(object):
     
@@ -296,15 +308,14 @@ class RecessiveFilter(InheritanceFilter):
         '''
         self.prefix = "VAPE_biallelic"
         self.header_fields = [("VAPE_biallelic_homozygous", 
-               '"Variants that constitute homozygous biallelic changes ' + 
+               '"Samples that carry homozygous biallelic changes ' + 
                ' parsed by {}"' .format(type(self).__name__)),
                ("VAPE_biallelic_compound_het",
-               '"Variants that constitute compound heterozygous ' + 
-               'biallelic changes parsed by {}"'.format(
-                                                    type(self).__name__)),
+               '"Samples that carry compound heterozygous biallelic changes ' + 
+               'parsed by {}"'.format(type(self).__name__)),
                ("VAPE_biallelic_de_novo",
-               '"Variants that constitute biallelic changes and appear ' + 
-               ' to have arisen de novo"'),
+               '"Samples that carry biallelic alleles that appear to have ' + 
+               'arisen de novo"'),
                ("VAPE_biallelic_features", 
                '"Features (e.g. transcripts) that contain qualifying ' + 
                'biallelic variants parsed by {}"' .format(
@@ -598,9 +609,12 @@ class DominantFilter(InheritanceFilter):
         '''
         self.prefix = "VAPE_dominant"
         self.header_fields = [("VAPE_dominant", 
-                    '"Alleles that segregate according to a dominant ' + 
-                    'inheritance pattern in an affected sample as' + 
+                    '"Sample IDs for alleles that segregate according to a ' + 
+                    'dominant inheritance pattern in an affected sample as' + 
                     ' parsed by {}"' .format(type(self).__name__)),
+                    ('VAPE_dominant_unaffected_carrier',
+                    '"Sample IDs for unaffected carriers of ' + 
+                    'VAPE_dominant alleles"'),
                     ('VAPE_dominant_families',
                     '"Family IDs for VAPE_dominant alleles"'),
                     ("VAPE_dominant_features", 
@@ -623,8 +637,11 @@ class DominantFilter(InheritanceFilter):
             f_unaff = tuple(x for x in self.ped.families[fam].get_unaffected() 
                             if (x in self.unaffected and x not in  
                             self.family_filter.obligate_carriers[fam]))
-            self.obligate_carriers = tuple(x for x in f_aff if x in 
+            if fam in self.family_filter.obligate_carriers:
+                self.obligate_carriers = tuple(x for x in f_aff if x in 
                                      self.family_filter.obligate_carriers[fam])
+            else:
+                self.obligate_carriers = ()
             dom_filter = SampleFilter(family_filter.vcf, cases=f_aff, 
                                       controls=f_unaff, gq=gq, 
                                       confirm_missing=True)
@@ -711,13 +728,13 @@ class DominantFilter(InheritanceFilter):
                 affs = (x for x in self.affected 
                          if x not in self.obligate_carriers and 
                          self.ped.fid_from_iid(x) in seg.families)
-                sv = SegregatingVariant(seg, affs, seg.families, 'dominant', 
+                sv = SegregatingVariant(seg, affs, seg.families, '', 
                                         seg.features, [], self.prefix)
                 obcs = tuple(x for x in self.obligate_carriers if 
                              self.ped.fid_from_iid(x) in seg.families)
                 if obcs:
                     obfs = set(self.ped.fid_from_iid(x) for x in obcs)
-                    sv.add_samples(obcs, obfs, 'dominant_unaffected_carrier',
+                    sv.add_samples(obcs, obfs, 'unaffected_carrier',
                                    seg.features, [])
                 sv.annotate_record()
         return len(segs) > 0
@@ -750,10 +767,10 @@ class DominantFilter(InheritanceFilter):
                              if self.ped.fid_from_iid(x) in p.families)
                     if p.alt_id in sds:
                         sds[p.alt_id].add_samples(samps, p.families, 
-                                                  'dominant', [feat], [])
+                                                  '', [feat], [])
                     else:
                         sv = SegregatingVariant(p, samps, p.families, 
-                                                'dominant', [feat], [], 
+                                                '', [feat], [], 
                                                 self.prefix)
                         sds[p.alt_id] = sv
         for sv in sds.values():
@@ -796,9 +813,9 @@ class DeNovoFilter(InheritanceFilter):
 
         '''
         self.prefix = "VAPE_de_novo"
-        self.header_fields = [("VAPE_de_novo_dominant", 
-                   '"Alleles that constitute de novo occurence in a child' + 
-                   ' parsed by {}"' .format(type(self).__name__)),
+        self.header_fields = [("VAPE_de_novo", 
+                   '"Samples that carry alleles occurring de novo parsed by ' + 
+                   '{}"' .format(type(self).__name__)),
                     ('VAPE_de_novo_families',
                     '"Family IDs for VAPE_de_novo alleles"'),
                     ("VAPE_de_novo_features", 
@@ -919,7 +936,7 @@ class DeNovoFilter(InheritanceFilter):
             else:
                 affs = (x for x in self.affected if self.ped.fid_from_iid(x) 
                         in seg.families)
-                sv = SegregatingVariant(seg, affs, seg.families, 'dominant',
+                sv = SegregatingVariant(seg, affs, seg.families, '',
                                         seg.features, [], self.prefix)
                 sv.annotate_record()
         return len(segs) > 0
@@ -952,10 +969,10 @@ class DeNovoFilter(InheritanceFilter):
                              if self.ped.fid_from_iid(x) in p.families)
                     if p.alt_id in sds:
                         sds[p.alt_id].add_samples(samps, p.families, 
-                                                  'dominant', [feat], [])
+                                                  '', [feat], [])
                     else:
                         sv = SegregatingVariant(p, samps, p.families, 
-                                                'dominant', [feat], [], 
+                                                '', [feat], [], 
                                                 self.prefix)
                         sds[p.alt_id] = sv
         for sv in sds.values():
@@ -1042,7 +1059,9 @@ class SegregatingVariant(object):
         ''' Add INFO field annotations for VcfRecords '''
         annots = defaultdict(set)
         for i in range(len(self.model)):
-            k = self.prefix + "_" + self.model[i]
+            k = self.prefix
+            if self.model[i]:
+                k += "_" + self.model[i]
             annots[k].add(self.samples[i])
         for k in annots:
             annots[k] = str.join("|", sorted(annots[k]))
