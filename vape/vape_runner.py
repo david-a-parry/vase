@@ -44,6 +44,7 @@ class VapeRunner(object):
         self.control_filter = None
         self.variant_cache = VariantCache()
         self.use_cache = False
+        self.report_fhs = self.get_report_filehandles()
         if args.de_novo:
             self._get_de_novo_filter()
         if args.biallelic or args.singleton_recessive:
@@ -80,6 +81,7 @@ class VapeRunner(object):
 
     def process_record(self, record):
         if self.filter_global(record):
+            self.var_filtered += 1
             return
         filter_alleles, filter_csq = self.filter_alleles_external(record)
         if sum(filter_alleles) == len(filter_alleles): 
@@ -155,6 +157,9 @@ class VapeRunner(object):
         if self.use_cache:
             self.variant_cache.output_ready += self.variant_cache.cache
             self.output_cache()
+        for fh in self.report_fhs.values():
+            if fh is not None:
+                fh.close()
 
     def filter_alleles_external(self, record):
         ''' 
@@ -437,6 +442,22 @@ class VapeRunner(object):
             fh = sys.stdout
         return fh
 
+    def get_report_filehandles(self):
+        fhs = {'recessive' : None,
+               'dominant' : None,
+               'de_novo' : None,}
+        if self.args.report_prefix is not None:
+            if self.args.biallelic or self.args.singleton_recessive:
+                f = self.args.report_prefix + ".recessive.report.tsv"
+                fhs['recessive'] = open(f, 'w')
+            if self.args.dominant or self.args.singleton_dominant:
+                f = self.args.report_prefix + ".dominant.report.tsv"
+                fhs['dominant'] = open(f, 'w')
+            if self.args.de_novo:
+                f = self.args.report_prefix + ".de_novo.report.tsv"
+                fhs['de_novo'] = open(f, 'w')
+        return fhs
+
     def _get_family_filter(self):
         if self.family_filter is not None:
             return self.family_filter
@@ -517,8 +538,10 @@ class VapeRunner(object):
     def _get_dominant_filter(self):
         self._get_family_filter()
         self._get_control_filter()
-        self.dominant_filter = DominantFilter(self.family_filter, self.args.gq,
-                                              self.args.min_families)
+        self.dominant_filter = DominantFilter(
+                                       self.family_filter, self.args.gq,
+                                       self.args.min_families, 
+                                       report_file=self.report_fhs['dominant'])
         if not self.dominant_filter.affected:
             msg = ("No samples fit a dominant model - can not use dominant " + 
                    "filtering")
@@ -539,8 +562,10 @@ class VapeRunner(object):
     def _get_de_novo_filter(self):
         self._get_family_filter()
         self._get_control_filter()
-        self.de_novo_filter = DeNovoFilter(self.family_filter, self.args.gq,
-                                           self.args.min_families)
+        self.de_novo_filter = DeNovoFilter(
+                                        self.family_filter, self.args.gq,
+                                        self.args.min_families,
+                                        report_file=self.report_fhs['de_novo'])
         if not self.de_novo_filter.affected:
             msg = ("No samples fit a de novo model - can not use de novo " + 
                    "filtering")
@@ -560,9 +585,10 @@ class VapeRunner(object):
 
     def _get_recessive_filter(self):
         self._get_family_filter()
-        self.recessive_filter = RecessiveFilter(self.family_filter, 
-                                                self.args.gq, 
-                                                self.args.min_families)
+        self.recessive_filter = RecessiveFilter(
+                                      self.family_filter, gq=self.args.gq, 
+                                      min_families=self.args.min_families,
+                                      report_file=self.report_fhs['recessive'])
         if not self.recessive_filter.affected:
             msg = ("No samples fit a recessive model - can not use biallelic" + 
                   " filtering")

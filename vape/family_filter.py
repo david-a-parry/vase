@@ -197,7 +197,7 @@ class InheritanceFilter(object):
         object.
     '''
 
-    def __init__(self, family_filter, gq=0, min_families=1):
+    def __init__(self, family_filter, gq=0, min_families=1, report_file=None):
         self.family_filter = family_filter
         self.gq = gq #setting to 0 should allow VCFs without GQ information
         self.min_families = min_families
@@ -209,6 +209,8 @@ class InheritanceFilter(object):
             self._gt_fields.append('GQ')
         self._prev_coordinate = (None, None)  # to ensure records are processed 
         self._processed_contigs = set()       # in coordinate order
+        if self.report_file:
+            self._write_report_header()
 
     def get_header_fields(self):
         ''' 
@@ -270,6 +272,14 @@ class InheritanceFilter(object):
         return NotImplementedError("process_record method should be " + 
                                    "overriden by child class!") 
 
+    def _write_report_header(self):
+        header = str.join("\t", (x for x in 
+                                 self.family_filter.vcf.header.csq_fields 
+                                 if x != 'Allele'))
+        header += "\t" + str.join("\t", self.annot_fields)
+        header +=  "CHROM\tPOS\tID\tREF\tALT\tALLELE\tQUAL\tFILTER"
+        self.report_file.write(header + "\n")
+       
 
 class RecessiveFilter(InheritanceFilter):
     ''' 
@@ -277,8 +287,8 @@ class RecessiveFilter(InheritanceFilter):
         genetic cause of disease. It will not cope with phenocopies, 
         pseudodominance or other more complicated inheritance patterns.
     '''
-    def __init__(self, family_filter, gq=0, min_families=1, 
-                 strict=False, exclude_denovo=False):
+    def __init__(self, family_filter, gq=0, min_families=1, strict=False, 
+                 exclude_denovo=False, report_file=None):
         '''
             Args:
                 family_filter: 
@@ -293,18 +303,23 @@ class RecessiveFilter(InheritanceFilter):
                         parents, require confirmation of parental 
                         genotypes. If either parent genotype is a 
                         no-call for a record, then the record will 
-                        be ignored. Defaul=False.
+                        be ignored. Default=False.
 
                 exclude_denovo:
                         If True, where there is data available from
                         both parents for an affected individual 
                         ignore apparent de novo occuring alleles.
-                        Default = False.
+                        Default=False.
                         
                 min_families:
                         Require at least this many families to have a 
                         qualifying biallelic combination of alleles in
                         a feature before outputting. Default=1.
+
+                report_file:
+                        Output filehandle for writing summaries of 
+                        segregating variants to. Default=None.
+
         '''
         self.prefix = "VAPE_biallelic"
         self.header_fields = [("VAPE_biallelic_homozygous", 
@@ -320,7 +335,11 @@ class RecessiveFilter(InheritanceFilter):
                '"Features (e.g. transcripts) that contain qualifying ' + 
                'biallelic variants parsed by {}"' .format(
                 type(self).__name__)),]
-        super().__init__(family_filter, gq)
+        self.annot_fields = ('homozygous', 'compound_het', 'de_novo', 
+                            'families', 'features')
+        self.report_file = report_file
+        super().__init__(family_filter, gq=gq, min_families=min_families,
+                         report_file=report_file,)
         self.families = tuple(x for x in self.family_filter.inheritance_patterns 
                              if 'recessive' in 
                              self.family_filter.inheritance_patterns[x])
@@ -339,8 +358,7 @@ class RecessiveFilter(InheritanceFilter):
         self._last_added = OrderedDict()
         self._current_features = set()
         self._processed_features = set()
- 
-       
+
     def process_record(self, record, ignore_alleles=[], ignore_csq=[]):
         '''
             Returns True if record should be stored for checking against
@@ -522,7 +540,7 @@ class RecessiveFilter(InheritanceFilter):
                         segregating[tp[0]] = SegregatingVariant(*tp)
         b_var_ids = set()
         for sb in segregating.values():
-            sb.annotate_record()
+            sb.annotate_record(self.report_file, self.annot_fields)
             b_var_ids.add(sb.segregant.var_id)
         #clear the cache except for the last entry which will be a new gene
         self._potential_recessives = self._last_added
@@ -587,7 +605,7 @@ class DominantFilter(InheritanceFilter):
         given families.
     '''
 
-    def __init__(self, family_filter, gq=0, min_families=1):
+    def __init__(self, family_filter, gq=0, min_families=1, report_file=None):
         ''' 
             Initialize with parent IDs, children IDs and VcfReader 
             object.
@@ -608,7 +626,7 @@ class DominantFilter(InheritanceFilter):
 
         '''
         self.prefix = "VAPE_dominant"
-        self.header_fields = [("VAPE_dominant", 
+        self.header_fields = [("VAPE_dominant_samples", 
                     '"Sample IDs for alleles that segregate according to a ' + 
                     'dominant inheritance pattern in an affected sample as' + 
                     ' parsed by {}"' .format(type(self).__name__)),
@@ -621,7 +639,11 @@ class DominantFilter(InheritanceFilter):
                     '"Features (e.g. transcripts) that contain qualifying ' + 
                     'dominant variants parsed by {}"' .format(
                     type(self).__name__)),]
-        super().__init__(family_filter, gq, min_families)
+        self.annot_fields = ('samples', 'unaffected_carrier', 'families', 
+                             'features')
+        self.report_file = report_file
+        super().__init__(family_filter, gq=gq, min_families=min_families,
+                         report_file=report_file,)
         self.families = tuple(x for x in self.family_filter.inheritance_patterns 
                              if 'dominant' in 
                              self.family_filter.inheritance_patterns[x])
@@ -728,7 +750,7 @@ class DominantFilter(InheritanceFilter):
                 affs = (x for x in self.affected 
                          if x not in self.obligate_carriers and 
                          self.ped.fid_from_iid(x) in seg.families)
-                sv = SegregatingVariant(seg, affs, seg.families, '', 
+                sv = SegregatingVariant(seg, affs, seg.families, 'samples', 
                                         seg.features, [], self.prefix)
                 obcs = tuple(x for x in self.obligate_carriers if 
                              self.ped.fid_from_iid(x) in seg.families)
@@ -736,7 +758,7 @@ class DominantFilter(InheritanceFilter):
                     obfs = set(self.ped.fid_from_iid(x) for x in obcs)
                     sv.add_samples(obcs, obfs, 'unaffected_carrier',
                                    seg.features, [])
-                sv.annotate_record()
+                sv.annotate_record(self.report_file, self.annot_fields)
         return len(segs) > 0
 
 
@@ -767,14 +789,14 @@ class DominantFilter(InheritanceFilter):
                              if self.ped.fid_from_iid(x) in p.families)
                     if p.alt_id in sds:
                         sds[p.alt_id].add_samples(samps, p.families, 
-                                                  '', [feat], [])
+                                                  'samples', [feat], [])
                     else:
                         sv = SegregatingVariant(p, samps, p.families, 
-                                                '', [feat], [], 
+                                                'samples', [feat], [], 
                                                 self.prefix)
                         sds[p.alt_id] = sv
         for sv in sds.values():
-            sv.annotate_record()
+            sv.annotate_record(self.report_file, self.annot_fields)
         #clear the cache except for the last entry which will be a new gene
         self._potential_dominants = self._last_added
         self._last_added = OrderedDict()
@@ -787,8 +809,8 @@ class DeNovoFilter(InheritanceFilter):
         the parents.
     '''
 
-    def __init__(self, family_filter, gq=0, min_families=1,
-                 confirm_het=False):
+    def __init__(self, family_filter, gq=0, min_families=1, confirm_het=False, 
+                report_file=None):
         ''' 
             Initialize with parent IDs, children IDs and VcfReader 
             object.
@@ -813,7 +835,7 @@ class DeNovoFilter(InheritanceFilter):
 
         '''
         self.prefix = "VAPE_de_novo"
-        self.header_fields = [("VAPE_de_novo", 
+        self.header_fields = [("VAPE_de_novo_samples", 
                    '"Samples that carry alleles occurring de novo parsed by ' + 
                    '{}"' .format(type(self).__name__)),
                     ('VAPE_de_novo_families',
@@ -822,7 +844,10 @@ class DeNovoFilter(InheritanceFilter):
                     '"Features (e.g. transcripts) that contain qualifying ' + 
                     'de novo variants parsed by {}"' .format(
                     type(self).__name__)),]
-        super().__init__(family_filter, gq, min_families)
+        self.annot_fields = ('samples', 'families', 'features')
+        self.report_file = report_file
+        super().__init__(family_filter, gq=gq, min_families=min_families,
+                         report_file=report_file,)
         self.families = tuple(x for x in self.family_filter.inheritance_patterns 
                              if 'de_novo' in 
                              self.family_filter.inheritance_patterns[x])
@@ -936,9 +961,9 @@ class DeNovoFilter(InheritanceFilter):
             else:
                 affs = (x for x in self.affected if self.ped.fid_from_iid(x) 
                         in seg.families)
-                sv = SegregatingVariant(seg, affs, seg.families, '',
+                sv = SegregatingVariant(seg, affs, seg.families, 'samples',
                                         seg.features, [], self.prefix)
-                sv.annotate_record()
+                sv.annotate_record(self.report_file, self.annot_fields)
         return len(segs) > 0
 
     def process_de_novos(self):
@@ -969,14 +994,14 @@ class DeNovoFilter(InheritanceFilter):
                              if self.ped.fid_from_iid(x) in p.families)
                     if p.alt_id in sds:
                         sds[p.alt_id].add_samples(samps, p.families, 
-                                                  '', [feat], [])
+                                                  'samples', [feat], [])
                     else:
                         sv = SegregatingVariant(p, samps, p.families, 
-                                                '', [feat], [], 
+                                                'samples', [feat], [], 
                                                 self.prefix)
                         sds[p.alt_id] = sv
         for sv in sds.values():
-            sv.annotate_record()
+            sv.annotate_record(self.report_file, self.annot_fields)
         #clear the cache except for the last entry which will be a new gene
         self._potential_denovos = self._last_added
         self._last_added = OrderedDict()
@@ -1055,7 +1080,7 @@ class SegregatingVariant(object):
         self.features.update(features)
         self.de_novos.update(de_novos)
 
-    def annotate_record(self):
+    def annotate_record(self, report_file=None, annot_order=[]):
         ''' Add INFO field annotations for VcfRecords '''
         annots = defaultdict(set)
         for i in range(len(self.model)):
@@ -1072,8 +1097,29 @@ class SegregatingVariant(object):
         if self.de_novos:
             annots[self.prefix + '_de_novo'] = str.join("|", 
                                                         sorted(self.de_novos))
-        annots = self._convert_annotations(annots)
-        self.segregant.record.add_info_fields(annots)
+        converted = self._convert_annotations(annots)
+        self.segregant.record.add_info_fields(converted)
+        if report_file:
+            report_file.write(self._annot_to_string(annots, annot_order) +"\n")
+
+    def _annot_to_string(self, annots, annot_order):
+        s = ''
+        for csq in self.segregant.csqs:
+            vals = (str(v) for k,v in csq.items() if k != 'Allele')
+            s = str.join("\t", (x if x else '.' for x in vals))
+        if annot_order:
+            annot_order = [self.prefix + "_" + x for x in annot_order]
+            s += "\t" + str.join("\t", (annots[k] if isinstance(annots[k], str)
+                                        else '.' for k in annot_order))
+        else:
+            s += "\t" + str.join("\t", (annots[k] if isinstance(annots[k], str)
+                                 else '.' for k in sorted(annots)))
+        r = self.segregant.record
+        s += "\t" + str.join("\t", (str(x) for x in (r.CHROM, r.POS, r.ID, 
+                                    r.REF, r.ALT, 
+                                    r.ALLELES[self.segregant.allele],
+                                    r.QUAL, r.FILTER)))
+        return s
 
     def _convert_annotations(self, annots):
         ''' Convert to per-allele (Number=A) format for INFO field '''
@@ -1095,13 +1141,14 @@ class PotentialSegregant(object):
     '''
 
     __slots__ = ['allele', 'allele_counts', 'features', 'families', 'alt_id',
-                 'var_id', 'record']
+                 'var_id', 'record', 'csqs']
 
     def __init__(self, record, allele, csqs, allele_counts, families):
         self.allele = allele
         self.allele_counts = allele_counts
         self.families = families
         self.features = set(x['Feature'] for x in csqs)
+        self.csqs = csqs
         self.record = record
         self.var_id = "{}:{}-{}/{}".format(record.CHROM, record.POS, 
                                            record.REF, record.ALT)

@@ -34,6 +34,18 @@ def parse_args():
 Default = STDOUT
 
 ''')
+
+    optional_args.add_argument(
+'-r', '--report_prefix', help=
+'''Prefix for segregation summary report output 
+files. If either --biallelic, --de_novo or 
+--dominant options are in effect this option will
+write summaries for segregating variants to files
+with the respective suffixes of 
+'_recessive.report.tsv', '_de_novo.report.tsv' and
+'_dominant.report.tsv'.
+
+''')
     optional_args.add_argument(
 '--quiet', action='store_true', help=
 '''Do not output progress information.
