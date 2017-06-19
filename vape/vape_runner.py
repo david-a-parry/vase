@@ -114,7 +114,8 @@ class VapeRunner(object):
                                                           filter_csq)
         if self.de_novo_filter:
             denovo_hit = self.de_novo_filter.process_record(record,
-                                                            dom_filter_alleles)
+                                                            dom_filter_alleles,
+                                                            filter_csq)
         if self.recessive_filter:
             recessive_hit = self.recessive_filter.process_record(record, 
                                                     filter_alleles, filter_csq) 
