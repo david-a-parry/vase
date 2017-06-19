@@ -137,11 +137,11 @@ class VapeRunner(object):
             self.var_written += 1
             self.out.write(str(record) + '\n')
     
-    def output_cache(self):
+    def output_cache(self, final=False):
         keep_ids = set()
         if self.recessive_filter:
             keep_ids.update(
-                          self.recessive_filter.process_potential_recessives())
+               self.recessive_filter.process_potential_recessives(final=final))
         if self.dominant_filter and self.args.min_families > 1:
             keep_ids.update(self.dominant_filter.process_dominants())
         if self.de_novo_filter and self.args.min_families > 1:
@@ -157,7 +157,7 @@ class VapeRunner(object):
     def finish_up(self):
         if self.use_cache:
             self.variant_cache.output_ready += self.variant_cache.cache
-            self.output_cache()
+            self.output_cache(final=True)
         for fh in self.report_fhs.values():
             if fh is not None:
                 fh.close()

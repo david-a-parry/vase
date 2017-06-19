@@ -394,6 +394,7 @@ class RecessiveFilter(InheritanceFilter):
         self._check_sorted(record)
         gts = record.parsed_gts(fields=self._gt_fields, samples=self.samples)
         skip_fam = set()
+        added_prs = OrderedDict()
         for i in range(len(record.ALLELES) -1):
             if ignore_alleles and ignore_alleles[i]:
                 continue
@@ -434,15 +435,16 @@ class RecessiveFilter(InheritanceFilter):
                             csqs.append(record.CSQ[j])
                     if csqs:
                         stored = True
-                        self._last_added = OrderedDict()
                         alt_counts = self._get_allele_counts(alt, gts)
                         pr = PotentialSegregant(record=record, allele=alt,
                                                 csqs=csqs, 
                                                 allele_counts=alt_counts, 
                                                 families=fams_with_allele)
                         for feat in pr.features:
-                            self._last_added[feat] = OrderedDict(
-                                                             [(pr.alt_id, pr)])
+                            if feat in added_prs:
+                                added_prs[feat][pr.alt_id] = pr
+                            else:
+                                added_prs[feat] = OrderedDict([(pr.alt_id, pr)])
                             if feat in self._potential_recessives:
                                 self._potential_recessives[feat][pr.alt_id] = pr
                             else:
@@ -453,9 +455,10 @@ class RecessiveFilter(InheritanceFilter):
                                     "in VCF header. Please ensure your input" +
                                     " is annotated with Ensembl's VEP to " +
                                     "perform recessive filtering")
+        self._last_added = added_prs
         return stored
 
-    def process_potential_recessives(self):
+    def process_potential_recessives(self ,final=False):
         ''' 
             Check whether stored PotentialSegregant alleles make up 
             biallelic variation in the same transcript for affected 
@@ -467,6 +470,8 @@ class RecessiveFilter(InheritanceFilter):
         '''
         segregating = dict() #keys are alt_ids, values are SegregatingBiallelic 
         for feat, prs in self._potential_recessives.items():
+            if not final and feat in self._last_added:
+                continue
             feat_segregating = [] #list of tuples of values for creating SegregatingBiallelic 
             fam_count = 0 #no. families with biallelic combination
             un_hets = defaultdict(list)  #store het alleles carried by each unaffected
@@ -511,27 +516,26 @@ class RecessiveFilter(InheritanceFilter):
                 if len(b_affs) == 0 or b_affs != affs:
                     continue
                 affs = list(affs)
+                absent_in_aff = False
                 for i in range(len(affs)):
                     for bi in biallelics[affs[i]]:
-                        absent_in_aff = False
                         for j in range(i+1, len(affs)):
                             if bi not in biallelics[affs[j]]:
                                 absent_in_aff = True
                                 break
-                        if not absent_in_aff:
-                            segs,de_novo = self._check_parents(feat, bi, affs)
-                            if not segs:
-                                continue
-                            if len(bi) == 1:
-                                model = 'homozygous'
-                            else:
-                                model = 'compound_het'
-                            for bi_pr in (prs[x] for x in bi):
-                                feat_segregating.append((bi_pr, affs, [fid], 
-                                                         model, [feat], 
-                                                         de_novo[bi_pr.alt_id], 
-                                                         self.prefix))
-                                fam_count += 1
+                if not absent_in_aff:
+                    segs,de_novo = self._check_parents(feat, bi, affs)
+                    if not segs:
+                        continue
+                    if len(bi) == 1:
+                        model = 'homozygous'
+                    else:
+                        model = 'compound_het'
+                    for bi_pr in (prs[x] for x in bi):
+                        feat_segregating.append((bi_pr, affs, [fid], model, 
+                                                 [feat], de_novo[bi_pr.alt_id], 
+                                                 self.prefix))
+                        fam_count += 1
             if fam_count >= self.min_families:
                 for tp in feat_segregating:
                     if tp[0] in segregating:
