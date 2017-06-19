@@ -1104,9 +1104,13 @@ class SegregatingVariant(object):
 
     def _annot_to_string(self, annots, annot_order):
         s = ''
-        for csq in self.segregant.csqs:
-            vals = (str(v) for k,v in csq.items() if k != 'Allele')
-            s = str.join("\t", (x if x else '.' for x in vals))
+        csq_to_join = [] 
+        for k in (x for x in self.segregant.csqs[0] if x != 'Allele'):
+            csq_to_join.append(str.join("|", (str(self.segregant.csqs[i][k]) 
+                                              if self.segregant.csqs[i][k] 
+                                              else '.' for i in range(
+                                                   len(self.segregant.csqs)))))
+        s = str.join("\t", csq_to_join)
         if annot_order:
             annot_order = [self.prefix + "_" + x for x in annot_order]
             s += "\t" + str.join("\t", (annots[k] if isinstance(annots[k], str)
