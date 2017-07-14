@@ -15,8 +15,8 @@ def parse_args():
     filter_args = parser.add_argument_group('Variant Filtering  Arguments', 
         'Arguments for filtering based on variant features')
     sample_args = parser.add_argument_group('Sample Based Filtering Arguments',
-        'Arguments for filtering variants based on presence/absence in ' + 
-        'samples and/or inheritance patterns')
+'''Arguments for filtering variants based on presence/absence in samples and/or 
+inheritance patterns''')
 
     #required arguments
     required_args.add_argument(
