@@ -1,4 +1,4 @@
-from .parse_vcf.parse_vcf import * 
+from parse_vcf import * 
 from .ped_file import *
 from .sample_filter import SampleFilter
 import logging

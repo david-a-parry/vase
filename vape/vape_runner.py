@@ -2,7 +2,7 @@ import sys
 import re
 import logging
 import io
-from .parse_vcf.parse_vcf import VcfReader, VcfHeader, VcfRecord 
+from parse_vcf import VcfReader, VcfHeader, VcfRecord 
 from .dbsnp_filter import dbSnpFilter 
 from .gnomad_filter import GnomadFilter 
 from .vep_filter import VepFilter  
