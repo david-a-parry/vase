@@ -7,16 +7,18 @@ from vape.vape_runner import VapeRunner
 def parse_args():
     parser = argparse.ArgumentParser(
                        description='Filter, annotate and prioritize variants.',
+                       add_help=False,
                        formatter_class=argparse.RawTextHelpFormatter)
     parser._action_groups.pop()
     required_args = parser.add_argument_group('Required Arguments')
-    optional_args = parser.add_argument_group('Optional Arguments')
+    output_args = parser.add_argument_group('Output Arguments')
     file_args = parser.add_argument_group('Annotation File Arguments')
     filter_args = parser.add_argument_group('Variant Filtering  Arguments', 
         'Arguments for filtering based on variant features')
     sample_args = parser.add_argument_group('Sample Based Filtering Arguments',
 '''Arguments for filtering variants based on presence/absence in samples and/or 
 inheritance patterns''')
+    help_args = parser.add_argument_group('Help/Logging Arguments')
 
     #required arguments
     required_args.add_argument(
@@ -24,8 +26,8 @@ inheritance patterns''')
 '''Input VCF filename
 
 ''')
-    #misc optional arguments
-    optional_args.add_argument(
+    #output arguments
+    output_args.add_argument(
 '-o', '--output',  help=
 #'-o', '--output', type=argparse.FileType('w'), default=sys.stdout, help=
 '''Filename for VCF output. If this ends in .gz or 
@@ -34,7 +36,7 @@ Default = STDOUT
 
 ''')
 
-    optional_args.add_argument(
+    output_args.add_argument(
 '-r', '--report_prefix', help=
 '''Prefix for segregation summary report output 
 files. If either --biallelic, --de_novo or 
@@ -43,16 +45,6 @@ write summaries for segregating variants to files
 with the respective suffixes of 
 '_recessive.report.tsv', '_de_novo.report.tsv' and
 '_dominant.report.tsv'.
-
-''')
-    optional_args.add_argument(
-'--quiet', action='store_true', help=
-'''Do not output progress information.
-
-''')
-    optional_args.add_argument(
-'--debug', action='store_true', help=
-'''Output debugging information.
 
 ''')
     #args for filtering/retaining variants based on features
@@ -431,6 +423,22 @@ specified with --singleton_recessive or
 --singleton_dominant options. This option is not
 necessary if your unaffected samples are already
 present in your PED file specified with --ped.
+
+''')
+    #help/logging arguments
+    help_args.add_argument(
+'--quiet', action='store_true', help=
+'''Do not output progress information to STDERR.
+
+''')
+    help_args.add_argument(
+'--debug', action='store_true', help=
+'''Output debugging information to STDERR.
+
+''')
+    help_args.add_argument(
+'-h', '--help', action='help', help=
+'''Show this help message and exit
 
 ''')
     #end of args
