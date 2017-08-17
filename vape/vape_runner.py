@@ -130,6 +130,7 @@ class VapeRunner(object):
         elif self.de_novo_filter or self.dominant_filter:
             if denovo_hit or dom_hit:
                 self.out.write(str(record) + '\n')
+                self.var_written += 1
         else:
             if sum(filter_alleles) == len(filter_alleles): 
                 self.var_filtered += 1
