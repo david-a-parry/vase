@@ -1,4 +1,8 @@
-from distutils.core import setup
+try:
+    from setuptools import setup, find_packages
+except ImportError:
+    from distutils.core import setup
+
 setup(
     name = "vape",
     packages = ["vape"],
@@ -15,7 +19,10 @@ setup(
     scripts = ["bin/vape"],
     classifiers = [
         "Programming Language :: Python :: 3",
-        "Development Status :: 1 - Planning",
+        "Development Status :: 3 - Alpha",
         "Intended Audience :: Developers",
+        "Intended Audience :: Science/Research",
+        "License :: OSI Approved :: GNU Lesser General Public License v3 (LGPLv3)",
+        "Topic :: Scientific/Engineering :: Bio-Informatics",
         ],
 )
