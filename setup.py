@@ -5,8 +5,14 @@ setup(
     version = "0.0.1",
     description = "TO DO",
     author = "David A. Parry",
-    author_email = "gantzgraf@github.com",
-    url = "",
+    author_email = "david.parry@igmm.ed.ac.uk",
+    url = "https://github.com/gantzgraf/vape",
+    license='GPLv3',
+    install_requires=[
+          'pysam',
+          'parse_vcf',
+      ],
+    scripts = ["bin/vape"],
     classifiers = [
         "Programming Language :: Python :: 3",
         "Development Status :: 1 - Planning",

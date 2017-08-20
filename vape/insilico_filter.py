@@ -153,41 +153,53 @@ class InSilicoFilter(object):
         '''
         
         for prog in self.pred_filters:
-            if csq[prog] != '':
-                do_filter = True
-                for p in csq[prog].split('&'):
-                    p = vep_internal_pred_re.sub('', p)
-                    if p in self.pred_filters[prog]: #matches - don't filter
-                        do_filter = False
-                        break
-                if self.keep_if_any_damaging and not do_filter: #matched
-                    return False
-                elif do_filter:                #haven't matched - filter
-                    return True
-            elif self.filter_unpredicted:
-                    return True
+            try:
+                if csq[prog] != '':
+                    do_filter = True
+                    for p in csq[prog].split('&'):
+                        p = vep_internal_pred_re.sub('', p)
+                        if p in self.pred_filters[prog]: #matches, don't filter
+                            do_filter = False
+                            break
+                    if self.keep_if_any_damaging and not do_filter: #matched
+                        return False
+                    elif do_filter:                #haven't matched - filter
+                        return True
+                elif self.filter_unpredicted:
+                        return True
+            except KeyError:
+                raise Exception(self._get_prog_missing_string(prog))
         for prog in self.score_filters:
-            if csq[prog] == '':
-                if self.filter_unpredicted:
-                    return True
-            else:
-                do_filter = True
-                for p in csq[prog].split('&'):
-                    try:
-                        score = float(p)
-                    except ValueError: 
-                        continue
-                    if prog in self.lower_more_damaging:
-                        if score <= self.score_filters[prog]: #
-                            do_filter = False
-                            break
-                    else:
-                        if score >= self.score_filters[prog]: #
-                            do_filter = False
-                            break
-                if self.keep_if_any_damaging and not do_filter:
-                    return False
-                elif do_filter:
-                    return True #score not over threshold - filter
+            try:
+                if csq[prog] == '':
+                    if self.filter_unpredicted:
+                        return True
+                else:
+                    do_filter = True
+                    for p in csq[prog].split('&'):
+                        try:
+                            score = float(p)
+                        except ValueError: 
+                            continue
+                        if prog in self.lower_more_damaging:
+                            if score <= self.score_filters[prog]: #
+                                do_filter = False
+                                break
+                        else:
+                            if score >= self.score_filters[prog]: #
+                                do_filter = False
+                                break
+                    if self.keep_if_any_damaging and not do_filter:
+                        return False
+                    elif do_filter:
+                        return True #score not over threshold - filter
+            
+            except KeyError:
+                raise Exception(self._get_prog_missing_string(prog))
         return False
 
+
+    def _get_prog_missing_string(self, prog):
+        return ("'{}' in silico filter program is not present in".format(prog) + 
+               " CSQ field of input VCF - please ensure your input was " + 
+               "annotated with the relevant program by VEP.")

@@ -2,22 +2,23 @@
 
 import sys
 import argparse
-sys.path.insert(0, '')
 from vape.vape_runner import VapeRunner
 
 def parse_args():
     parser = argparse.ArgumentParser(
                        description='Filter, annotate and prioritize variants.',
+                       add_help=False,
                        formatter_class=argparse.RawTextHelpFormatter)
     parser._action_groups.pop()
     required_args = parser.add_argument_group('Required Arguments')
-    optional_args = parser.add_argument_group('Optional Arguments')
+    output_args = parser.add_argument_group('Output Arguments')
     file_args = parser.add_argument_group('Annotation File Arguments')
     filter_args = parser.add_argument_group('Variant Filtering  Arguments', 
         'Arguments for filtering based on variant features')
     sample_args = parser.add_argument_group('Sample Based Filtering Arguments',
-        'Arguments for filtering variants based on presence/absence in ' + 
-        'samples and/or inheritance patterns')
+'''Arguments for filtering variants based on presence/absence in samples and/or 
+inheritance patterns''')
+    help_args = parser.add_argument_group('Help/Logging Arguments')
 
     #required arguments
     required_args.add_argument(
@@ -25,8 +26,8 @@ def parse_args():
 '''Input VCF filename
 
 ''')
-    #misc optional arguments
-    optional_args.add_argument(
+    #output arguments
+    output_args.add_argument(
 '-o', '--output',  help=
 #'-o', '--output', type=argparse.FileType('w'), default=sys.stdout, help=
 '''Filename for VCF output. If this ends in .gz or 
@@ -34,14 +35,16 @@ def parse_args():
 Default = STDOUT
 
 ''')
-    optional_args.add_argument(
-'--quiet', action='store_true', help=
-'''Do not output progress information.
 
-''')
-    optional_args.add_argument(
-'--debug', action='store_true', help=
-'''Output debugging information.
+    output_args.add_argument(
+'-r', '--report_prefix', help=
+'''Prefix for segregation summary report output 
+files. If either --biallelic, --de_novo or 
+--dominant options are in effect this option will
+write summaries for segregating variants to files
+with the respective suffixes of 
+'_recessive.report.tsv', '_de_novo.report.tsv' and
+'_dominant.report.tsv'.
 
 ''')
     #args for filtering/retaining variants based on features
@@ -218,7 +221,7 @@ using population allele frequencies
 
 ''')
     file_args.add_argument(
-'-f', '--freq', type=float, help=
+'-f', '--freq', '--max_freq', type=float, help=
 '''Allele frequency cutoff (between 0 and 1). Used 
 for extenal allele frequency sources such as 
 --dbsnp or --gnomad files. Alleles/variants with
@@ -252,8 +255,14 @@ builds later than this version will be filtered.
 
 ''')
     file_args.add_argument(
+'--filter_known', action='store_true', default=False, help=
+'''Filter any allele/variant present in any of the
+files supplied to --gnomad or --dbsnp arguments.
+
+''')
+    file_args.add_argument(
 '--filter_novel', action='store_true', default=False, help=
-'''Filter any allele/variant not present in 
+'''Filter any allele/variant NOT present in 
 any of the files supplied to --gnomad or --dbsnp
 arguments.
 
@@ -266,6 +275,16 @@ other settings provided to other Annotation File
 Arguments. This requires one of the files 
 provided to --dbsnp to have CLNSIG annotations 
 from ClinVar.
+
+''')
+    file_args.add_argument(
+'-ignore_existing', '--ignore_existing_annotations', action='store_true',
+default=False, help=
+'''Ignore previously added annotations from 
+dbSNP/gnomAD files that may be present in the 
+input VCF. Default behaviour is to use these 
+annotations for filtering if present and the 
+relevant arguments (e.g. --freq) are given.
 
 ''')
 
@@ -359,10 +378,79 @@ argument. This requires that at least one
 parent-child trio exists in the given PED file.
 
 ''')
+    sample_args.add_argument(
+'--dominant', action='store_true', help=
+'''Idenfify variants segregating in manner matching
+dominant inheritance in cases present in the PED 
+file specified by the --ped argument. 
+
+''')
+    sample_args.add_argument(
+'--min_families', type=int, default=1, help=
+'''Minimum number of families (or unrelated samples)
+required to contain a qualifying dominant/de novo 
+or biallelic combination of variants in a feature
+before they are output. Default = 1.
+
+''')
+    sample_args.add_argument(
+'--singleton_recessive', default=[], nargs='+', metavar='SAMPLE_ID', help=
+'''One or more samples to treat as unrelated 
+individuals and identify variants matching a 
+recessive inheritance pattern.
+
+''')
+    sample_args.add_argument(
+'--singleton_dominant', default=[], nargs='+', metavar='SAMPLE_ID', help=
+'''One or more samples to treat as unrelated 
+individuals and identify variants matching a 
+dominant inheritance pattern.
+
+''')
+    sample_args.add_argument(
+'-seg_controls', '--seg_controls', default=[], nargs='+', metavar='SAMPLE_ID', 
+help=
+'''One or more sample IDs to treat as controls for
+segregation analysis only. Useful if you want to
+specify controls to use for rejecting compound
+heterozygous combinations of variants or 
+homozygous variants when using --biallelic option.
+Unlike the --controls option, alleles/variants 
+present in these samples will only be used for 
+filtering when looking at inheritance patterns in
+families present in a PED file or samples 
+specified with --singleton_recessive or 
+--singleton_dominant options. This option is not
+necessary if your unaffected samples are already
+present in your PED file specified with --ped.
+
+''')
+    #help/logging arguments
+    help_args.add_argument(
+'--quiet', action='store_true', help=
+'''Do not output progress information to STDERR.
+
+''')
+    help_args.add_argument(
+'--debug', action='store_true', help=
+'''Output debugging information to STDERR.
+
+''')
+    help_args.add_argument(
+'-h', '--help', action='help', help=
+'''Show this help message and exit
+
+''')
     #end of args
-    return parser.parse_args()
+    return parser
 
 if __name__ == '__main__':
-    vape_args = parse_args()
+    parser = parse_args()
+    vape_args = parser.parse_args()
+    if vape_args.filter_novel and vape_args.filter_known:
+        parser.print_usage()
+        sys.stderr.write("vape.py: error: --filter_known and --filter_novel " +
+                         "arguments can not be used together.\n")
+        sys.exit(2)
     vape_runner = VapeRunner(vape_args)
     vape_runner.run()

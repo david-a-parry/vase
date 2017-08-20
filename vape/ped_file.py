@@ -1,4 +1,4 @@
-
+import io
 
 class PedFile(object):
     ''' 
@@ -23,12 +23,14 @@ class PedFile(object):
     '''
 
     def __init__(self, filename):
-        
         self.filename = filename
         self.families = {}
         self.individuals = {}
-        with open (filename) as ped:
-            self._parse_ped(ped)
+        if type(filename) == io.StringIO:
+            self._parse_ped(filename)
+        else:
+            with open (filename) as ped:
+                self._parse_ped(ped)
 
     def _parse_ped(self, fh):
         for line in fh:
@@ -37,20 +39,24 @@ class PedFile(object):
             if not line: continue   #skip blanks
             cols = line.split()
             if len(cols) < 6:
-                raise Exception("Not enough fields for PED file " + 
-                                "'{}'.\n" .format(self.filename) + 
-                                "Offending line was: {}" .format(line))
+                raise PedError("Not enough fields for PED file '{}'.\n" 
+                              .format(self.filename) + "Offending line: {}" 
+                              .format(line))
             indv = Individual(*cols[:6])
-            if indv.iid in self.individuals:
-                raise PedError("Duplicate individual ID '{}'".format(indv.iid)+
-                               "in PED file '{}'. " . format(self.filename) + 
-                               "Please ensure all individual IDs are unique.")
-            self.individuals[indv.iid] = indv
-            if indv.fid in self.families:
-                self.families[indv.fid].add_individual(indv)
-            else:
-                fam = Family(indv.fid, [indv])
-                self.families[indv.fid] = fam
+            self.add_individual(indv)
+
+    def add_individual(self, indv):
+        ''' Add an Individual object to the Ped '''
+        if indv.iid in self.individuals:
+            raise PedError("Duplicate individual ID '{}'".format(indv.iid)+
+                           "added to PedFile '{}'. " . format(self.filename) + 
+                           "Please ensure all individual IDs are unique.")
+        self.individuals[indv.iid] = indv
+        if indv.fid in self.families:
+            self.families[indv.fid].add_individual(indv)
+        else:
+            fam = Family(indv.fid, [indv])
+            self.families[indv.fid] = fam
 
     def get_affected(self):
         return (i for i in self.individuals 
@@ -76,7 +82,13 @@ class PedFile(object):
         return (i for i in self.individuals 
                 if self.individuals[i].is_unknown_gender())
 
-
+    def fid_from_iid(self, iid):
+        try:
+            return self.individuals[iid].fid
+        except KeyError:
+            raise PedError("Individual {} not ine PED file {}" .format(iid, 
+                                                                self.filename))
+        
 class Family(PedFile):
     ''' Stores a single family as defined in a PED file '''
 

@@ -188,10 +188,10 @@ class dbSnpFilter(VcfFilter):
             (clinvar_fields).
         '''
 
-        freq_fields = ["CAF", "G5A", "G5", "COMMON"]
-        clinvar_fields = ["CLNSIG", "CLNALLE", "CLNDBN", "CLNDSDBID",
-                          "CLNHGVS", "GENEINFO"] 
-        build = ["dbSNPBuildID"]
+        freq_fields = ("CAF", "G5A", "G5", "COMMON")
+        clinvar_fields = ("CLNSIG", "CLNALLE", "CLNDBN", "CLNDSDBID",
+                          "CLNHGVS", "GENEINFO")
+        build = ("dbSNPBuildID",)
         for f in freq_fields:
             if f in self.vcf.metadata['INFO']:
                 self.freq_fields[f] = self.vcf.metadata['INFO'][f][-1]

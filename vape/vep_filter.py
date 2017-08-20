@@ -1,5 +1,5 @@
 import sys
-from .parse_vcf.parse_vcf import * 
+from parse_vcf import * 
 from .insilico_filter import *
 
 
