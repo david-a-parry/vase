@@ -64,7 +64,7 @@ class VapeRunner(object):
         for record in self.input.parser:
             self.process_record(record)
             var_count += 1
-            if not self.args.quiet:
+            if not self.args.quiet and var_count % 1000 == 0:
                 prog_string = ('\r{} variants processed, '.format(var_count) +
                                '{} variants filtered, {} variants written...'
                                .format(self.var_filtered, self.var_written))
