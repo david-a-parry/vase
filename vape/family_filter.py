@@ -535,7 +535,7 @@ class RecessiveFilter(InheritanceFilter):
                         feat_segregating.append((bi_pr, affs, [fid], model, 
                                                  [feat], de_novo[bi_pr.alt_id], 
                                                  self.prefix))
-                        fam_count += 1
+                    fam_count += 1
             if fam_count >= self.min_families:
                 for tp in feat_segregating:
                     if tp[0] in segregating:
