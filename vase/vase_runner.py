@@ -66,8 +66,8 @@ class VaseRunner(object):
             self.process_record(record)
             var_count += 1
             if not self.args.quiet and var_count % self.prog_interval == 0:
-                n_prog_string = ('\r{} variants processed, '.format(var_count) +
-                               '{} filtered, {} written... at pos {}:{}'
+                n_prog_string = ('\r{:,} variants processed, '.format(var_count) +
+                               '{:,} filtered, {:,} written... at pos {}:{}'
                                .format(self.var_filtered, self.var_written,
                                        record.CHROM, record.POS))
                 if len(prog_string) > len(n_prog_string):
@@ -77,10 +77,14 @@ class VaseRunner(object):
         self.finish_up()
         if prog_string:
             sys.stderr.write('\r' + '-' * len(prog_string) + '\n')
-        self.logger.info('Finished processing {} variants.' 
-                             .format(var_count))
-        self.logger.info('{} variants filtered.' .format(self.var_filtered))
-        self.logger.info('{} variants written.' .format(self.var_written)) 
+        self.logger.info('Finished processing {:,} {}.' 
+                             .format(var_count, self._var_or_vars(var_count)))
+        self.logger.info('{:,} {} filtered.' 
+                         .format(self.var_filtered, 
+                                 self._var_or_vars(self.var_filtered))) 
+        self.logger.info('{:,} {} written.' 
+                         .format(self.var_written, 
+                                 self._var_or_vars(self.var_written))) 
         if self.out is not sys.stdout:
             self.out.close()
 
@@ -620,6 +624,11 @@ class VaseRunner(object):
             return
         self.control_filter = ControlFilter(self.input, self.family_filter,
                                             self.args.gq, self.args.n_controls)
+
+    def _var_or_vars(self, n):
+        if n == 1:
+            return 'variant'
+        return 'variants'
 
 
 class VariantCache(object):
