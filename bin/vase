@@ -427,6 +427,12 @@ present in your PED file specified with --ped.
 ''')
     #help/logging arguments
     help_args.add_argument(
+'--prog_interval', '-prog_interval', type=int, default=1000, metavar='N', help=
+'''Report progress information every N variants.
+Default=1000.
+
+''')
+    help_args.add_argument(
 '--quiet', action='store_true', help=
 '''Do not output progress information to STDERR.
 

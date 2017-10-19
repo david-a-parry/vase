@@ -44,6 +44,7 @@ class VaseRunner(object):
         self.control_filter = None
         self.variant_cache = VariantCache()
         self.use_cache = False
+        self.prog_interval = args.prog_interval
         self.report_fhs = self.get_report_filehandles()
         if args.de_novo:
             self._get_de_novo_filter()
@@ -64,10 +65,14 @@ class VaseRunner(object):
         for record in self.input.parser:
             self.process_record(record)
             var_count += 1
-            if not self.args.quiet and var_count % 1000 == 0:
-                prog_string = ('\r{} variants processed, '.format(var_count) +
-                               '{} variants filtered, {} variants written...'
-                               .format(self.var_filtered, self.var_written))
+            if not self.args.quiet and var_count % self.prog_interval == 0:
+                n_prog_string = ('\r{} variants processed, '.format(var_count) +
+                               '{} filtered, {} written... at pos {}:{}'
+                               .format(self.var_filtered, self.var_written,
+                                       record.CHROM, record.POS))
+                if len(prog_string) > len(n_prog_string):
+                    sys.stderr.write('\r' + ' ' * len(prog_string) )
+                prog_string = n_prog_string
                 sys.stderr.write(prog_string)
         self.finish_up()
         if prog_string:
@@ -125,6 +130,8 @@ class VaseRunner(object):
                 if self.args.min_families < 2:
                     keep_record_anyway = denovo_hit or dom_hit
                 self.variant_cache.add_record(record, keep_record_anyway)
+            else:
+                self.var_filtered += 1
             if self.variant_cache.output_ready:
                 self.output_cache()
         elif self.de_novo_filter or self.dominant_filter:
