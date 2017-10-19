@@ -131,6 +131,7 @@ class VaseRunner(object):
                     keep_record_anyway = denovo_hit or dom_hit
                 self.variant_cache.add_record(record, keep_record_anyway)
             else:
+                self.variant_cache.check_record(record)
                 self.var_filtered += 1
             if self.variant_cache.output_ready:
                 self.output_cache()
@@ -637,6 +638,18 @@ class VariantCache(object):
         self.cache = []
         self.features = set()
         self.output_ready = []
+
+    def check_record(self, record):
+        ''' 
+            Check whether features in given record are disjoint with 
+            those in cache and if so move variants from cache to 
+            output_ready. The given record is NOT added to the cache.
+        '''
+        these_feats = set([x['Feature'] for x in record.CSQ])
+        if self.features and these_feats.isdisjoint(self.features):
+            self.output_ready = self.cache 
+            self.cache = []
+            self.features.clear()
 
     def add_record(self, record, can_output=False):
         these_feats = set([x['Feature'] for x in record.CSQ])
