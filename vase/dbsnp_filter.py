@@ -8,7 +8,7 @@ class dbSnpFilter(VcfFilter):
         dbSNP VCF file.
     '''
     
-    def __init__(self, vcf, prefix='VAPE_dbSNP', freq=None, min_freq=None, 
+    def __init__(self, vcf, prefix='VASE_dbSNP', freq=None, min_freq=None, 
                 build=None, max_build=None, clinvar_path=False):
         ''' 
             Initialize object with a dbSNP VCF file and optional filtering 
@@ -19,7 +19,7 @@ class dbSnpFilter(VcfFilter):
                               or annotate records.
                     
                 prefix:       Prefix to prepend to added INFO field 
-                              annotations. Default = VAPE_dbSNP.
+                              annotations. Default = VASE_dbSNP.
 
                 freq:         Filter alleles if dbSNP allele frequency 
                               is greater than this value. Optional.

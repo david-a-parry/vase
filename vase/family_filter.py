@@ -321,17 +321,17 @@ class RecessiveFilter(InheritanceFilter):
                         segregating variants to. Default=None.
 
         '''
-        self.prefix = "VAPE_biallelic"
-        self.header_fields = [("VAPE_biallelic_homozygous", 
+        self.prefix = "VASE_biallelic"
+        self.header_fields = [("VASE_biallelic_homozygous", 
                '"Samples that carry homozygous biallelic changes ' + 
                ' parsed by {}"' .format(type(self).__name__)),
-               ("VAPE_biallelic_compound_het",
+               ("VASE_biallelic_compound_het",
                '"Samples that carry compound heterozygous biallelic changes ' + 
                'parsed by {}"'.format(type(self).__name__)),
-               ("VAPE_biallelic_de_novo",
+               ("VASE_biallelic_de_novo",
                '"Samples that carry biallelic alleles that appear to have ' + 
                'arisen de novo"'),
-               ("VAPE_biallelic_features", 
+               ("VASE_biallelic_features", 
                '"Features (e.g. transcripts) that contain qualifying ' + 
                'biallelic variants parsed by {}"' .format(
                 type(self).__name__)),]
@@ -379,7 +379,7 @@ class RecessiveFilter(InheritanceFilter):
                         to possible recessive variation (e.g. if MAF is
                         too high, no likely pathogenic consequence 
                         etc.). This will normally have been generated 
-                        by VapeRunner via VcfFilter and/or VepFilter
+                        by VaseRunner via VcfFilter and/or VepFilter
                         classes.
 
                 ignore_csq:
@@ -629,17 +629,17 @@ class DominantFilter(InheritanceFilter):
                         outputting. Default=1.
 
         '''
-        self.prefix = "VAPE_dominant"
-        self.header_fields = [("VAPE_dominant_samples", 
+        self.prefix = "VASE_dominant"
+        self.header_fields = [("VASE_dominant_samples", 
                     '"Sample IDs for alleles that segregate according to a ' + 
                     'dominant inheritance pattern in an affected sample as' + 
                     ' parsed by {}"' .format(type(self).__name__)),
-                    ('VAPE_dominant_unaffected_carrier',
+                    ('VASE_dominant_unaffected_carrier',
                     '"Sample IDs for unaffected carriers of ' + 
-                    'VAPE_dominant alleles"'),
-                    ('VAPE_dominant_families',
-                    '"Family IDs for VAPE_dominant alleles"'),
-                    ("VAPE_dominant_features", 
+                    'VASE_dominant alleles"'),
+                    ('VASE_dominant_families',
+                    '"Family IDs for VASE_dominant alleles"'),
+                    ("VASE_dominant_features", 
                     '"Features (e.g. transcripts) that contain qualifying ' + 
                     'dominant variants parsed by {}"' .format(
                     type(self).__name__)),]
@@ -689,7 +689,7 @@ class DominantFilter(InheritanceFilter):
                         to possible dominant variation (e.g. if MAF is
                         too high, no likely pathogenic consequence 
                         etc.). This will normally have been generated 
-                        by VapeRunner via VcfFilter and/or VepFilter
+                        by VaseRunner via VcfFilter and/or VepFilter
                         classes.
 
         '''
@@ -838,13 +838,13 @@ class DeNovoFilter(InheritanceFilter):
                         called as heterozygous. Default=False.
 
         '''
-        self.prefix = "VAPE_de_novo"
-        self.header_fields = [("VAPE_de_novo_samples", 
+        self.prefix = "VASE_de_novo"
+        self.header_fields = [("VASE_de_novo_samples", 
                    '"Samples that carry alleles occurring de novo parsed by ' + 
                    '{}"' .format(type(self).__name__)),
-                    ('VAPE_de_novo_families',
-                    '"Family IDs for VAPE_de_novo alleles"'),
-                    ("VAPE_de_novo_features", 
+                    ('VASE_de_novo_families',
+                    '"Family IDs for VASE_de_novo alleles"'),
+                    ("VASE_de_novo_features", 
                     '"Features (e.g. transcripts) that contain qualifying ' + 
                     'de novo variants parsed by {}"' .format(
                     type(self).__name__)),]
@@ -861,7 +861,7 @@ class DeNovoFilter(InheritanceFilter):
         self._last_added = OrderedDict()
         self.confirm_het = confirm_het
         self.filters = defaultdict(list)
-        self.prefix = "VAPE_de_novo"
+        self.prefix = "VASE_de_novo"
         for fam in self.families:
             f_aff = tuple(x for x in self.ped.families[fam].get_affected() 
                           if x in self.affected)
@@ -896,7 +896,7 @@ class DeNovoFilter(InheritanceFilter):
                         to possible de novo  variation (e.g. if MAF is
                         too high, no likely pathogenic consequence 
                         etc.). This will normally have been generated 
-                        by VapeRunner via VcfFilter and/or VepFilter
+                        by VaseRunner via VcfFilter and/or VepFilter
                         classes.
 
         '''
@@ -1053,7 +1053,7 @@ class SegregatingVariant(object):
                  'segregant', 'prefix', 'de_novos']
 
     def __init__(self, segregant, samples, families, model, features, 
-                 de_novos=(), prefix='VAPE_segregant'):
+                 de_novos=(), prefix='VASE_segregant'):
         ''' 
             Initialize with a PotentialSegregant object, an iterable of
             sample IDs carrying the PotentialSegregant a string 

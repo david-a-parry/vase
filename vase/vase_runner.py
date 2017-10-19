@@ -12,7 +12,7 @@ from .family_filter import FamilyFilter, ControlFilter
 from .family_filter import RecessiveFilter, DominantFilter, DeNovoFilter
 
 
-class VapeRunner(object):
+class VaseRunner(object):
 
     def __init__(self, args):
 
@@ -56,7 +56,7 @@ class VapeRunner(object):
         self.var_filtered = 0
 
     def run(self):
-        ''' Run VCF filtering/annotation using args from bin/vape.py '''
+        ''' Run VCF filtering/annotation using args from bin/vase.py '''
         self.logger.info('Starting variant processing')
         self.print_header()
         var_count = 0
@@ -309,7 +309,7 @@ class VapeRunner(object):
             uni_args["min_freq"] = self.args.min_freq
         # get dbSNP filter
         for dbsnp in self.args.dbsnp:
-            prefix = self.check_info_prefix('VAPE_dbSNP')
+            prefix = self.check_info_prefix('VASE_dbSNP')
             kwargs = {"vcf" : dbsnp, "prefix" : prefix, 
                       "clinvar_path" : self.args.clinvar_path,}
             if self.args.build is not None:
@@ -325,7 +325,7 @@ class VapeRunner(object):
                                           field_type='INFO')
         # get gnomAD/ExAC filters
         for gnomad in self.args.gnomad:
-            prefix = self.check_info_prefix('VAPE_gnomAD')
+            prefix = self.check_info_prefix('VASE_gnomAD')
             kwargs = {"vcf" : gnomad, "prefix" : prefix}
             kwargs.update(uni_args)
             gnomad_filter = GnomadFilter(**kwargs)
@@ -342,11 +342,11 @@ class VapeRunner(object):
         self.prev_annots = set()
         self.info_prefixes = set()
         for info in self.input.metadata['INFO']:
-            match = re.search('^(VAPE_\w+)_\w+(_\d+)?', info)
+            match = re.search('^(VASE_\w+)_\w+(_\d+)?', info)
             if match:
                 self.prev_annots.add(info)
                 self.info_prefixes.add(match.group(1))
-                self.logger.debug("Identified previously annotated VAPE INFO" +
+                self.logger.debug("Identified previously annotated VASE INFO" +
                                   " field '{}'" .format(info))
         self._parse_prev_vcf_filter_annotations()
 
@@ -358,7 +358,7 @@ class VapeRunner(object):
         if (not self.args.ignore_existing_annotations and 
            (self.args.freq or self.args.min_freq or get_matching)):
             for annot in sorted(self.prev_annots):
-                match = re.search('^VAPE_dbSNP|gnomAD(_\d+)?_(CAF|AF)(_\w+)?', 
+                match = re.search('^VASE_dbSNP|gnomAD(_\d+)?_(CAF|AF)(_\w+)?', 
                                   annot)
                 if match:
                     if (self.input.metadata['INFO'][annot][-1]['Number'] == 'A' and 
@@ -369,7 +369,7 @@ class VapeRunner(object):
         if (not self.args.ignore_existing_annotations and (self.args.build or 
             self.args.max_build or get_matching)):
             for annot in sorted(self.prev_annots):
-                match = re.search('^VAPE_dbSNP(_\d+)?_dbSNPBuildID', annot)
+                match = re.search('^VASE_dbSNP(_\d+)?_dbSNPBuildID', annot)
                 if match:
                     if (self.input.metadata['INFO'][annot][-1]['Number'] == 'A' and 
                       self.input.metadata['INFO'][annot][-1]['Type'] == 'Integer'): 
@@ -379,7 +379,7 @@ class VapeRunner(object):
         if (not self.args.ignore_existing_annotations and 
             (self.args.clinvar_path or get_matching)):
             for annot in sorted(self.prev_annots):
-                match = re.search('^VAPE_dbSNP(_\d+)?_CLNSIG', annot)
+                match = re.search('^VASE_dbSNP(_\d+)?_CLNSIG', annot)
                 if match:
                     if (self.input.metadata['INFO'][annot][-1]['Number'] == 'A' and 
                       self.input.metadata['INFO'][annot][-1]['Type'] == 'String'): 
@@ -413,11 +413,11 @@ class VapeRunner(object):
             fields.
         '''
 
-        vape_opts = []
+        vase_opts = []
         for k,v in vars(self.args).items():
-            vape_opts.append('--{} {}'.format(k, v))
-        self.input.header.add_header_field(name="vape.py", 
-                                   string='"' + str.join(" ", vape_opts) + '"')
+            vase_opts.append('--{} {}'.format(k, v))
+        self.input.header.add_header_field(name="vase.py", 
+                                   string='"' + str.join(" ", vase_opts) + '"')
         self.out.write(str(self.input.header))
 
     def get_output(self):
@@ -514,7 +514,7 @@ class VapeRunner(object):
         return PedFile(ped)
 
     def _set_logger(self):
-        self.logger = logging.getLogger("VAPE")
+        self.logger = logging.getLogger("VASE")
         if self.args.debug:
             self.logger.setLevel(logging.DEBUG)
         elif self.args.quiet:
