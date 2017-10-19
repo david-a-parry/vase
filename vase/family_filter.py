@@ -277,7 +277,7 @@ class InheritanceFilter(object):
                                  self.family_filter.vcf.header.csq_fields 
                                  if x != 'Allele'))
         header += "\t" + str.join("\t", self.annot_fields)
-        header +=  "CHROM\tPOS\tID\tREF\tALT\tALLELE\tQUAL\tFILTER"
+        header +=  "\tCHROM\tPOS\tID\tREF\tALT\tALLELE\tQUAL\tFILTER"
         self.report_file.write(header + "\n")
        
 
