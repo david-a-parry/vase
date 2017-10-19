@@ -159,6 +159,8 @@ class VaseRunner(object):
             keep_ids.update(self.dominant_filter.process_dominants())
         if self.de_novo_filter and self.args.min_families > 1:
             keep_ids.update(self.de_novo_filter.process_de_novos())
+        if final:
+            self.variant_cache.add_cache_to_output_ready()
         for var in self.variant_cache.output_ready:
             if var.can_output or var.var_id in keep_ids:
                 self.out.write(str(var.record) + '\n')
@@ -169,7 +171,6 @@ class VaseRunner(object):
 
     def finish_up(self):
         if self.use_cache:
-            self.variant_cache.output_ready += self.variant_cache.cache
             self.output_cache(final=True)
         for fh in self.report_fhs.values():
             if fh is not None:
@@ -656,20 +657,22 @@ class VariantCache(object):
         '''
         these_feats = set([x['Feature'] for x in record.CSQ])
         if self.features and these_feats.isdisjoint(self.features):
-            self.output_ready = self.cache 
-            self.cache = []
+            self.add_cache_to_output_ready()
             self.features.clear()
 
     def add_record(self, record, can_output=False):
         these_feats = set([x['Feature'] for x in record.CSQ])
         if self.features and these_feats.isdisjoint(self.features):
-            self.output_ready = self.cache 
-            self.cache = []
+            self.add_cache_to_output_ready()
             self.features = these_feats
         else:
             self.features.update(these_feats)
         self.cache.append(CachedVariant(record, can_output))
         
+    def add_cache_to_output_ready(self):
+        ''' Adds itemst in cache to output_ready and clears cache.'''
+        self.output_ready.extend(self.cache)
+        self.cache = []
 
 class CachedVariant(object):
     ''' 
