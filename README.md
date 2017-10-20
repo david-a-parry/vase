@@ -3,6 +3,32 @@
 This is a program for Variant Annotation, Segregation and Exclusion for
 family or cohort based rare-disease sequencing studies.
 
+## INSTALLATION
+
+VASE requires python3. It has been tested with python 3.5 and 3.6.
+
+To install the vase script to $HOME/.local/bin first clone this repository:
+
+    git clone https://github.com/gantzgraf/vase.git
+
+Alternatively use the 'Clone or download' button above. From the newly created 
+vase directory you may install either by running the setup.py script as 
+follows:
+
+    python3 setup.py install --user
+
+or by using pip, if installed:
+
+    pip3 install . --user
+
+If you have root privileges you can install system wide as follows:
+
+    sudo python3 setup.py install
+
+or:
+
+    pip3 install .
+
 ## USAGE
 
     usage: vase -i VCF [-o OUTPUT] [-r REPORT_PREFIX] [-v QUAL] [-p]
