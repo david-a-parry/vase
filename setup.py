@@ -6,8 +6,8 @@ except ImportError:
 setup(
     name = "vase",
     packages = ["vase"],
-    version = "0.0.1",
-    description = "TO DO",
+    version = "0.1.0",
+    description = "Variant Annotation, Segregation and Exclusion",
     author = "David A. Parry",
     author_email = "david.parry@igmm.ed.ac.uk",
     url = "https://github.com/gantzgraf/vase",
