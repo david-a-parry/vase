@@ -364,7 +364,7 @@ family or cohort based rare-disease sequencing studies.
 
 ## AUTHOR
 
-Written David A. Parry at the University of Edinburgh. 
+Written by David A. Parry at the University of Edinburgh. 
 
 ## COPYRIGHT AND LICENSE
 
