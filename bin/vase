@@ -6,7 +6,8 @@ from vase.vase_runner import VaseRunner
 
 def parse_args():
     parser = argparse.ArgumentParser(
-                       description='Filter, annotate and prioritize variants.',
+                       description='Variant annotation, segregation and ' +
+                                   'exclusion.',
                        add_help=False,
                        formatter_class=argparse.RawTextHelpFormatter)
     parser._action_groups.pop()
