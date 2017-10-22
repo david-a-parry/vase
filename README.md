@@ -250,7 +250,7 @@ or:
                             Or you may just provide the program names 
                             and the default 'damaging' prediction values 
                             will be used, as listed in the file
-                            "../data/vep_insilico_pred.tsv".
+                            "vase/data/vep_insilico_pred.tsv".
                             
                             By default, a missense consequence is filtered 
                             unless each of the programs listed here have an 
