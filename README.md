@@ -3,6 +3,23 @@
 This is a program for Variant Annotation, Segregation and Exclusion for
 family or cohort based rare-disease sequencing studies.
 
+## INTRODUCTION
+
+VASE can be used to filter VCF files based on allele frequency data, functional
+consequences from VEP, presence/absence of variants in cases vs controls and 
+inheritance patterns within families. It is designed primarily for use in rare
+disease cohort or familial studies.
+
+In order to make the most of the functions VAPE provides, you will require a 
+multi-sample, [VEP](https://github.com/Ensembl/ensembl-vep) annotated VCF. In 
+order to confidently identify variants segregating within families consistent 
+with dominant/recessive/de novo inheritance patterns, your VCF should have been
+made by calling all of your samples simultaneously (e.g. using the [GATK 
+joint-calling workflow](https://gatkforums.broadinstitute.org/gatk/discussion/3893/calling-variants-on-cohorts-of-samples-using-the-haplotypecaller-in-gvcf-mode)).
+
+Detailed instructions and examples to follow in the VASE
+[wiki](https://github.com/gantzgraf/vase/wiki).
+
 ## INSTALLATION
 
 VASE requires python3. It has been tested with python 3.5 and 3.6.
