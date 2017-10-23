@@ -237,10 +237,10 @@ included.
 '''CADD PHRED score cutoff. Variants with a CADD 
 PHRED score below this value will be filtered. 
 Only used with annotations from files supplied to
---cadd_files or --cadd_dir arguments or 
-pre-existing CADD_PHRED or CADD_RawScore INFO 
-fields. To filter on CADD scores annotated using 
-the VEP dbNSFP plugin use the --missense_filters 
+--cadd_files or --cadd_dir arguments or a
+pre-annotated CADD_PHRED_score INFO field. To 
+filter on CADD scores annotated using the VEP 
+dbNSFP plugin use the --missense_filters option.
 
 ''')
 
@@ -249,11 +249,10 @@ the VEP dbNSFP plugin use the --missense_filters
 '''CADD RawScore cutoff. Variants with a CADD 
 RawScore below this value will be filtered.
 Only used with annotations from files supplied to
---cadd_files or --cadd_dir arguments or 
-pre-existing CADD_PHRED or CADD_RawScore INFO 
-fields. To filter on CADD scores annotated using 
-the VEP dbNSFP plugin use the --missense_filters 
-option.
+--cadd_files or --cadd_dir arguments or a
+pre-annotated CADD_raw_score INFO field. To filter 
+on CADD scores annotated using the VEP dbNSFP 
+plugin use the --missense_filters option.
 
 ''')
 

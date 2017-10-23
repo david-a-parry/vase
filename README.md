@@ -51,14 +51,16 @@ or:
 
 ## USAGE/OPTIONS
 
+                           
     usage: vase -i VCF [-o OUTPUT] [-r REPORT_PREFIX] [-v QUAL] [-p]
                 [-c [CSQ [CSQ ...]]] [--canonical]
                 [--biotypes BIOTYPE [BIOTYPE ...]]
                 [-m MISSENSE_FILTERS [MISSENSE_FILTERS ...]]
-                [--filter_unpredicted] [--keep_if_any_damaging] 
-                [-d VCF [VCF ...]] [-g VCF [VCF ...]] [-f FREQ] 
-                [--min_freq MIN_FREQ] [-b dbSNP_build] 
-                [--max_build dbSNP_build] [--filter_known]
+                [--filter_unpredicted] [--keep_if_any_damaging]
+                [-cadd_files FILE [FILE ...]] [-cadd_dir DIR] [-cadd_phred FLOAT]
+                [-cadd_raw FLOAT] [-d VCF [VCF ...]] [-g VCF [VCF ...]]
+                [-vcf_filter VCF,ID [VCF,ID ...]] [-f FREQ] [--min_freq MIN_FREQ]
+                [-b dbSNP_build] [--max_build dbSNP_build] [--filter_known]
                 [--filter_novel] [--clinvar_path] [-ignore_existing]
                 [-cases SAMPLE_ID [SAMPLE_ID ...]]
                 [-controls SAMPLE_ID [SAMPLE_ID ...]] [-ped PED] [-gq GQ]
@@ -68,6 +70,8 @@ or:
                 [--singleton_dominant SAMPLE_ID [SAMPLE_ID ...]]
                 [-seg_controls SAMPLE_ID [SAMPLE_ID ...]] [--prog_interval N]
                 [--quiet] [--debug] [-h]
+
+    Variant annotation, segregation and exclusion.
 
     Required Arguments:
       -i VCF, --input VCF   Input VCF filename
@@ -90,6 +94,41 @@ or:
                             
 
     Annotation File Arguments:
+      -cadd_files FILE [FILE ...], --cadd_files FILE [FILE ...]
+                            One or more tabix indexed CADD annotation files 
+                            (such as those found at 
+                            http://cadd.gs.washington.edu/download). Variants 
+                            in your input that match any scored variant in 
+                            these files will have the CADD RawScore and PHRED
+                            values added to the INFO field, one per ALT 
+                            allele. Alleles/variants can be filtered on these
+                            scores using the --cadd_phred or --cadd_raw 
+                            options.
+                            
+      -cadd_dir DIR, --cadd_directory DIR
+                            Directory containing one or more tabix indexed 
+                            CADD annotation files to be used as above. Only 
+                            files with '.gz' or '.bgz' extensions will be 
+                            included.
+                            
+      -cadd_phred FLOAT, --cadd_phred FLOAT
+                            CADD PHRED score cutoff. Variants with a CADD 
+                            PHRED score below this value will be filtered. 
+                            Only used with annotations from files supplied to
+                            --cadd_files or --cadd_dir arguments or a
+                            pre-annotated CADD_PHRED_score INFO field. To 
+                            filter on CADD scores annotated using the VEP 
+                            dbNSFP plugin use the --missense_filters option.
+                            
+      -cadd_raw FLOAT, --cadd_raw FLOAT
+                            CADD RawScore cutoff. Variants with a CADD 
+                            RawScore below this value will be filtered.
+                            Only used with annotations from files supplied to
+                            --cadd_files or --cadd_dir arguments or 
+                            pre-annotated or CADD_raw_score INFO field. To 
+                            filter on CADD scores annotated using the VEP 
+                            dbNSFP plugin use the --missense_filters option.
+                            
       -d VCF [VCF ...], --dbsnp VCF [VCF ...], --clinvar VCF [VCF ...]
                             dbSNP or ClinVar VCF file for variant 
                             annotating/filtering
@@ -97,6 +136,17 @@ or:
       -g VCF [VCF ...], --gnomad VCF [VCF ...], --exac VCF [VCF ...]
                             gnomAD/ExAC file for variant annotating/filtering
                             using population allele frequencies
+                            
+      -vcf_filter VCF,ID [VCF,ID ...], --vcf_filter VCF,ID [VCF,ID ...]
+                            VCF file(s) and name(s) to use in INFO fields 
+                            for frequency annotation and/or filtering. Each 
+                            file and its associated annotation ID should be 
+                            given in pairs separated with commas. INFO fields
+                            will be added to your output for the AN and AF 
+                            fields with the field names of VASE_<ID>_AN and 
+                            VASE_<ID>_AF. If --freq or --min_freq arguments 
+                            are set then matching variants in your input will
+                            be filtered using AF values found in these files.
                             
       -f FREQ, --freq FREQ, --max_freq FREQ
                             Allele frequency cutoff (between 0 and 1). Used 
@@ -139,7 +189,7 @@ or:
                             
       -ignore_existing, --ignore_existing_annotations
                             Ignore previously added annotations from 
-                            dbSNP/gnomAD files that may be present in the 
+                            dbSNP/gnomAD/CADD files that may be present in the 
                             input VCF. Default behaviour is to use these 
                             annotations for filtering if present and the 
                             relevant arguments (e.g. --freq) are given.
@@ -406,8 +456,7 @@ or:
       --debug               Output debugging information to STDERR.
                             
       -h, --help            Show this help message and exit
-                            
-
+                        
 ## AUTHOR
 
 Written by David A. Parry at the University of Edinburgh. 
@@ -435,5 +484,6 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
 
 
