@@ -221,6 +221,22 @@ annotating/filtering
 using population allele frequencies
 
 ''')
+
+    file_args.add_argument(
+'-vcf_filter', '--vcf_filter', metavar='VCF,ID', nargs='+', default=[], 
+help=
+'''VCF file(s) and name(s) to use in INFO fields 
+for frequency annotation and/or filtering. Each 
+file and its associated annotation ID should be 
+given in pairs separated with commas. INFO fields
+will be added to your output for the AN and AF 
+fields with the field names of VASE_<ID>_AN and 
+VASE_<ID>_AF. If --freq or --min_freq arguments 
+are set then matching variants in your input will
+be filtered using AF values found in these files.
+
+''')
+
     file_args.add_argument(
 '-f', '--freq', '--max_freq', type=float, help=
 '''Allele frequency cutoff (between 0 and 1). Used 

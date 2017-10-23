@@ -5,6 +5,7 @@ import io
 from parse_vcf import VcfReader, VcfHeader, VcfRecord 
 from .dbsnp_filter import dbSnpFilter 
 from .gnomad_filter import GnomadFilter 
+from .vcf_filter import VcfFilter 
 from .vep_filter import VepFilter  
 from .sample_filter import SampleFilter
 from .ped_file import PedFile, Family, Individual, PedError
@@ -348,7 +349,23 @@ class VaseRunner(object):
                                   .format(f))
                 self.input.header.add_header_field(name=f, dictionary=d, 
                                           field_type='INFO')
-        #TODO get other VCF filters
+        #get other VCF filters
+        for var_filter in self.args.vcf_filter:
+            vcf_and_id = var_filter.split(',')
+            if len(vcf_and_id) != 2:
+                raise RuntimeError("Expected two comma separated values for " +
+                                   "--vcf_filter argument '{}'"
+                                   .format(var_filter))
+            prefix = self.check_info_prefix('VASE_' + vcf_and_id[1])
+            kwargs = {"vcf" : vcf_and_id[0], "prefix" : prefix}
+            kwargs.update(uni_args)
+            vcf_filter = VcfFilter(**kwargs)
+            filters.append(vcf_filter)
+            for f,d in vcf_filter.added_info.items():
+                self.logger.debug("Adding {} annotation from {}" 
+                                  .format(f, vcf_and_id[0]))
+                self.input.header.add_header_field(name=f, dictionary=d, 
+                                          field_type='INFO')
         return filters
 
     def _get_prev_annotations(self):
