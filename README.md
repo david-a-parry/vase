@@ -22,7 +22,10 @@ Detailed instructions and examples to follow in the VASE
 
 ## INSTALLATION
 
-VASE requires python3. It has been tested with python 3.5 and 3.6.
+VASE requires python3. It has been tested with python 3.5 and 3.6. The modules 
+'pysam' and 'parse_vcf' from pypi are required and should be installed for you 
+if following the instructions below. You may also wish to install biopython, 
+which is required if you want to write directly to bgzipped output.
 
 To install the vase script to $HOME/.local/bin first clone this repository:
 
@@ -44,9 +47,9 @@ If you have root privileges you can install system wide as follows:
 
 or:
 
-    pip3 install .
+    sudo pip3 install .
 
-## USAGE
+## USAGE/OPTIONS
 
     usage: vase -i VCF [-o OUTPUT] [-r REPORT_PREFIX] [-v QUAL] [-p]
                 [-c [CSQ [CSQ ...]]] [--canonical]
