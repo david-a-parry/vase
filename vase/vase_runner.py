@@ -7,6 +7,7 @@ from .dbsnp_filter import dbSnpFilter
 from .gnomad_filter import GnomadFilter 
 from .vcf_filter import VcfFilter 
 from .vep_filter import VepFilter  
+from .cadd_filter import CaddFilter
 from .sample_filter import SampleFilter
 from .ped_file import PedFile, Family, Individual, PedError
 from .family_filter import FamilyFilter, ControlFilter
@@ -20,9 +21,12 @@ class VaseRunner(object):
         self.args = args
         self._set_logger()
         self.input = VcfReader(self.args.input)
+        self.prev_cadd_phred = False
+        self.prev_cadd_raw = False
         self._get_prev_annotations()
         self.out = self.get_output()
         self.vcf_filters = self.get_vcf_filter_classes()
+        self.cadd_filter = self.get_cadd_filter()
         self.ped = None
         if args.ped:
             self.ped = PedFile(args.ped)
@@ -184,20 +188,35 @@ class VaseRunner(object):
             dbSNP, ClinVar or gnomAD.
         '''
 
-        remove_alleles = [False] * (len(record.ALLELES) -1)
-        keep_alleles = [False] * (len(record.ALLELES) -1)
-        matched_alleles = [False] * (len(record.ALLELES) -1)
-        remove_csq = None
         # remove_alleles indicates whether allele should be filtered; 
         # keep_alleles indicates whether allele should be kept, overriding any 
         # indications in remove_alleles (e.g. if labelled pathogenic in 
         # ClinVar)
-        # check functional consequences
+        # remove_csq indicates for each VEP CSQ whether that CSQ should be
+        # ignored
+        remove_alleles = [False] * (len(record.ALLELES) -1)
+        keep_alleles = [False] * (len(record.ALLELES) -1)
+        matched_alleles = [False] * (len(record.ALLELES) -1)
+        remove_csq = None
+        #check functional consequences
         if self.csq_filter:
             r_alts, remove_csq = self.csq_filter.filter(record)
-            for i in range(len(r_alts)):
-                if r_alts[i]:
-                    remove_alleles[i] = True
+            self._set_to_true_if_true(remove_alleles, r_alts)
+            if (not self.args.clinvar_path and 
+                sum(remove_alleles) == len(remove_alleles)):
+                # bail out now if no valid consequence and not keeping clinvar
+                # path variants - if using clinvar path we have to ensure we 
+                # haven't got a path variant with a non-qualifying consequence
+                return remove_alleles, remove_csq
+        if self.prev_cadd_phred and self.args.cadd_phred:
+            r_alts = self.filter_on_existing_cadd_phred(record)
+            self._set_to_true_if_true(remove_alleles, r_alts)
+        if self.prev_cadd_raw and self.args.cadd_raw:
+            r_alts = self.filter_on_existing_cadd_raw(record)
+            self._set_to_true_if_true(remove_alleles, r_alts)
+        if self.cadd_filter:
+            r_alts = self.cadd_filter.annotate_or_filter(record)
+            self._set_to_true_if_true(remove_alleles, r_alts)
             if (not self.args.clinvar_path and 
                 sum(remove_alleles) == len(remove_alleles)):
                 # bail out now if no valid consequence and not keeping clinvar
@@ -206,38 +225,25 @@ class VaseRunner(object):
                 return remove_alleles, remove_csq
         for f in self.vcf_filters:
             r, k, m = f.annotate_and_filter_record(record)
-            for i in range(len(r)):
-                # should only overwrite value of remove_alleles[i] or 
-                # keep_alleles[i] with True, not False (e.g. if already set to 
-                # be filtered because of a freq in ExAC we shouldn't set to 
-                # False just because it is absent from dbSNP)
-                if r[i]:
-                    remove_alleles[i] = True
-                if k[i]:
-                    keep_alleles[i] = True
-                if m[i]:
-                    matched_alleles[i] = True
+            # should only overwrite value of remove_alleles[i] or 
+            # keep_alleles[i] with True, not False (e.g. if already set to 
+            # be filtered because of a freq in ExAC we shouldn't set to 
+            # False just because it is absent from dbSNP)
+            self._set_to_true_if_true(remove_alleles, r)
+            self._set_to_true_if_true(matched_alleles, m)
+            self._set_to_true_if_true(keep_alleles, k)
         if self.prev_freqs:
             r,m = self.filter_on_existing_freq(record)
-            for i in range(len(r)):
-                if r[i]:
-                    remove_alleles[i] = True
-                if m[i]:
-                    matched_alleles[i] = True
+            self._set_to_true_if_true(remove_alleles, r)
+            self._set_to_true_if_true(matched_alleles, m)
         if self.prev_builds:
             r,m = self.filter_on_existing_build(record)
-            for i in range(len(r)):
-                if r[i]:
-                    remove_alleles[i] = True
-                if m[i]:
-                    matched_alleles[i] = True
+            self._set_to_true_if_true(remove_alleles, r)
+            self._set_to_true_if_true(matched_alleles, m)
         if self.prev_clinvar:
             k,m = self.filter_on_existing_clnsig(record)
-            for i in range(len(k)):
-                if k[i]:
-                    keep_alleles[i] = True
-                if m[i]:
-                    matched_alleles[i] = True   
+            self._set_to_true_if_true(matched_alleles, m)
+            self._set_to_true_if_true(keep_alleles, k)
         verdict = []
         for i in range(len(remove_alleles)):
             if keep_alleles[i]:
@@ -252,6 +258,26 @@ class VaseRunner(object):
                 verdict.append(False)
         return verdict, remove_csq
  
+    def filter_on_existing_cadd_phred(self, record):
+        remove  = [False] * (len(record.ALLELES) -1)
+        phreds = record.parsed_info_fields(fields=['CADD_PHRED_score'])
+        if 'CADD_PHRED_score' in phreds:
+            for i in range(len(remove)):
+                if (phreds['CADD_PHRED_score'][i] is not None and  
+                    phreds['CADD_PHRED_score'][i] < self.args.cadd_phred):
+                    remove[i] = True
+        return remove
+
+    def filter_on_existing_cadd_raw(self, record):
+        remove  = [False] * (len(record.ALLELES) -1)
+        raws = record.parsed_info_fields(fields=['CADD_raw_score'])
+        if 'CADD_raw_score' in raws:
+            for i in range(len(remove)):
+                if (raws['CADD_raw_score'][i] is not None and
+                    raws['CADD_raw_score'][i] < self.args.cadd_raw):
+                    remove[i] = True
+        return remove
+
     def filter_on_existing_freq(self, record):
         remove  = [False] * (len(record.ALLELES) -1)
         matched = [False] * (len(record.ALLELES) -1)
@@ -313,6 +339,33 @@ class VaseRunner(object):
             if record.QUAL < self.args.variant_quality:
                 return True
         return False
+
+    def get_cadd_filter(self):
+        if self.args.cadd_directory or self.args.cadd_files:
+            cadd_args = {'cadd_files': self.args.cadd_files,
+                         'cadd_dir': self.args.cadd_directory,
+                         'min_phred': self.args.cadd_phred,
+                         'min_raw_score': self.args.cadd_raw}
+            cf = CaddFilter(**cadd_args)
+            for f,d in cf.info_fields.items():
+                self.logger.debug("Adding {} annotation")
+                self.input.header.add_header_field(name=f, dictionary=d, 
+                                          field_type='INFO')
+            return cf
+        else:
+            if self.args.cadd_phred is not None and not self.prev_cadd_phred:
+                raise RuntimeError("--cadd_phred cutoff given but VCF does " + 
+                                   "not have CADD_PHRED_score INFO field " + 
+                                   "in its header and CADD score files have " +
+                                   "been specified with --cadd_files or " + 
+                                   "--cadd_dir arguments.")
+            if self.args.cadd_raw is not None and not self.prev_cadd_raw:
+                raise RuntimeError("--cadd_raw cutoff given but VCF does " + 
+                                   "not have CADD_raw_score INFO field " + 
+                                   "in its header and CADD score files have " +
+                                   "been specified with --cadd_files or " + 
+                                   "--cadd_dir arguments.")
+        return None
 
     def get_vcf_filter_classes(self):
         filters = []
@@ -379,6 +432,14 @@ class VaseRunner(object):
                 self.logger.debug("Identified previously annotated VASE INFO" +
                                   " field '{}'" .format(info))
         self._parse_prev_vcf_filter_annotations()
+        if 'CADD_PHRED_score' in self.input.metadata['INFO']:
+            if (self.input.metadata['INFO']['CADD_PHRED_score'][-1]['Number'] == 'A' and
+                self.input.metadata['INFO']['CADD_PHRED_score'][-1]['Type'] == 'Float'):
+                self.prev_cadd_phred = True
+        if 'CADD_raw_score' in self.input.metadata['INFO']:
+            if (self.input.metadata['INFO']['CADD_raw_score'][-1]['Number'] == 'A' and
+                self.input.metadata['INFO']['CADD_raw_score'][-1]['Type'] == 'Float'):
+                self.prev_cadd_raw = True
 
     def _parse_prev_vcf_filter_annotations(self):
         frq_annots = []
@@ -489,6 +550,12 @@ class VaseRunner(object):
                 f = self.args.report_prefix + ".de_novo.report.tsv"
                 fhs['de_novo'] = open(f, 'w')
         return fhs
+
+    def _set_to_true_if_true(self, alist, values):
+        for i in range(len(alist)):
+            if values[i]:
+                alist[i] = True
+
 
     def _get_family_filter(self):
         if self.family_filter is not None:

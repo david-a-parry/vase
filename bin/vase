@@ -210,6 +210,54 @@ missing for any program.
 
     #args for specifying files for annotations/filtering
     file_args.add_argument(
+'-cadd_files', '--cadd_files', metavar='FILE', nargs='+', default=[], help=
+'''One or more tabix indexed CADD annotation files 
+(such as those found at 
+http://cadd.gs.washington.edu/download). Variants 
+in your input that match any scored variant in 
+these files will have the CADD RawScore and PHRED
+values added to the INFO field, one per ALT 
+allele. Alleles/variants can be filtered on these
+scores using the --cadd_phred or --cadd_raw 
+options.
+
+''')
+    
+    file_args.add_argument(
+'-cadd_dir', '--cadd_directory', metavar='DIR', help=
+'''Directory containing one or more tabix indexed 
+CADD annotation files to be used as above. Only 
+files with '.gz' or '.bgz' extensions will be 
+included.
+
+''')
+
+    file_args.add_argument(
+'-cadd_phred', '--cadd_phred', metavar='FLOAT', type=float, help=
+'''CADD PHRED score cutoff. Variants with a CADD 
+PHRED score below this value will be filtered. 
+Only used with annotations from files supplied to
+--cadd_files or --cadd_dir arguments or 
+pre-existing CADD_PHRED or CADD_RawScore INFO 
+fields. To filter on CADD scores annotated using 
+the VEP dbNSFP plugin use the --missense_filters 
+
+''')
+
+    file_args.add_argument(
+'-cadd_raw', '--cadd_raw', metavar='FLOAT', type=float, help=
+'''CADD RawScore cutoff. Variants with a CADD 
+RawScore below this value will be filtered.
+Only used with annotations from files supplied to
+--cadd_files or --cadd_dir arguments or 
+pre-existing CADD_PHRED or CADD_RawScore INFO 
+fields. To filter on CADD scores annotated using 
+the VEP dbNSFP plugin use the --missense_filters 
+option.
+
+''')
+
+    file_args.add_argument(
 '-d', '--dbsnp', '--clinvar', metavar='VCF', nargs='+', default=[], help=
 '''dbSNP or ClinVar VCF file for variant 
 annotating/filtering
@@ -298,7 +346,7 @@ from ClinVar.
 '-ignore_existing', '--ignore_existing_annotations', action='store_true',
 default=False, help=
 '''Ignore previously added annotations from 
-dbSNP/gnomAD files that may be present in the 
+dbSNP/gnomAD/CADD files that may be present in the 
 input VCF. Default behaviour is to use these 
 annotations for filtering if present and the 
 relevant arguments (e.g. --freq) are given.
