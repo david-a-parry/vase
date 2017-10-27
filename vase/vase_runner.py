@@ -356,15 +356,15 @@ class VaseRunner(object):
             if self.args.cadd_phred is not None and not self.prev_cadd_phred:
                 raise RuntimeError("--cadd_phred cutoff given but VCF does " + 
                                    "not have CADD_PHRED_score INFO field " + 
-                                   "in its header and CADD score files have " +
-                                   "been specified with --cadd_files or " + 
-                                   "--cadd_dir arguments.")
+                                   "in its header and no CADD score files " +
+                                   "have been specified with --cadd_files or" + 
+                                   " --cadd_dir arguments.")
             if self.args.cadd_raw is not None and not self.prev_cadd_raw:
                 raise RuntimeError("--cadd_raw cutoff given but VCF does " + 
                                    "not have CADD_raw_score INFO field " + 
-                                   "in its header and CADD score files have " +
-                                   "been specified with --cadd_files or " + 
-                                   "--cadd_dir arguments.")
+                                   "in its header and no CADD score files " +
+                                   "have been specified with --cadd_files " + 
+                                   "or --cadd_dir arguments.")
         return None
 
     def get_vcf_filter_classes(self):
