@@ -21,7 +21,7 @@ class CaddFilter(object):
         '''
         self.logger = self._get_logger(logging_level)
         if cadd_dir:
-            cadd_files.extend([f for f in os.listdir(cadd_dir) if 
+            cadd_files.extend([os.path.join(cadd_dir, f) for f in os.listdir(cadd_dir) if 
                                f.endswith(('.gz', '.bgz')) and 
                                os.path.isfile(os.path.join(cadd_dir, f))])
         if not cadd_files:
