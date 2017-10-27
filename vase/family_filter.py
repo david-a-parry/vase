@@ -1155,13 +1155,19 @@ class PotentialSegregant(object):
         self.allele = allele
         self.allele_counts = allele_counts
         self.families = families
-        self.features = set(x['Feature'] for x in csqs)
-        self.csqs = csqs
-        self.record = record
         self.var_id = "{}:{}-{}/{}".format(record.CHROM, record.POS, 
                                            record.REF, record.ALT)
         self.alt_id = "{}:{}-{}/{}".format(record.CHROM, record.POS, 
                                            record.REF, record.ALLELES[allele])
+        self.features = set(x['Feature'] for x in csqs if x['Feature'] != '')
+        if not self.features: 
+            # if is intergenic and there is no Feature ID, use var ID
+            # this way we can capture variants at same site if looking for n>1
+            # in several families, but won't classify all intergenic variants
+            # as the same "Feature"
+            self.features.add(self.var_id)
+        self.csqs = csqs
+        self.record = record
     def __eq__(self, other):
         return self.alt_id == other.alt_id
 
