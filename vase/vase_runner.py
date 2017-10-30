@@ -39,9 +39,13 @@ class VaseRunner(object):
                                         args.keep_if_any_damaging)
         self.sample_filter = None
         if args.cases or args.controls:
-            self.sample_filter = SampleFilter(self.input, args.cases, 
-                                              args.controls, args.n_cases,
-                                              args.n_controls, args.gq)
+            self.sample_filter = SampleFilter(self.input, cases=args.cases, 
+                                              controls=args.controls, 
+                                              n_cases=args.n_cases,
+                                              n_controls=args.n_controls, 
+                                              gq=args.gq, dp=args.dp, 
+                                              het_ab=args.het_ab,
+                                              hom_ab=args.hom_ab,)
         self.de_novo_filter = None
         self.dominant_filter = None
         self.recessive_filter = None
@@ -575,7 +579,9 @@ class VaseRunner(object):
                 no_ped = True
                 infer = False
         self.family_filter = FamilyFilter(ped=self.ped, vcf=self.input,
-                                          gq=self.args.gq, 
+                                          gq=self.args.gq, dp=self.args.dp,
+                                          het_ab=self.args.het_ab, 
+                                          hom_ab=self.args.hom_ab, 
                                           infer_inheritance=infer,
                                           logging_level=self.logger.level)
         
@@ -638,8 +644,11 @@ class VaseRunner(object):
         self._get_family_filter()
         self._get_control_filter()
         self.dominant_filter = DominantFilter(
-                                       self.family_filter, self.args.gq,
-                                       self.args.min_families, 
+                                       self.family_filter, gq=self.args.gq,
+                                       dp=self.args.dp, 
+                                       het_ab=self.args.het_ab,
+                                       hom_ab=self.args.hom_ab,
+                                       min_families=self.args.min_families, 
                                        report_file=self.report_fhs['dominant'])
         if not self.dominant_filter.affected:
             msg = ("No samples fit a dominant model - can not use dominant " + 
@@ -662,8 +671,11 @@ class VaseRunner(object):
         self._get_family_filter()
         self._get_control_filter()
         self.de_novo_filter = DeNovoFilter(
-                                        self.family_filter, self.args.gq,
-                                        self.args.min_families,
+                                        self.family_filter, gq=self.args.gq,
+                                        dp=self.args.dp, 
+                                        het_ab=self.args.het_ab,
+                                        hom_ab=self.args.hom_ab,
+                                        min_families=self.args.min_families,
                                         report_file=self.report_fhs['de_novo'])
         if not self.de_novo_filter.affected:
             msg = ("No samples fit a de novo model - can not use de novo " + 
@@ -686,6 +698,9 @@ class VaseRunner(object):
         self._get_family_filter()
         self.recessive_filter = RecessiveFilter(
                                       self.family_filter, gq=self.args.gq, 
+                                      dp=self.args.dp, 
+                                      het_ab=self.args.het_ab,
+                                      hom_ab=self.args.hom_ab,
                                       min_families=self.args.min_families,
                                       report_file=self.report_fhs['recessive'])
         if not self.recessive_filter.affected:
@@ -707,8 +722,12 @@ class VaseRunner(object):
     def _get_control_filter(self):
         if self.control_filter:
             return
-        self.control_filter = ControlFilter(self.input, self.family_filter,
-                                            self.args.gq, self.args.n_controls)
+        self.control_filter = ControlFilter(vcf=self.input, 
+                                            family_filter=self.family_filter,
+                                            gq=self.args.gq, dp=self.args.dp,
+                                            het_ab=self.args.het_ab,
+                                            hom_ab=self.args.hom_ab,
+                                            n_controls=self.args.n_controls,)
 
     def _var_or_vars(self, n):
         if n == 1:

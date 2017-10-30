@@ -407,6 +407,34 @@ Default = 20.
 ''')
 
     sample_args.add_argument(
+'-dp', '--dp', type=int, default=0, help=
+'''Minimum genotype depth threshold. Sample genotype
+calls with a read depth lower than this threshold 
+will be treated as no-calls. Default = 0.
+
+''')
+
+    sample_args.add_argument(
+'-het_ab', '--het_ab', type=float, default=0., metavar='AB', help=
+'''Minimum genotype allele balance for heterozygous 
+genotypes. Heterozygous sample genotype calls 
+with a ratio of the alternate allele vs total 
+depth lower than this threshold will be treated as
+no-calls. Default = 0.
+
+''')
+
+    sample_args.add_argument(
+'-hom_ab', '--hom_ab', type=float, default=0., metavar='AB', help=
+'''Minimum genotype allele balance for homozygous 
+genotypes. Homozygous sample genotype calls 
+with a ratio of the alternate allele vs total 
+depth lower than this threshold will be treated as
+no-calls. Default = 0.
+
+''')
+
+    sample_args.add_argument(
 '-n_cases', '--n_cases', type=int, help=
 '''Instead of requiring a variant to be present in
 ALL samples specified by --cases, require at least
