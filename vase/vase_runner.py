@@ -165,9 +165,9 @@ class VaseRunner(object):
             keep_ids.update(
                self.recessive_filter.process_potential_recessives(final=final))
         if self.dominant_filter and self.args.min_families > 1:
-            keep_ids.update(self.dominant_filter.process_dominants())
+            keep_ids.update(self.dominant_filter.process_dominants(final=final))
         if self.de_novo_filter and self.args.min_families > 1:
-            keep_ids.update(self.de_novo_filter.process_de_novos())
+            keep_ids.update(self.de_novo_filter.process_de_novos(final=final))
         if final:
             self.variant_cache.add_cache_to_output_ready()
         for var in self.variant_cache.output_ready:
@@ -202,6 +202,10 @@ class VaseRunner(object):
         keep_alleles = [False] * (len(record.ALLELES) -1)
         matched_alleles = [False] * (len(record.ALLELES) -1)
         remove_csq = None
+        #if allele is '*' should be set to filtered
+        for i in range(1, len(record.ALLELES)):
+            if record.ALLELES[i] == '*':
+                remove_alleles[i-1] = True
         #check functional consequences
         if self.csq_filter:
             r_alts, remove_csq = self.csq_filter.filter(record)
