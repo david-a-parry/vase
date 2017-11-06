@@ -477,7 +477,7 @@ class RecessiveFilter(InheritanceFilter):
 
             Clears the cache of stored PotentialSegregant alleles.
         '''
-        segregating = dict() #keys are alt_ids, values are SegregatingBiallelic 
+        segregating = dict() #keys are alt_ids, values are SegregatingBiallelic
         for feat, prs in self._potential_recessives.items():
             if not final and feat in self._last_added:
                 continue
@@ -763,17 +763,18 @@ class DominantFilter(InheritanceFilter):
                                         csqs=csqs, allele_counts=a_counts,
                                         families=fam_alleles[i])
                 segs.append(pd)
-        for seg in segs:
-            if self.min_families > 1:
-                for feat,od in self._last_added.items():
-                    if feat in self._potential_dominants:
-                        self._potential_dominants[feat].update(od)
-                    else:
-                        self._potential_dominants[feat] = od
-                self._last_added = OrderedDict()
+        if self.min_families > 1:
+            for feat,od in self._last_added.items():
+                if feat in self._potential_dominants:
+                    self._potential_dominants[feat].update(od)
+                else:
+                    self._potential_dominants[feat] = od
+            self._last_added = OrderedDict()
+            for seg in segs:
                 for feat in seg.features:
                     self._last_added[feat] = OrderedDict([(seg.alt_id, seg)])
-            else:
+        else:
+            for seg in segs:
                 affs = (x for x in self.affected 
                          if x not in self.obligate_carriers and 
                          self.ped.fid_from_iid(x) in seg.families)
@@ -788,8 +789,7 @@ class DominantFilter(InheritanceFilter):
                 sv.annotate_record(self.report_file, self.annot_fields)
         return len(segs) > 0
 
-
-    def process_dominants(self):
+    def process_dominants(self, final=False):
         ''' 
             Check whether stored PotentialSegregant alleles make up 
             dominant variation in the same transcript for the minimum 
@@ -801,12 +801,24 @@ class DominantFilter(InheritanceFilter):
         '''
         sds = dict()
         d_ids = set()
-        if not self._potential_dominants: 
+        feat_processed = []
+        if not self._potential_dominants:
             #if cache is empy, we never encountered the next set of features
             self._potential_dominants = self._last_added
             self._last_added = OrderedDict()
+        elif final:
+            for feat in self._last_added:
+                if feat in self._potential_dominants:
+                    self._potential_dominants[feat].update(
+                                                        self._last_added[feat])
+                else:
+                    self._potential_dominants[feat] = self._last_added[feat]
+            self._last_added = OrderedDict()
         for feat, pds in self._potential_dominants.items():
+            if feat in self._last_added: #still processing this feature
+                continue
             feat_fams = set()
+            feat_processed.append(feat)
             for pid,p in pds.items():
                 feat_fams.update(p.families)
             if len(feat_fams) >= self.min_families:
@@ -824,9 +836,9 @@ class DominantFilter(InheritanceFilter):
                         sds[p.alt_id] = sv
         for sv in sds.values():
             sv.annotate_record(self.report_file, self.annot_fields)
-        #clear the cache except for the last entry which will be a new gene
-        self._potential_dominants = self._last_added
-        self._last_added = OrderedDict()
+        #clear the cache of processed features 
+        for feat in feat_processed:
+            del self._potential_dominants[feat]
         return d_ids
 
 
@@ -988,17 +1000,18 @@ class DeNovoFilter(InheritanceFilter):
                                         csqs=csqs, allele_counts=a_counts,
                                         families=fam_alleles[i])
                 segs.append(pd)
-        for seg in segs:
-            if self.min_families > 1:
-                for feat,od in self._last_added.items():
-                    if feat in self._potential_denovos:
-                        self._potential_denovos[feat].update(od)
-                    else:
-                        self._potential_denovos[feat] = od
-                self._last_added = OrderedDict()
+        if self.min_families > 1:
+            for feat,od in self._last_added.items():
+                if feat in self._potential_denovos:
+                    self._potential_denovos[feat].update(od)
+                else:
+                    self._potential_denovos[feat] = od
+            self._last_added = OrderedDict()
+            for seg in segs:
                 for feat in seg.features:
                     self._last_added[feat] = OrderedDict([(seg.alt_id, seg)])
-            else:
+        else:
+            for seg in segs:
                 affs = (x for x in self.affected if self.ped.fid_from_iid(x) 
                         in seg.families)
                 sv = SegregatingVariant(seg, affs, seg.families, 'samples',
@@ -1006,7 +1019,7 @@ class DeNovoFilter(InheritanceFilter):
                 sv.annotate_record(self.report_file, self.annot_fields)
         return len(segs) > 0
 
-    def process_de_novos(self):
+    def process_de_novos(self, final=False):
         #FIX THIS - THIS IS DUPLICATED CODE FROM DominantFilter
         ''' 
             Check whether stored PotentialSegregant alleles make up 
@@ -1019,12 +1032,24 @@ class DeNovoFilter(InheritanceFilter):
         '''
         sds = dict()
         d_ids = set()
+        feat_processed = []
         if not self._potential_denovos: 
             #if cache is empy, we never encountered the next set of features
             self._potential_denovos = self._last_added
             self._last_added = OrderedDict()
+        elif final:
+            for feat in self._last_added:
+                if feat in self._potential_denovos:
+                    self._potential_denovos[feat].update(
+                                                        self._last_added[feat])
+                else:
+                    self._potential_denovos[feat] = self._last_added[feat]
+            self._last_added = OrderedDict()
         for feat, pds in self._potential_denovos.items():
+            if feat in self._last_added: #still processing this feature
+                continue
             feat_fams = set()
+            feat_processed.append(feat)
             for pid,p in pds.items():
                 feat_fams.update(p.families)
             if len(feat_fams) >= self.min_families:
@@ -1042,9 +1067,9 @@ class DeNovoFilter(InheritanceFilter):
                         sds[p.alt_id] = sv
         for sv in sds.values():
             sv.annotate_record(self.report_file, self.annot_fields)
-        #clear the cache except for the last entry which will be a new gene
-        self._potential_denovos = self._last_added
-        self._last_added = OrderedDict()
+        #clear the cache of processed features 
+        for feat in feat_processed:
+            del self._potential_denovos[feat]
         return d_ids
       
 
