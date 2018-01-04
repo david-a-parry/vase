@@ -339,6 +339,8 @@ class RecessiveFilter(InheritanceFilter):
                ("VASE_biallelic_de_novo",
                '"Samples that carry biallelic alleles that appear to have ' + 
                'arisen de novo"'),
+                ('VASE_biallelic_families',
+                '"Family IDs for VASE_biallelic alleles"'),
                ("VASE_biallelic_features", 
                '"Features (e.g. transcripts) that contain qualifying ' + 
                'biallelic variants parsed by {}"' .format(
