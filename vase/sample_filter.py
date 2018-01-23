@@ -213,7 +213,7 @@ class GtFilter(object):
         self.ab_filter = None
         if not gq and not dp and not het_ab and not hom_ab:
             #if no parameters are set then every genotype passes
-            self.gt_is_ok = lambda sf, gt, smp, al: True
+            self.gt_is_ok = lambda gt, smp, al: True
         else:
             ab_field = self._check_header_fields(vcf)
             if ab_field is not None:
