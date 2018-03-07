@@ -246,7 +246,7 @@ class GtFilter(object):
         return True #do not filter
 
     def _ab_filter_ro(self, gts, sample, allele):
-        aos = gts['AO'][sample][allele-1]
+        aos = gts['AO'][sample]
         ro = gts['RO'][sample]
         is_hom = False
         if len(set(gts['GT'][sample])) == 1:
