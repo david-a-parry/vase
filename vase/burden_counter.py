@@ -56,13 +56,13 @@ class BurdenCounter(object):
     def write_header(self):
         cols = ["Feature", "Gene", ]
         if self.controls:
-            cols.append("Controls")
+            cols.extend(["Controls", "N_Controls"])
             if self.cases
-                cols.append("Cases")
+                cols.extend(["Cases", "N_Cases"])
         elif self.gnomad_pop:
-            cols.append(self.gnomad_pop)
+            cols.extend([self.gnomad_pop, "N_" + self.gnomad_pop])
         else:
-            cols.append("Cases")
+            cols.extend(["Cases", "N_Cases"])
         self.out_fh.write(str.join("\t", cols) + "\n")
 
     def _check_gnomad_pop(vcf, pop):
@@ -136,6 +136,10 @@ class BurdenCounter(object):
                     self.total_case_alleles = info['AN'][allele]
         else:
             gts = record.parsed_gts(fields=self.gt_fields, samples=self.samples)
+            # TODO!
+            # major limitation here is that we don't count how many alleles per
+            # sample - i.e. if homozygous. Maybe create a dict of samples to 
+            # allele counts?
             if cases or controls:
                 for s in cases:
                     if self.gt_filter.gt_is_ok(gts, s, allele):
@@ -150,4 +154,26 @@ class BurdenCounter(object):
                   self.gt_filter.gt_is_ok(gts, s, allele) and allele in gts[s])
     
     def output_counts(self):
-        pass #TODO
+        for feat in self.case_counts:
+            row = [feat, self.transcript_to_gene[feat]]
+            if self.controls:
+                if feat in self.control_counts:
+                    row.append(str(self.control_counts[feat]))
+                else:
+                    row.append("0")
+                row.append(self.total_control_alleles)
+            row.append(self.case_counts[feat])
+            row.append(self.total_case_alleles)
+            self.out_fh.write(str.join("\t", row) + "\n")
+        for feat in self.control_counts:
+            row.append(str(self.control_counts[feat]))
+            row.append(self.total_control_alleles)
+            if self.cases:
+                if feat in self.case_counts:
+                    row.append(self.case_counts[feat])
+                else:
+                    row.append("0")
+                row.append(self.total_case_alleles)
+            self.out_fh.write(str.join("\t", row) + "\n")
+        self.out_fh.close()
+        
