@@ -12,7 +12,7 @@ from .sample_filter import SampleFilter
 from .ped_file import PedFile, Family, Individual, PedError
 from .family_filter import FamilyFilter, ControlFilter
 from .family_filter import RecessiveFilter, DominantFilter, DeNovoFilter
-
+from .burden_counter import BurdenCounter
 
 class VaseRunner(object):
 
@@ -38,7 +38,16 @@ class VaseRunner(object):
                                         args.filter_unpredicted,
                                         args.keep_if_any_damaging)
         self.sample_filter = None
-        if args.cases or args.controls:
+        self.burden_counter = None
+        if args.burden_counts:
+            self.burden_counter = BurdenCounter(self.input, args.burden_counts,
+                                                is_gnomad=gnomad_burden,
+                                                cases=args.cases, 
+                                                controls=args.controls,
+                                                gq=args.gq, dp=args.dp, 
+                                                het_ab=args.het_ab,
+                                                hom_ab=args.hom_ab,)
+        elif args.cases or args.controls:
             self.sample_filter = SampleFilter(self.input, cases=args.cases, 
                                               controls=args.controls, 
                                               n_cases=args.n_cases,
