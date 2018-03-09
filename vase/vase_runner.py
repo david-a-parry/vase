@@ -157,6 +157,8 @@ class VaseRunner(object):
                 self.var_filtered += 1
                 return
             self.var_written += 1
+            if self.burden_counter:
+                self.burden_counter.count(record, filter_alleles, filter_csq)
             self.out.write(str(record) + '\n')
     
     def output_cache(self, final=False):
