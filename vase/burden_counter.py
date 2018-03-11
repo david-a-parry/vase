@@ -166,7 +166,7 @@ class BurdenCounter(object):
                             self.feat_to_cases[feat][s] += ac
                             #do not count more than 2 alleles per sample
                             if self.feat_to_cases[feat][s] > 2:
-                                self.feat_to_cases[feat][s] = 2:
+                                self.feat_to_cases[feat][s] = 2
                         else:
                             self.feat_to_cases[feat][s] = ac
                 for s in controls:
@@ -176,7 +176,7 @@ class BurdenCounter(object):
                             self.feat_to_controls[feat][s] += ac
                             if self.feat_to_controls[feat][s] > 2:
                                 #do not count more than 2 alleles per sample
-                                self.feat_to_controls[feat][s] = 2:
+                                self.feat_to_controls[feat][s] = 2
                         else:
                             self.feat_to_controls[feat][s] = ac
             else:
