@@ -525,6 +525,13 @@ Default=1000.
 
 ''')
     help_args.add_argument(
+'--log_progress', '-log_progress', action='store_true', help=
+'''Use logging output for progress rather than wiping
+progress line after each update.
+
+''')
+
+    help_args.add_argument(
 '--quiet', action='store_true', help=
 '''Do not output progress information to STDERR.
 

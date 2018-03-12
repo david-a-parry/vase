@@ -54,6 +54,7 @@ class VaseRunner(object):
         self.variant_cache = VariantCache()
         self.use_cache = False
         self.prog_interval = args.prog_interval
+        self.log_progress = args.log_progress
         self.report_fhs = self.get_report_filehandles()
         if args.de_novo:
             self._get_de_novo_filter()
@@ -75,14 +76,18 @@ class VaseRunner(object):
             self.process_record(record)
             var_count += 1
             if not self.args.quiet and var_count % self.prog_interval == 0:
-                n_prog_string = ('\r{:,} variants processed, '.format(var_count) +
+                n_prog_string = ('{:,} variants processed, '.format(var_count) +
                                '{:,} filtered, {:,} written... at pos {}:{}'
                                .format(self.var_filtered, self.var_written,
                                        record.CHROM, record.POS))
-                if len(prog_string) > len(n_prog_string):
-                    sys.stderr.write('\r' + ' ' * len(prog_string) )
-                prog_string = n_prog_string
-                sys.stderr.write(prog_string)
+                if self.log_progress:
+                    self.logger.info(n_prog_string)
+                else:
+                    n_prog_string = '\r' + n_prog_string
+                    if len(prog_string) > len(n_prog_string):
+                        sys.stderr.write('\r' + ' ' * len(prog_string) )
+                    prog_string = n_prog_string
+                    sys.stderr.write(prog_string)
         self.finish_up()
         if prog_string:
             sys.stderr.write('\r' + '-' * len(prog_string) + '\n')
