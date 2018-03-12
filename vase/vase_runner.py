@@ -40,8 +40,11 @@ class VaseRunner(object):
         self.sample_filter = None
         self.burden_counter = None
         if args.burden_counts:
+            if args.n_cases or args.n_controls:
+                self.logger.warn("--n_cases and --n_controls arguments are " +
+                                 "ignored when using --burden_counter.")
             self.burden_counter = BurdenCounter(self.input, args.burden_counts,
-                                                is_gnomad=gnomad_burden,
+                                                is_gnomad=args.gnomad_burden,
                                                 cases=args.cases, 
                                                 controls=args.controls,
                                                 gq=args.gq, dp=args.dp, 
@@ -177,13 +180,23 @@ class VaseRunner(object):
     
     def output_cache(self, final=False):
         keep_ids = set()
+        burden_vars = dict #dict of inheritance model to segregants
         if self.recessive_filter:
-            keep_ids.update(
-               self.recessive_filter.process_potential_recessives(final=final))
+            vid_to_seg = self.recessive_filter.process_potential_recessives(
+                                                                   final=final)
+            keep_ids.update(vid_to_seg.keys())
+            if self.burden_counter:
+                burden_vars['recessive'] = vid_to_seg
         if self.dominant_filter and self.args.min_families > 1:
-            keep_ids.update(self.dominant_filter.process_dominants(final=final))
+            vid_to_seg = self.dominant_filter.process_dominants(final=final)
+            keep_ids.update(vid_to_seg.keys())
+            if self.burden_counter:
+                burden_vars['dominant'] = vid_to_seg
         if self.de_novo_filter and self.args.min_families > 1:
-            keep_ids.update(self.de_novo_filter.process_de_novos(final=final))
+            vid_to_seg = self.de_novo_filter.process_de_novos(final=final)
+            keep_ids.update(vid_to_seg.keys())
+            if self.burden_counter:
+                burden_vars['de_novo'] = vid_to_seg
         if final:
             self.variant_cache.add_cache_to_output_ready()
         for var in self.variant_cache.output_ready:
@@ -192,11 +205,30 @@ class VaseRunner(object):
                 self.var_written += 1
             else:
                 self.var_filtered += 1
-        self.variant_cache.output_ready = []
+        if self.burden_counter:
+            self._burden_from_cache(burden_vars)
+
+    def _burden_from_cache(self, model_to_vars):
+        for model in ('dominant', 'de_novo'):
+            if model in model_to_vars:
+                for v in model_to_vars[model]:
+                    for seg in model_to_vars[model][v]:
+                        self.burden_counter.count_samples(seg.record, 
+                                                          seg.features,
+                                                          seg.allele, 1)
+        # we count recessives last as the max per allele (2) is higher than for
+        # dom/de novos (otherwise max per sample could get lowered to 1)
+        if 'recessive' in model_to_vars:
+            for v in model_to_vars['recessive']:
+                for seg in model_to_vars['recessive'][v]:
+                    self.burden_counter.count_samples(seg.record, seg.features,
+                                                      seg.allele, 2)
 
     def finish_up(self):
         if self.use_cache:
             self.output_cache(final=True)
+        if self.burden_counter:
+            self.burden_counter.output_counts()
         for fh in self.report_fhs.values():
             if fh is not None:
                 fh.close()
