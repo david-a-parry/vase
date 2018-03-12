@@ -34,6 +34,7 @@ class BurdenCounter(object):
             self.total_alleles['Controls'] = len(controls) * 2
         elif vcf.header.samples:
             self.cases = vcf.header.samples
+            self.total_alleles['Cases'] = len(self.cases) * 2
             self.samples = self.cases
         elif not is_gnomad:
             self.use_ac = True
@@ -230,6 +231,19 @@ class BurdenCounter(object):
                     self.feat_to_controls[feat] = a_counts
 
     def output_counts(self):
+        if not self.use_ac and not self.gnomad_pops:
+            for feat in self.feat_to_cases:
+                self.counts[feat]['Cases'] = sum(
+                        self.feat_to_cases[feat][x] for x in 
+                        self.feat_to_cases[feat])
+                self.counts[feat]['Controls'] = sum(
+                        self.feat_to_controls[feat][x] for x in 
+                        self.feat_to_controls[feat])
+            for feat in (x for x in self.feat_to_controls if x not in
+                         self.feat_to_cases):
+                self.counts[feat]['Controls'] = sum(
+                        self.feat_to_controls[feat][x] for x in 
+                        self.feat_to_controls[feat])
         groups = []
         if self.gnomad_pops:
             groups = self.gnomad_pops
@@ -249,7 +263,7 @@ class BurdenCounter(object):
                     row.append(str(self.counts[feat][g]))
                 else:
                     row.append("0")
-                row.append(self.total_alleles[g])
+                row.append(str(self.total_alleles[g]))
             self.out_fh.write(str.join("\t", row) + "\n")
         self.out_fh.close()
         
@@ -259,4 +273,4 @@ class BurdenCounter(object):
             gene = csq[self.gene_field]
             if not gene:
                 gene = feat
-            self.transcript_to_gene = gene
+            self.transcript_to_gene[feat] = gene
