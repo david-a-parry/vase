@@ -528,6 +528,23 @@ class VaseRunner(object):
                         self.logger.info("Found previous ClinVar " + 
                                           "annotation '{}'".format(annot))
                         cln_annots.append(annot)
+        # if using gnomAD file for burden counting use internal annotations
+        # for frequency filtering, if specified
+        if (not self.args.ignore_existing_annotations and 
+                self.args.gnomad_burden and 
+                (self.args.freq or self.args.min_freq)):
+            #check only relatively outbred pops by default
+            pops = set(("POPMAX", "AFR", "AMR", "EAS", "FIN", "NFE", "SAS"))
+            for info in self.input.metadata['INFO']:
+                match = re.search(r'''^AF_([A-Z]+)$''', info)
+                if match and match.group(1) in pops:
+                    if (self.input.metadata['INFO'][info][-1]['Number'] == 'A'
+                            and
+                            self.input.metadata['INFO'][info][-1]['Type'] == 
+                            'Float'):
+                        self.logger.info("Found gnomAD allele frequency " + 
+                                          "annotation '{}'".format(info))
+                        frq_annots.append(info)
         self.prev_freqs = tuple(frq_annots)
         self.prev_builds = tuple(bld_annots)
         self.prev_clinvar = tuple(cln_annots)
