@@ -27,7 +27,14 @@ VASE requires python3. It has been tested with python 3.5 and 3.6. The modules
 if following the instructions below. You may also wish to install biopython, 
 which is required if you want to write directly to bgzipped output.
 
-To install the vase script to $HOME/.local/bin first clone this repository:
+To install the vase script to $HOME/.local/bin the simplest way is to use pip:
+
+    pip3 install git+git://github.com/gantzgraf/vase.git --user
+
+To install system-wide remove the --user flag and ensure you have root 
+priveleges (e.g. using sudo).
+
+Alternatively, you may first clone this repository:
 
     git clone https://github.com/gantzgraf/vase.git
 
