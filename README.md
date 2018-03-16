@@ -10,7 +10,7 @@ consequences from VEP, presence/absence of variants in cases vs controls and
 inheritance patterns within families. It is designed primarily for use in rare
 disease cohort or familial studies.
 
-In order to make the most of the functions VAPE provides, you will require a 
+In order to make the most of the functions VASE provides, you will require a 
 multi-sample, [VEP](https://github.com/Ensembl/ensembl-vep) annotated VCF. In 
 order to confidently identify variants segregating within families consistent 
 with dominant/recessive/de novo inheritance patterns, your VCF should have been
