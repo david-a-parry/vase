@@ -175,7 +175,7 @@ class dbSnpFilter(VcfFilter):
                                         do_filter = False
                                         do_keep = True
                 if matched: break
-            if matched: break #bail out on first matching SNP
+            #if matched: break #bail out on first matching SNP
 
         return (do_filter, do_keep, matched, annot)
 

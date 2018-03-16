@@ -155,7 +155,7 @@ class VcfFilter(object):
                         if val is not None:
                             annot[f] = val
                 if matched: break
-            if matched: break #bail out on first matching variant
+            #if matched: break #bail out on first matching variant
         return (do_filter, do_keep, matched, annot)
 
     def _get_value(self, field_name, field_properties, variant, index):
