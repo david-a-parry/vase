@@ -126,7 +126,7 @@ class InSilicoFilter(object):
                                         "value '{}' to a number.".format(pred))
                 elif (pred in default_progs[prog]['default'] or 
                      pred in default_progs[prog]['valid']):
-                    if prog in self.pred_filters[prog]:
+                    if prog in self.pred_filters:
                         self.pred_filters[prog].add(pred)
                     else:
                         self.pred_filters[prog] = set(pred)
