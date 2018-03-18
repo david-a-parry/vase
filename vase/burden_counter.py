@@ -261,9 +261,11 @@ class BurdenCounter(object):
             for g in groups:
                 if g in self.counts[feat]:
                     row.append(str(self.counts[feat][g]))
+                    row.append(str(self.total_alleles[g] - 
+                                   self.counts[feat][g]))
                 else:
                     row.append("0")
-                row.append(str(self.total_alleles[g]))
+                    row.append(str(self.total_alleles[g]))
             self.out_fh.write(str.join("\t", row) + "\n")
         self.out_fh.close()
         
