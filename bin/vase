@@ -136,6 +136,15 @@ specified classes.
 ignore consequences for non-canonical transcripts.
 
 ''')
+
+    filter_args.add_argument(
+'--flagged_features', action='store_true', help=
+'''When used in conjunction with --csq argument, 
+ignore consequences for flagged 
+transcripts/features (i.e. with a non-empty 
+'FLAGS' CSQ field).
+
+''')
     filter_args.add_argument(
 '--biotypes', nargs='+', default=[], metavar='BIOTYPE', help=
 '''When used in conjunction with --csq  argument, 

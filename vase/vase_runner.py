@@ -32,11 +32,13 @@ class VaseRunner(object):
             self.ped = PedFile(args.ped)
         self.csq_filter = None
         if args.csq is not None:
-            self.csq_filter = VepFilter(args.csq, args.canonical,
-                                        args.biotypes, 
-                                        args.missense_filters,
-                                        args.filter_unpredicted,
-                                        args.keep_if_any_damaging)
+            self.csq_filter = VepFilter(
+                                csq=args.csq, canonical=args.canonical,
+                                biotypes=args.biotypes, 
+                                in_silico=args.missense_filters,
+                                filter_unpredicted=args.filter_unpredicted,
+                                keep_any_damaging=args.keep_if_any_damaging,
+                                filter_flagged_features=args.flagged_features)
         self.sample_filter = None
         self.burden_counter = None
         if args.burden_counts:
