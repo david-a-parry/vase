@@ -557,10 +557,10 @@ class RecessiveFilter(InheritanceFilter):
         var_to_segregants = OrderedDict()
         for sb in segregating.values():
             sb.annotate_record(self.report_file, self.annot_fields)
-            if sb.var_id in var_to_segregants:
-                var_to_segregants[sb.var_id].append(sb.segregant)
+            if sb.segregant.var_id in var_to_segregants:
+                var_to_segregants[sb.segregant.var_id].append(sb.segregant)
             else:
-                var_to_segregants[sb.var_id] = [sb.segregant]
+                var_to_segregants[sb.segregant.var_id] = [sb.segregant]
         #clear the cache except for the last entry which will be a new gene
         self._potential_recessives = self._last_added
         self._last_added = dict()
