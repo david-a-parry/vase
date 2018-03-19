@@ -85,6 +85,21 @@ filtered/ignored.
 (i.e. FILTER field must be "PASS")
 
 ''' )
+
+    filter_args.add_argument(
+'-af', '--af', type=float, help=
+'''Maximum AF value in input VCF. Any allele with an
+AF > than this value will be filtered.
+
+''')
+
+    filter_args.add_argument(
+'-min_af', '--min_af', type=float, help=
+'''Minimum AF value in input VCF. Any allele with an
+AF < than this value will be filtered.
+
+''')
+
     filter_args.add_argument(
 '-c', '--csq', nargs='*', help=
 '''One or more VEP consequence classes to  retain. 

@@ -254,6 +254,16 @@ class VaseRunner(object):
         for i in range(1, len(record.ALLELES)):
             if record.ALLELES[i] == '*':
                 remove_alleles[i-1] = True
+        #check VCF's internal AF
+        if self.args.af or self.args.min_af:
+            r_alts = self.filter_on_af(record)
+            self._set_to_true_if_true(remove_alleles, r_alts)
+            if (not self.args.clinvar_path and 
+                sum(remove_alleles) == len(remove_alleles)):
+                # bail out now if no valid allele and not keeping clinvar
+                # path variants - if using clinvar path we have to ensure we 
+                # haven't got a path variant with a non-qualifying allele
+                return remove_alleles, remove_csq
         #check functional consequences
         if self.csq_filter:
             r_alts, remove_csq = self.csq_filter.filter(record)
@@ -314,6 +324,18 @@ class VaseRunner(object):
                 verdict.append(False)
         return verdict, remove_csq
  
+    def filter_on_af(self, record):
+        remove  = [False] * (len(record.ALLELES) -1)
+        af = record.parsed_info_fields(fields=['AF'])['AF']
+        for i in range(len(remove)):
+            if self.args.af:
+                if af[i] is not None and af[i] > self.args.af:
+                    remove[i] = True
+            if self.args.min_af:
+                if af[i] is None or af[i] < self.args.min_af:
+                    remove[i] = True
+        return remove
+
     def filter_on_existing_cadd_phred(self, record):
         remove  = [False] * (len(record.ALLELES) -1)
         phreds = record.parsed_info_fields(fields=['CADD_PHRED_score'])
