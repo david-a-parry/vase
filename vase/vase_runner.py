@@ -209,6 +209,7 @@ class VaseRunner(object):
                 self.var_filtered += 1
         if self.burden_counter:
             self._burden_from_cache(burden_vars)
+        self.variant_cache.output_ready = []
 
     def _burden_from_cache(self, model_to_vars):
         for model in ('dominant', 'de_novo'):
