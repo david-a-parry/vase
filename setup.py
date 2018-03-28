@@ -14,7 +14,7 @@ setup(
     license='GPLv3',
     install_requires=[
           'pysam',
-          'parse_vcf',
+          'parse_vcf>=0.2.1',
       ],
     scripts = ["bin/vase"],
     classifiers = [
