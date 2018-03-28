@@ -171,6 +171,30 @@ class VaseRunner(object):
             if denovo_hit or dom_hit:
                 self.out.write(str(record) + '\n')
                 self.var_written += 1
+                if self.burden_counter:
+                    #getting relevant alleles and feats is a bit of a fudge using 
+                    #annotations added by dom/denovo filter
+                    b_filt_al = [True] * (len(record.ALLELES) -1)
+                    b_filt_csq = [[True] * len(record.CSQ)] * len(b_filt_al)
+                    if dom_hit:
+                        b_filt_al, b_filt_csq = self._seg_alleles_from_record(
+                                                  record,
+                                                  self.dominant_filter.prefix,
+                                                  b_filt_al, 
+                                                  b_filt_csq)
+                    if denovo_hit:
+                        b_filt_al, b_filt_csq = self._seg_alleles_from_record(
+                                                  record,
+                                                  self.de_novo_filter.prefix,
+                                                  b_filt_al, 
+                                                  b_filt_csq)
+                    for i in range(len(b_filt_al)):
+                        if not b_filt_al[i]:
+                            feat = (record.CSQ[j]['Feature'] for j in 
+                                    range(len(record.CSQ)) if not 
+                                    b_filt_csq[i][j])
+                            self.burden_counter.count_samples(record, 
+                                                              feat, i, 1)
         else:
             if sum(filter_alleles) == len(filter_alleles): 
                 self.var_filtered += 1
@@ -182,7 +206,7 @@ class VaseRunner(object):
     
     def output_cache(self, final=False):
         keep_ids = set()
-        burden_vars = dict #dict of inheritance model to segregants
+        burden_vars = dict() #dict of inheritance model to segregants
         if self.recessive_filter:
             vid_to_seg = self.recessive_filter.process_potential_recessives(
                                                                    final=final)
@@ -218,14 +242,14 @@ class VaseRunner(object):
                     for seg in model_to_vars[model][v]:
                         self.burden_counter.count_samples(seg.record, 
                                                           seg.features,
-                                                          seg.allele, 1)
+                                                          seg.allele - 1, 1)
         # we count recessives last as the max per allele (2) is higher than for
         # dom/de novos (otherwise max per sample could get lowered to 1)
         if 'recessive' in model_to_vars:
             for v in model_to_vars['recessive']:
                 for seg in model_to_vars['recessive'][v]:
                     self.burden_counter.count_samples(seg.record, seg.features,
-                                                      seg.allele, 2)
+                                                      seg.allele - 1, 2)
 
     def finish_up(self):
         if self.use_cache:
@@ -501,6 +525,17 @@ class VaseRunner(object):
                 self.input.header.add_header_field(name=f, dictionary=d, 
                                           field_type='INFO')
         return filters
+
+    def _seg_alleles_from_record(self, record, prefix, filter_al, filter_csq):
+        ps = prefix + '_samples'
+        pf = prefix + '_features'
+        info = record.parsed_info_fields(fields=[pf, ps])
+        f_al = [False if info[ps][i] != '.' else filter_al[i] for i in 
+                range(len(filter_al))]
+        f_csq = [[False if record.CSQ[j]['Feature'] in 
+                  info[pf][i].split('|') else filter_csq[i][j] for j in 
+                  range(len(record.CSQ))] for i in range(len(filter_al))] 
+        return f_al, f_csq
 
     def _get_prev_annotations(self):
         self.prev_annots = set()
