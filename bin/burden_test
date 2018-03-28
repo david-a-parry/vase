@@ -28,6 +28,10 @@ using the --gnomad_counts option). Default behaviour is to report the highest
 (i.e. least significant) p-value of all gnomAD populations for each 
 transcript.''')
 
+    parser.add_argument('-s', '--sum_pops', action='store_true', help=
+'''Sum population counts for all gnomAD populations (only applicable if using
+the --gnomad_counts option).''')
+
     parser.add_argument('-o', '--output',  help=
 '''Filename for transcript table output. Default is to output to STDOUT''')
     return parser
@@ -42,7 +46,7 @@ def get_counts(tsv, targets=None):
             for k in al_indices:
                 i = al_indices[k]
                 f = cols[0] + '/' + cols[1] #Feature/Gene
-                counts[f][k] = (cols[i], cols[i + 1])
+                counts[f][k] = (int(cols[i]), int(cols[i + 1]))
     return counts
             
 
@@ -75,9 +79,10 @@ def parse_count_header(header, targets):
                                " columns in input file")
     return al_indices
     
-def test_cases_vs_controls(counts, control_counts=None, pops=None):
+def test_cases_vs_controls(counts, control_counts=None, pops=None, 
+                           sum_pops=False):
     if control_counts:
-        _test_two_sets(counts, control_counts, pops)
+        _test_two_sets(counts, control_counts, pops, sum_pops)
     else:
         _test_one_set(counts)
 
@@ -92,7 +97,7 @@ def _test_one_set(counts):
         allele_counts[feat] = counts[feat]['Cases'] + counts[feat]['Controls']
     output_pvals(pvals, odds, allele_counts)
 
-def _test_two_sets(counts, control_counts, pops=None):
+def _test_two_sets(counts, control_counts, pops=None, sum_pops=False):
     pvals = dict()
     odds = dict()
     acs = dict()
@@ -101,26 +106,41 @@ def _test_two_sets(counts, control_counts, pops=None):
         if feat not in control_counts:
             not_found.append(feat)
             continue
-        for group in control_counts[feat]:
-            #take the highest (i.e. least significant) p-value for each pop
-            if pops is None or group in pops:
-                o,p = stats.fisher_exact([counts[feat]['Cases'],
-                                          control_counts[feat][group]],
-                                          alternative='greater')
-                if feat not in pvals or p > pvals[feat]:
-                    pvals[feat] = p
-                    odds[feat] = o
-                    acs[feat] = counts[feat]['Cases'] + control_counts[feat][group]
+        if sum_pops:
+            if pops:
+                pos = sum(control_counts[feat][x][0] for x in pops)
+                neg = sum(control_counts[feat][x][1] for x in pops)
+            else:
+                pos = sum(control_counts[feat][x][0] for x in 
+                          control_counts[feat])
+                neg = sum(control_counts[feat][x][1] for x in 
+                          control_counts[feat])
+            odds[feat], pvals[feat] = stats.fisher_exact(
+                                                        [counts[feat]['Cases'], 
+                                                        (pos, neg)], 
+                                                        alternative='greater')
+            acs[feat] = counts[feat]['Cases'] + (pos, neg)
+        else:
+            for group in control_counts[feat]:
+                #take the highest (i.e. least significant) p-value for each pop
+                if pops is None or group in pops:
+                    o,p = stats.fisher_exact([counts[feat]['Cases'],
+                                              control_counts[feat][group]],
+                                              alternative='greater')
+                    if feat not in pvals or p > pvals[feat]:
+                        pvals[feat] = p
+                        odds[feat] = o
+                        acs[feat] = counts[feat]['Cases'] + control_counts[feat][group]
     #TODO infer pop size and test those not found
     output_pvals(pvals, odds, acs) 
       
 def output_pvals(pvals, odds, allele_counts):
     for k in sorted(pvals, key=pvals.get):
         print(str.join("\t", (k, str(pvals[k]), str(odds[k])) + 
-                              allele_counts[k]))
+                              tuple(str(x) for x in allele_counts[k])))
 
 def main(counts, output=None, control_counts=None, gnomad_counts=None, 
-         pops=None):
+         pops=None, sum_pops=False):
     if control_counts and gnomad_counts:
         raise RuntimeError('--control_counts and --gnomad_counts arguments ' +
                            'are mutually exclusive.')
@@ -130,7 +150,8 @@ def main(counts, output=None, control_counts=None, gnomad_counts=None,
         elif gnomad_counts:
             control_counts = get_counts(gnomad_counts, targets=pops)
         case_counts = get_counts(counts, targets=['Cases'])
-        test_cases_vs_controls(case_counts, control_counts, pops)
+        test_cases_vs_controls(case_counts, control_counts, pops,
+                               sum_pops=sum_pops)
     else:
         case_counts = get_counts(counts, targets=['Cases', 'Controls'])
         test_cases_vs_controls(case_counts)
