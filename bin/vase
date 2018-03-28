@@ -48,6 +48,29 @@ with the respective suffixes of
 '_dominant.report.tsv'.
 
 ''')
+
+    output_args.add_argument(
+'-burden_counts', '--burden_counts', help=
+'''File for outputting 'burden counts' per 
+transcript. If specified, the number of alleles
+passing specified filters will be counted for 
+each transcript identified. Requires your VCF 
+input to be annotated with Ensembl's VEP. Note, 
+that if --cases or --controls are specified when
+using this argument, variants will not be filtered
+on presence in cases/controls; instead counts will
+be written for cases and controls to this file.
+
+''')
+
+    output_args.add_argument(
+'-gnomad_burden', '--gnomad_burden', action='store_true', default=False, help=
+'''If using --burden_counts, use this flag to 
+indicate that the input is from gnomAD and should 
+be parsed per population.
+
+''')
+
     #args for filtering/retaining variants based on features
     filter_args.add_argument(
 '-v', '--variant_quality', type=float, metavar='QUAL', help=
@@ -62,6 +85,21 @@ filtered/ignored.
 (i.e. FILTER field must be "PASS")
 
 ''' )
+
+    filter_args.add_argument(
+'-af', '--af', type=float, help=
+'''Maximum AF value in input VCF. Any allele with an
+AF > than this value will be filtered.
+
+''')
+
+    filter_args.add_argument(
+'-min_af', '--min_af', type=float, help=
+'''Minimum AF value in input VCF. Any allele with an
+AF < than this value will be filtered.
+
+''')
+
     filter_args.add_argument(
 '-c', '--csq', nargs='*', help=
 '''One or more VEP consequence classes to  retain. 
@@ -96,6 +134,15 @@ specified classes.
 '--canonical', action='store_true', help=
 '''When used in conjunction with --csq argument, 
 ignore consequences for non-canonical transcripts.
+
+''')
+
+    filter_args.add_argument(
+'--flagged_features', action='store_true', help=
+'''When used in conjunction with --csq argument, 
+ignore consequences for flagged 
+transcripts/features (i.e. with a non-empty 
+'FLAGS' CSQ field).
 
 ''')
     filter_args.add_argument(
@@ -524,6 +571,13 @@ present in your PED file specified with --ped.
 Default=1000.
 
 ''')
+    help_args.add_argument(
+'--log_progress', '-log_progress', action='store_true', help=
+'''Use logging output for progress rather than wiping
+progress line after each update.
+
+''')
+
     help_args.add_argument(
 '--quiet', action='store_true', help=
 '''Do not output progress information to STDERR.

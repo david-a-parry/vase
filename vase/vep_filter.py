@@ -7,7 +7,8 @@ class VepFilter(object):
     '''An object that filters VCF records based on annotated VEP data.'''
 
     def __init__(self, csq=[], canonical=False, biotypes=[], in_silico=[],
-                 filter_unpredicted=False, keep_any_damaging=False):
+                 filter_unpredicted=False, keep_any_damaging=False, 
+                 filter_flagged_features=False):
 
         default_csq, valid_csq = self._read_csq_file()
         default_biotypes, valid_biotypes = self._read_biotype_file()
@@ -39,6 +40,7 @@ class VepFilter(object):
                                     "'{}'".format(b))
 
         self.canonical = canonical
+        self.filter_flagged = filter_flagged_features
         self.in_silico = False
         if in_silico:
             in_silico = set(in_silico)
@@ -61,6 +63,12 @@ class VepFilter(object):
             if self.canonical:
                 try: 
                     if c['CANONICAL'] != 'YES':
+                        continue
+                except KeyError:
+                    pass
+            if self.filter_flagged:
+                try:
+                    if c['FLAGS']:
                         continue
                 except KeyError:
                     pass

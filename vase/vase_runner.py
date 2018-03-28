@@ -12,7 +12,7 @@ from .sample_filter import SampleFilter
 from .ped_file import PedFile, Family, Individual, PedError
 from .family_filter import FamilyFilter, ControlFilter
 from .family_filter import RecessiveFilter, DominantFilter, DeNovoFilter
-
+from .burden_counter import BurdenCounter
 
 class VaseRunner(object):
 
@@ -32,13 +32,27 @@ class VaseRunner(object):
             self.ped = PedFile(args.ped)
         self.csq_filter = None
         if args.csq is not None:
-            self.csq_filter = VepFilter(args.csq, args.canonical,
-                                        args.biotypes, 
-                                        args.missense_filters,
-                                        args.filter_unpredicted,
-                                        args.keep_if_any_damaging)
+            self.csq_filter = VepFilter(
+                                csq=args.csq, canonical=args.canonical,
+                                biotypes=args.biotypes, 
+                                in_silico=args.missense_filters,
+                                filter_unpredicted=args.filter_unpredicted,
+                                keep_any_damaging=args.keep_if_any_damaging,
+                                filter_flagged_features=args.flagged_features)
         self.sample_filter = None
-        if args.cases or args.controls:
+        self.burden_counter = None
+        if args.burden_counts:
+            if args.n_cases or args.n_controls:
+                self.logger.warn("--n_cases and --n_controls arguments are " +
+                                 "ignored when using --burden_counter.")
+            self.burden_counter = BurdenCounter(self.input, args.burden_counts,
+                                                is_gnomad=args.gnomad_burden,
+                                                cases=args.cases, 
+                                                controls=args.controls,
+                                                gq=args.gq, dp=args.dp, 
+                                                het_ab=args.het_ab,
+                                                hom_ab=args.hom_ab,)
+        elif args.cases or args.controls:
             self.sample_filter = SampleFilter(self.input, cases=args.cases, 
                                               controls=args.controls, 
                                               n_cases=args.n_cases,
@@ -54,6 +68,7 @@ class VaseRunner(object):
         self.variant_cache = VariantCache()
         self.use_cache = False
         self.prog_interval = args.prog_interval
+        self.log_progress = args.log_progress
         self.report_fhs = self.get_report_filehandles()
         if args.de_novo:
             self._get_de_novo_filter()
@@ -75,14 +90,18 @@ class VaseRunner(object):
             self.process_record(record)
             var_count += 1
             if not self.args.quiet and var_count % self.prog_interval == 0:
-                n_prog_string = ('\r{:,} variants processed, '.format(var_count) +
+                n_prog_string = ('{:,} variants processed, '.format(var_count) +
                                '{:,} filtered, {:,} written... at pos {}:{}'
                                .format(self.var_filtered, self.var_written,
                                        record.CHROM, record.POS))
-                if len(prog_string) > len(n_prog_string):
-                    sys.stderr.write('\r' + ' ' * len(prog_string) )
-                prog_string = n_prog_string
-                sys.stderr.write(prog_string)
+                if self.log_progress:
+                    self.logger.info(n_prog_string)
+                else:
+                    n_prog_string = '\r' + n_prog_string
+                    if len(prog_string) > len(n_prog_string):
+                        sys.stderr.write('\r' + ' ' * len(prog_string) )
+                    prog_string = n_prog_string
+                    sys.stderr.write(prog_string)
         self.finish_up()
         if prog_string:
             sys.stderr.write('\r' + '-' * len(prog_string) + '\n')
@@ -152,22 +171,58 @@ class VaseRunner(object):
             if denovo_hit or dom_hit:
                 self.out.write(str(record) + '\n')
                 self.var_written += 1
+                if self.burden_counter:
+                    #getting relevant alleles and feats is a bit of a fudge using 
+                    #annotations added by dom/denovo filter
+                    b_filt_al = [True] * (len(record.ALLELES) -1)
+                    b_filt_csq = [[True] * len(record.CSQ)] * len(b_filt_al)
+                    if dom_hit:
+                        b_filt_al, b_filt_csq = self._seg_alleles_from_record(
+                                                  record,
+                                                  self.dominant_filter.prefix,
+                                                  b_filt_al, 
+                                                  b_filt_csq)
+                    if denovo_hit:
+                        b_filt_al, b_filt_csq = self._seg_alleles_from_record(
+                                                  record,
+                                                  self.de_novo_filter.prefix,
+                                                  b_filt_al, 
+                                                  b_filt_csq)
+                    for i in range(len(b_filt_al)):
+                        if not b_filt_al[i]:
+                            feat = (record.CSQ[j]['Feature'] for j in 
+                                    range(len(record.CSQ)) if not 
+                                    b_filt_csq[i][j])
+                            self.burden_counter.count_samples(record, 
+                                                              feat, i, 1)
         else:
             if sum(filter_alleles) == len(filter_alleles): 
                 self.var_filtered += 1
                 return
             self.var_written += 1
+            if self.burden_counter:
+                self.burden_counter.count(record, filter_alleles, filter_csq)
             self.out.write(str(record) + '\n')
     
     def output_cache(self, final=False):
         keep_ids = set()
+        burden_vars = dict() #dict of inheritance model to segregants
         if self.recessive_filter:
-            keep_ids.update(
-               self.recessive_filter.process_potential_recessives(final=final))
+            vid_to_seg = self.recessive_filter.process_potential_recessives(
+                                                                   final=final)
+            keep_ids.update(vid_to_seg.keys())
+            if self.burden_counter:
+                burden_vars['recessive'] = vid_to_seg
         if self.dominant_filter and self.args.min_families > 1:
-            keep_ids.update(self.dominant_filter.process_dominants(final=final))
+            vid_to_seg = self.dominant_filter.process_dominants(final=final)
+            keep_ids.update(vid_to_seg.keys())
+            if self.burden_counter:
+                burden_vars['dominant'] = vid_to_seg
         if self.de_novo_filter and self.args.min_families > 1:
-            keep_ids.update(self.de_novo_filter.process_de_novos(final=final))
+            vid_to_seg = self.de_novo_filter.process_de_novos(final=final)
+            keep_ids.update(vid_to_seg.keys())
+            if self.burden_counter:
+                burden_vars['de_novo'] = vid_to_seg
         if final:
             self.variant_cache.add_cache_to_output_ready()
         for var in self.variant_cache.output_ready:
@@ -176,11 +231,31 @@ class VaseRunner(object):
                 self.var_written += 1
             else:
                 self.var_filtered += 1
+        if self.burden_counter:
+            self._burden_from_cache(burden_vars)
         self.variant_cache.output_ready = []
+
+    def _burden_from_cache(self, model_to_vars):
+        for model in ('dominant', 'de_novo'):
+            if model in model_to_vars:
+                for v in model_to_vars[model]:
+                    for seg in model_to_vars[model][v]:
+                        self.burden_counter.count_samples(seg.record, 
+                                                          seg.features,
+                                                          seg.allele - 1, 1)
+        # we count recessives last as the max per allele (2) is higher than for
+        # dom/de novos (otherwise max per sample could get lowered to 1)
+        if 'recessive' in model_to_vars:
+            for v in model_to_vars['recessive']:
+                for seg in model_to_vars['recessive'][v]:
+                    self.burden_counter.count_samples(seg.record, seg.features,
+                                                      seg.allele - 1, 2)
 
     def finish_up(self):
         if self.use_cache:
             self.output_cache(final=True)
+        if self.burden_counter:
+            self.burden_counter.output_counts()
         for fh in self.report_fhs.values():
             if fh is not None:
                 fh.close()
@@ -206,6 +281,16 @@ class VaseRunner(object):
         for i in range(1, len(record.ALLELES)):
             if record.ALLELES[i] == '*':
                 remove_alleles[i-1] = True
+        #check VCF's internal AF
+        if self.args.af or self.args.min_af:
+            r_alts = self.filter_on_af(record)
+            self._set_to_true_if_true(remove_alleles, r_alts)
+            if (not self.args.clinvar_path and 
+                sum(remove_alleles) == len(remove_alleles)):
+                # bail out now if no valid allele and not keeping clinvar
+                # path variants - if using clinvar path we have to ensure we 
+                # haven't got a path variant with a non-qualifying allele
+                return remove_alleles, remove_csq
         #check functional consequences
         if self.csq_filter:
             r_alts, remove_csq = self.csq_filter.filter(record)
@@ -266,6 +351,18 @@ class VaseRunner(object):
                 verdict.append(False)
         return verdict, remove_csq
  
+    def filter_on_af(self, record):
+        remove  = [False] * (len(record.ALLELES) -1)
+        af = record.parsed_info_fields(fields=['AF'])['AF']
+        for i in range(len(remove)):
+            if self.args.af:
+                if af[i] is not None and af[i] > self.args.af:
+                    remove[i] = True
+            if self.args.min_af:
+                if af[i] is None or af[i] < self.args.min_af:
+                    remove[i] = True
+        return remove
+
     def filter_on_existing_cadd_phred(self, record):
         remove  = [False] * (len(record.ALLELES) -1)
         phreds = record.parsed_info_fields(fields=['CADD_PHRED_score'])
@@ -429,6 +526,17 @@ class VaseRunner(object):
                                           field_type='INFO')
         return filters
 
+    def _seg_alleles_from_record(self, record, prefix, filter_al, filter_csq):
+        ps = prefix + '_samples'
+        pf = prefix + '_features'
+        info = record.parsed_info_fields(fields=[pf, ps])
+        f_al = [False if info[ps][i] != '.' else filter_al[i] for i in 
+                range(len(filter_al))]
+        f_csq = [[False if record.CSQ[j]['Feature'] in 
+                  info[pf][i].split('|') else filter_csq[i][j] for j in 
+                  range(len(record.CSQ))] for i in range(len(filter_al))] 
+        return f_al, f_csq
+
     def _get_prev_annotations(self):
         self.prev_annots = set()
         self.info_prefixes = set()
@@ -485,6 +593,23 @@ class VaseRunner(object):
                         self.logger.info("Found previous ClinVar " + 
                                           "annotation '{}'".format(annot))
                         cln_annots.append(annot)
+        # if using gnomAD file for burden counting use internal annotations
+        # for frequency filtering, if specified
+        if (not self.args.ignore_existing_annotations and 
+                self.args.gnomad_burden and 
+                (self.args.freq or self.args.min_freq)):
+            #check only relatively outbred pops by default
+            pops = set(("POPMAX", "AFR", "AMR", "EAS", "FIN", "NFE", "SAS"))
+            for info in self.input.metadata['INFO']:
+                match = re.search(r'''^AF_([A-Z]+)$''', info)
+                if match and match.group(1) in pops:
+                    if (self.input.metadata['INFO'][info][-1]['Number'] == 'A'
+                            and
+                            self.input.metadata['INFO'][info][-1]['Type'] == 
+                            'Float'):
+                        self.logger.info("Found gnomAD allele frequency " + 
+                                          "annotation '{}'".format(info))
+                        frq_annots.append(info)
         self.prev_freqs = tuple(frq_annots)
         self.prev_builds = tuple(bld_annots)
         self.prev_clinvar = tuple(cln_annots)

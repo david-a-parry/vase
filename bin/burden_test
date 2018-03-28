@@ -1,0 +1,162 @@
+#!/usr/bin/env python3
+
+import sys
+import argparse
+import scipy.stats as stats
+from collections import defaultdict
+
+def parse_args():
+    parser = argparse.ArgumentParser(
+                       description='''Perform a burden test using output from
+                                      VASE --burden_counts option.''',)
+    parser.add_argument('counts', metavar='COUNTS', help=
+'''Input file generated using VASE's --burden_counts feature. This file must 
+contain both output from both CASES and CONTROLS or else must be used in 
+conjunction with --control_counts or --gnomad_counts.''')
+
+    parser.add_argument('-c', '--control_counts', help=
+'''File containing counts for controls generaged using VASE's --burden_counts
+feature.''')
+
+    parser.add_argument('-g', '--gnomad_counts', help=
+'''File containing counts from gnomAD/ExAC data  generaged using VASE's 
+--burden_counts and --gnomad_burden options.''')
+
+    parser.add_argument('-p', '--pops', nargs='+', help=
+'''One or more population codes from gnomAD to test against (only applicable if 
+using the --gnomad_counts option). Default behaviour is to report the highest
+(i.e. least significant) p-value of all gnomAD populations for each 
+transcript.''')
+
+    parser.add_argument('-s', '--sum_pops', action='store_true', help=
+'''Sum population counts for all gnomAD populations (only applicable if using
+the --gnomad_counts option).''')
+
+    parser.add_argument('-o', '--output',  help=
+'''Filename for transcript table output. Default is to output to STDOUT''')
+    return parser
+
+def get_counts(tsv, targets=None):
+    with open(tsv, 'rt') as infile:
+        header = infile.readline().rstrip().split()
+        al_indices = parse_count_header(header, targets)
+        counts = defaultdict(dict)
+        for line in infile:
+            cols = line.rstrip().split()
+            for k in al_indices:
+                i = al_indices[k]
+                f = cols[0] + '/' + cols[1] #Feature/Gene
+                counts[f][k] = (int(cols[i]), int(cols[i + 1]))
+    return counts
+            
+
+def parse_count_header(header, targets):
+    al_indices = dict()
+    if len(header) < 4:
+        raise RuntimeError("Not enough columns in header!")
+    if header[0] != 'Feature':
+        raise RuntimeError("Expected 'Feature' as first column!")
+    if header[1] != 'Gene':
+        raise RuntimeError("Expected 'Gene' as first column!")
+    if targets is None:
+        #every other column after the first 2 should be an allele count column
+        targets = (header[x] for x in range(2, len(header), 2))
+    for t in targets:
+        if t in header:
+            al_indices[t] = header.index(t)
+            total_i = al_indices[t]+1
+            if len(header) <= total_i or header[total_i] != "N_" + t:
+                raise RuntimeError("Expected 'N_{}' column after ".format(t)
+                                   + "'{}' column.".format(t))
+        else:
+            if len(targets) == 1 and (t == 'Controls' or t == 'Cases'):
+                # if only case or controls requested, and only one 
+                # group in file can assume want counts for this group
+                if len(header) == 4 and header[3] == "N_" + header[2]:
+                    al_indices[t] = 2
+                    break
+            raise RuntimeError("Could not find {} and N_{}".format(t, t) + 
+                               " columns in input file")
+    return al_indices
+    
+def test_cases_vs_controls(counts, control_counts=None, pops=None, 
+                           sum_pops=False):
+    if control_counts:
+        _test_two_sets(counts, control_counts, pops, sum_pops)
+    else:
+        _test_one_set(counts)
+
+def _test_one_set(counts):
+    pvals = dict()
+    odds = dict()
+    allele_counts = dict()
+    for feat in counts:
+        odds[feat], pvals[feat] = stats.fisher_exact([counts[feat]['Cases'], 
+                                                      counts[feat]['Controls']],
+                                                      alternative='greater')
+        allele_counts[feat] = counts[feat]['Cases'] + counts[feat]['Controls']
+    output_pvals(pvals, odds, allele_counts)
+
+def _test_two_sets(counts, control_counts, pops=None, sum_pops=False):
+    pvals = dict()
+    odds = dict()
+    acs = dict()
+    not_found = list()
+    for feat in counts:
+        if feat not in control_counts:
+            not_found.append(feat)
+            continue
+        if sum_pops:
+            if pops:
+                pos = sum(control_counts[feat][x][0] for x in pops)
+                neg = sum(control_counts[feat][x][1] for x in pops)
+            else:
+                pos = sum(control_counts[feat][x][0] for x in 
+                          control_counts[feat])
+                neg = sum(control_counts[feat][x][1] for x in 
+                          control_counts[feat])
+            odds[feat], pvals[feat] = stats.fisher_exact(
+                                                        [counts[feat]['Cases'], 
+                                                        (pos, neg)], 
+                                                        alternative='greater')
+            acs[feat] = counts[feat]['Cases'] + (pos, neg)
+        else:
+            for group in control_counts[feat]:
+                #take the highest (i.e. least significant) p-value for each pop
+                if pops is None or group in pops:
+                    o,p = stats.fisher_exact([counts[feat]['Cases'],
+                                              control_counts[feat][group]],
+                                              alternative='greater')
+                    if feat not in pvals or p > pvals[feat]:
+                        pvals[feat] = p
+                        odds[feat] = o
+                        acs[feat] = counts[feat]['Cases'] + control_counts[feat][group]
+    #TODO infer pop size and test those not found
+    output_pvals(pvals, odds, acs) 
+      
+def output_pvals(pvals, odds, allele_counts):
+    for k in sorted(pvals, key=pvals.get):
+        print(str.join("\t", (k, str(pvals[k]), str(odds[k])) + 
+                              tuple(str(x) for x in allele_counts[k])))
+
+def main(counts, output=None, control_counts=None, gnomad_counts=None, 
+         pops=None, sum_pops=False):
+    if control_counts and gnomad_counts:
+        raise RuntimeError('--control_counts and --gnomad_counts arguments ' +
+                           'are mutually exclusive.')
+    if control_counts or gnomad_counts:
+        if control_counts:
+            control_counts = get_counts(control_counts, targets=['Controls'])
+        elif gnomad_counts:
+            control_counts = get_counts(gnomad_counts, targets=pops)
+        case_counts = get_counts(counts, targets=['Cases'])
+        test_cases_vs_controls(case_counts, control_counts, pops,
+                               sum_pops=sum_pops)
+    else:
+        case_counts = get_counts(counts, targets=['Cases', 'Controls'])
+        test_cases_vs_controls(case_counts)
+
+if __name__ == '__main__':
+    parser = parse_args()
+    args = parser.parse_args()
+    main(**vars(args))

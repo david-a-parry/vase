@@ -474,12 +474,13 @@ class RecessiveFilter(InheritanceFilter):
             Check whether stored PotentialSegregant alleles make up 
             biallelic variation in the same transcript for affected 
             individuals/families. Adds labels to INFO fields of VCF 
-            records and returns a list of 'var_ids' of variants that 
-            constitute biallelic variation.
+            records and returns an OrderedDict of 'var_ids' to 
+            lists of PotentialSegregant objects that appear to 
+            segregate consistent with recessive inheritance.
 
             Clears the cache of stored PotentialSegregant alleles.
         '''
-        segregating = dict() #keys are alt_ids, values are SegregatingBiallelic
+        segregating = OrderedDict() #keys are alt_ids, values are SegregatingBiallelic
         for feat, prs in self._potential_recessives.items():
             if not final and feat in self._last_added:
                 continue
@@ -534,33 +535,37 @@ class RecessiveFilter(InheritanceFilter):
                             if bi not in biallelics[affs[j]]:
                                 absent_in_aff = True
                                 break
-                if not absent_in_aff:
-                    segs,de_novo = self._check_parents(feat, bi, affs)
-                    if not segs:
-                        continue
-                    if len(bi) == 1:
-                        model = 'homozygous'
-                    else:
-                        model = 'compound_het'
-                    for bi_pr in (prs[x] for x in bi):
-                        feat_segregating.append((bi_pr, affs, [fid], model, 
-                                                 [feat], de_novo[bi_pr.alt_id], 
-                                                 self.prefix))
-                    fam_count += 1
+                        if not absent_in_aff:
+                            segs,de_novo = self._check_parents(feat, bi, affs)
+                            if not segs:
+                                continue
+                            if len(bi) == 1:
+                                model = 'homozygous'
+                            else:
+                                model = 'compound_het'
+                            for bi_pr in (prs[x] for x in bi):
+                                feat_segregating.append((bi_pr, affs, [fid], 
+                                                         model, [feat], 
+                                                         de_novo[bi_pr.alt_id], 
+                                                         self.prefix))
+                            fam_count += 1
             if fam_count >= self.min_families:
                 for tp in feat_segregating:
                     if tp[0] in segregating:
                         segregating[tp[0]].add_samples(*tp[1:6])
                     else:
                         segregating[tp[0]] = SegregatingVariant(*tp)
-        b_var_ids = set()
+        var_to_segregants = OrderedDict()
         for sb in segregating.values():
             sb.annotate_record(self.report_file, self.annot_fields)
-            b_var_ids.add(sb.segregant.var_id)
+            if sb.segregant.var_id in var_to_segregants:
+                var_to_segregants[sb.segregant.var_id].append(sb.segregant)
+            else:
+                var_to_segregants[sb.segregant.var_id] = [sb.segregant]
         #clear the cache except for the last entry which will be a new gene
         self._potential_recessives = self._last_added
         self._last_added = dict()
-        return b_var_ids
+        return var_to_segregants
 
     def _check_parents(self, feat, alleles, samples):
         ''' 
@@ -796,13 +801,13 @@ class DominantFilter(InheritanceFilter):
             Check whether stored PotentialSegregant alleles make up 
             dominant variation in the same transcript for the minimum 
             number of families. Adds labels to INFO fields of VCF 
-            records and returns a list of 'var_ids' of variants that 
+            records and returns an OrderedDict of 'var_ids' to 
+            lists of PotentialSegregant objects that appear to 
             constitute dominant variation.
 
             Clears the cache of stored PotentialSegregant alleles.
         '''
-        sds = dict()
-        d_ids = set()
+        sds = OrderedDict()
         feat_processed = []
         if not self._potential_dominants:
             #if cache is empy, we never encountered the next set of features
@@ -825,7 +830,6 @@ class DominantFilter(InheritanceFilter):
                 feat_fams.update(p.families)
             if len(feat_fams) >= self.min_families:
                 for p in pds.values():
-                    d_ids.add(p.var_id)
                     samps = (x for x in self.affected 
                              if self.ped.fid_from_iid(x) in p.families)
                     if p.alt_id in sds:
@@ -836,12 +840,17 @@ class DominantFilter(InheritanceFilter):
                                                 'samples', [feat], [], 
                                                 self.prefix)
                         sds[p.alt_id] = sv
+        var_to_segregants = OrderedDict()
         for sv in sds.values():
             sv.annotate_record(self.report_file, self.annot_fields)
+            if sv.var_id in var_to_segregants:
+                var_to_segregants[sv.var_id].append(sv.segregant)
+            else:
+                var_to_segregants[sv.var_id] = [sv.segregant]
         #clear the cache of processed features 
         for feat in feat_processed:
             del self._potential_dominants[feat]
-        return d_ids
+        return var_to_segregants
 
 
 class DeNovoFilter(InheritanceFilter):
@@ -1027,13 +1036,13 @@ class DeNovoFilter(InheritanceFilter):
             Check whether stored PotentialSegregant alleles make up 
             de novo dominant variation in the same transcript for the 
             minimum number of families. Adds labels to INFO fields of 
-            VCF records and returns a list of 'var_ids' of variants that
+            VCF records and returns an OrderedDict of 'var_ids' to 
+            lists of PotentialSegregant objects that appear to 
             constitute de novo dominant variation.
 
             Clears the cache of stored PotentialSegregant alleles.
         '''
-        sds = dict()
-        d_ids = set()
+        sds = OrderedDict()
         feat_processed = []
         if not self._potential_denovos: 
             #if cache is empy, we never encountered the next set of features
@@ -1067,12 +1076,17 @@ class DeNovoFilter(InheritanceFilter):
                                                 'samples', [feat], [], 
                                                 self.prefix)
                         sds[p.alt_id] = sv
+        var_to_segregants = OrderedDict()
         for sv in sds.values():
             sv.annotate_record(self.report_file, self.annot_fields)
+            if sv.var_id in var_to_segregants:
+                var_to_segregants[sv.var_id].append(sv.segregant)
+            else:
+                var_to_segregants[sv.var_id] = [sv.segregant]
         #clear the cache of processed features 
         for feat in feat_processed:
             del self._potential_denovos[feat]
-        return d_ids
+        return var_to_segregants 
       
 
 class ControlFilter(SampleFilter):
