@@ -535,19 +535,20 @@ class RecessiveFilter(InheritanceFilter):
                             if bi not in biallelics[affs[j]]:
                                 absent_in_aff = True
                                 break
-                if not absent_in_aff:
-                    segs,de_novo = self._check_parents(feat, bi, affs)
-                    if not segs:
-                        continue
-                    if len(bi) == 1:
-                        model = 'homozygous'
-                    else:
-                        model = 'compound_het'
-                    for bi_pr in (prs[x] for x in bi):
-                        feat_segregating.append((bi_pr, affs, [fid], model, 
-                                                 [feat], de_novo[bi_pr.alt_id], 
-                                                 self.prefix))
-                    fam_count += 1
+                        if not absent_in_aff:
+                            segs,de_novo = self._check_parents(feat, bi, affs)
+                            if not segs:
+                                continue
+                            if len(bi) == 1:
+                                model = 'homozygous'
+                            else:
+                                model = 'compound_het'
+                            for bi_pr in (prs[x] for x in bi):
+                                feat_segregating.append((bi_pr, affs, [fid], 
+                                                         model, [feat], 
+                                                         de_novo[bi_pr.alt_id], 
+                                                         self.prefix))
+                            fam_count += 1
             if fam_count >= self.min_families:
                 for tp in feat_segregating:
                     if tp[0] in segregating:
