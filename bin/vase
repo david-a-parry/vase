@@ -482,6 +482,39 @@ no-calls. Default = 0.
 ''')
 
     sample_args.add_argument(
+'-par_gq', '--parent_gq', type=int, help=
+'''Minimum genotype quality score threshold for 
+parents when identifying de novo variants. 
+Defaults to the same value as --gq but you may 
+wish to set this to a lower value if you require
+less evidence for parental genotype calls when
+confirming a potential de novo variant.
+
+''')
+
+    sample_args.add_argument(
+'-par_dp', '--parent_dp', type=int, help=
+'''Minimum depth threshold for parents when 
+identifying de novo variants. Defaults to the same
+value as --gq but you may wish to set this to a 
+lower value if you require less evidence for 
+parental genotype calls when confirming a 
+potential de novo variant.
+
+''')
+
+    sample_args.add_argument(
+'-par_ref_ab', '--parent_max_ref_ab', type=float, metavar='AB', help=
+'''Maximum genotype allele balance for parents 
+with reference (0/0) genotypes when identifying 
+de novos. If you wish to exclude potential de 
+novos where parents are called as homozygous 
+reference but still have a low proportion of
+ALT alleles specify a suitable cutoff here.
+
+''')
+
+    sample_args.add_argument(
 '-n_cases', '--n_cases', type=int, help=
 '''Instead of requiring a variant to be present in
 ALL samples specified by --cases, require at least

@@ -801,6 +801,9 @@ class VaseRunner(object):
                                         dp=self.args.dp, 
                                         het_ab=self.args.het_ab,
                                         hom_ab=self.args.hom_ab,
+                                        min_parent_gq=self.args.parent_gq,
+                                        min_parent_dp=self.args.parent_dp,
+                                        par_ref_ab=self.args.parent_max_ref_ab,
                                         min_families=self.args.min_families,
                                         report_file=self.report_fhs['de_novo'])
         if not self.de_novo_filter.affected:

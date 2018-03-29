@@ -859,7 +859,9 @@ class DeNovoFilter(InheritanceFilter):
     '''
 
     def __init__(self, family_filter, gq=0, dp=0, het_ab=0., hom_ab=0., 
-                min_families=1, confirm_het=False, report_file=None):
+                 min_parent_dp=None, min_parent_gq=None,
+                 min_families=1, confirm_het=False, report_file=None,
+                 par_ref_ab=None):
         ''' 
             Initialize with parent IDs, children IDs and VcfReader 
             object.
@@ -878,11 +880,40 @@ class DeNovoFilter(InheritanceFilter):
                         will be treated as no-calls. Input without DP
                         data can be used if dp=0. Default=0.
 
-                ab:     Minimum sample ALT allele balance for genotype.
-                        Genotype calls with an allele balance lower than
-                        this value will be treated as no-calls. Requires
+                het_ab: Minimum sample ALT allele balance for 
+                        heterozygous genotypes. Heterozygous genotype 
+                        calls with an allele balance lower than this 
+                        value will be treated as no-calls. Requires
                         either AD or both AO and RO FORMAT fields in 
                         VCF. Default=0.0.
+
+                hom_ab: Minimum sample ALT allele balance for 
+                        homozygous genotypes. Homozygous genotype 
+                        calls with an allele balance lower than this 
+                        value will be treated as no-calls. Requires
+                        either AD or both AO and RO FORMAT fields in 
+                        VCF. Default=0.0.
+                
+                min_parent_gq:
+                        Same as 'gq' but for parental samples only.
+                        Parental genotypes with a GQ below this
+                        threshold will be considered no-calls and 
+                        therefore the site will not be considered as
+                        a confirmed de novo. Defaults to same as 'gq'.
+
+                min_parent_dp:
+                        Same as 'dp' but for parental samples only.
+                        Parental genotypes with a DP below this
+                        threshold will be considered no-calls and 
+                        therefore the site will not be considered as
+                        a confirmed de novo. Defaults to same as 'dp'.
+
+                par_ref_ab:
+                        Maximum ALT allele fraction for homozygous
+                        reference genotype calls. Variants will be 
+                        filtered if any parental reference calls
+                        have an ALT allele fraction over this value.
+                        Default=None (i.e. not used).
 
                 min_families:
                         Require at least this many families to have a 
@@ -919,6 +950,11 @@ class DeNovoFilter(InheritanceFilter):
         self.confirm_het = confirm_het
         self.filters = defaultdict(list)
         self.prefix = "VASE_de_novo"
+        if min_parent_gq is None:
+            min_parent_gq = gq
+        if min_parent_dp is None:
+            min_parent_dp = dp
+        self.par_ab = par_ref_ab 
         for fam in self.families:
             f_aff = tuple(x for x in self.ped.families[fam].get_affected() 
                           if x in self.affected)
@@ -933,6 +969,9 @@ class DeNovoFilter(InheritanceFilter):
                 par_filter = SampleFilter(family_filter.vcf, cases=children, 
                                           controls=parents, gq=gq, dp=dp, 
                                           het_ab=het_ab, hom_ab=hom_ab, 
+                                          con_gq=min_parent_gq,
+                                          con_dp=min_parent_dp,
+                                          con_ref_ab=self.par_ab,
                                           confirm_missing=True)
                 self.filters[fam].append(par_filter)
                 self.family_filter.logger.info(
