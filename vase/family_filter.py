@@ -12,8 +12,7 @@ class FamilyFilter(object):
     '''
 
     def __init__(self, ped, vcf, infer_inheritance=True, 
-                 force_inheritance=None, gq=0, dp=0, het_ab=0., hom_ab=0.,
-                 logging_level=logging.WARNING):
+                 force_inheritance=None, logging_level=logging.WARNING):
         ''' 
             Initialize with Family object from ped_file.py and a 
             VcfReader object from parse_vcf.py. You may also specify an
@@ -198,8 +197,8 @@ class InheritanceFilter(object):
         object.
     '''
 
-    def __init__(self, family_filter, gq=0, dp=0, het_ab=0., hom_ab=0., min_families=1, 
-                 report_file=None):
+    def __init__(self, family_filter, gq=0, dp=0, het_ab=0., hom_ab=0., 
+                 min_families=1, report_file=None):
         self.family_filter = family_filter
         self.min_families = min_families
         self.ped = family_filter.ped
