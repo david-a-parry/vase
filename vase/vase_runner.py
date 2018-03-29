@@ -708,9 +708,6 @@ class VaseRunner(object):
                 no_ped = True
                 infer = False
         self.family_filter = FamilyFilter(ped=self.ped, vcf=self.input,
-                                          gq=self.args.gq, dp=self.args.dp,
-                                          het_ab=self.args.het_ab, 
-                                          hom_ab=self.args.hom_ab, 
                                           infer_inheritance=infer,
                                           logging_level=self.logger.level)
         
