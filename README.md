@@ -58,10 +58,11 @@ or:
 
 ## USAGE/OPTIONS
 
-                           
-    usage: vase -i VCF [-o OUTPUT] [-r REPORT_PREFIX] [-v QUAL] [-p]
-                [-c [CSQ [CSQ ...]]] [--canonical]
-                [--biotypes BIOTYPE [BIOTYPE ...]]
+
+    usage: vase -i VCF [-o OUTPUT] [-r REPORT_PREFIX]
+                [-burden_counts BURDEN_COUNTS] [-gnomad_burden] [-v QUAL] [-p]
+                [-af AF] [-min_af MIN_AF] [-c [CSQ [CSQ ...]]] [--canonical]
+                [--flagged_features] [--biotypes BIOTYPE [BIOTYPE ...]]
                 [-m MISSENSE_FILTERS [MISSENSE_FILTERS ...]]
                 [--filter_unpredicted] [--keep_if_any_damaging]
                 [-cadd_files FILE [FILE ...]] [-cadd_dir DIR] [-cadd_phred FLOAT]
@@ -70,13 +71,15 @@ or:
                 [-b dbSNP_build] [--max_build dbSNP_build] [--filter_known]
                 [--filter_novel] [--clinvar_path] [-ignore_existing]
                 [-cases SAMPLE_ID [SAMPLE_ID ...]]
-                [-controls SAMPLE_ID [SAMPLE_ID ...]] [-ped PED] [-gq GQ]
-                [-n_cases N_CASES] [-n_controls N_CONTROLS] [--biallelic]
-                [--de_novo] [--dominant] [--min_families MIN_FAMILIES]
+                [-controls SAMPLE_ID [SAMPLE_ID ...]] [-ped PED] [-gq GQ] [-dp DP]
+                [-het_ab AB] [-hom_ab AB] [-par_gq PARENT_GQ] [-par_dp PARENT_DP]
+                [-par_ref_ab AB] [-n_cases N_CASES] [-n_controls N_CONTROLS]
+                [--biallelic] [--de_novo] [--dominant]
+                [--min_families MIN_FAMILIES]
                 [--singleton_recessive SAMPLE_ID [SAMPLE_ID ...]]
                 [--singleton_dominant SAMPLE_ID [SAMPLE_ID ...]]
                 [-seg_controls SAMPLE_ID [SAMPLE_ID ...]] [--prog_interval N]
-                [--quiet] [--debug] [-h]
+                [--log_progress] [--quiet] [--debug] [-h]
 
     Variant annotation, segregation and exclusion.
 
@@ -98,6 +101,22 @@ or:
                             with the respective suffixes of 
                             '_recessive.report.tsv', '_de_novo.report.tsv' and
                             '_dominant.report.tsv'.
+                            
+      -burden_counts BURDEN_COUNTS, --burden_counts BURDEN_COUNTS
+                            File for outputting 'burden counts' per 
+                            transcript. If specified, the number of alleles
+                            passing specified filters will be counted for 
+                            each transcript identified. Requires your VCF 
+                            input to be annotated with Ensembl's VEP. Note, 
+                            that if --cases or --controls are specified when
+                            using this argument, variants will not be filtered
+                            on presence in cases/controls; instead counts will
+                            be written for cases and controls to this file.
+                            
+      -gnomad_burden, --gnomad_burden
+                            If using --burden_counts, use this flag to 
+                            indicate that the input is from gnomAD and should 
+                            be parsed per population.
                             
 
     Annotation File Arguments:
@@ -131,10 +150,10 @@ or:
                             CADD RawScore cutoff. Variants with a CADD 
                             RawScore below this value will be filtered.
                             Only used with annotations from files supplied to
-                            --cadd_files or --cadd_dir arguments or 
-                            pre-annotated or CADD_raw_score INFO field. To 
-                            filter on CADD scores annotated using the VEP 
-                            dbNSFP plugin use the --missense_filters option.
+                            --cadd_files or --cadd_dir arguments or a
+                            pre-annotated CADD_raw_score INFO field. To filter 
+                            on CADD scores annotated using the VEP dbNSFP 
+                            plugin use the --missense_filters option.
                             
       -d VCF [VCF ...], --dbsnp VCF [VCF ...], --clinvar VCF [VCF ...]
                             dbSNP or ClinVar VCF file for variant 
@@ -213,6 +232,13 @@ or:
       -p, --pass_filters    Only keep variants that have passed filters 
                             (i.e. FILTER field must be "PASS")
                             
+      -af AF, --af AF       Maximum AF value in input VCF. Any allele with an
+                            AF > than this value will be filtered.
+                            
+      -min_af MIN_AF, --min_af MIN_AF
+                            Minimum AF value in input VCF. Any allele with an
+                            AF < than this value will be filtered.
+                            
       -c [CSQ [CSQ ...]], --csq [CSQ [CSQ ...]]
                             One or more VEP consequence classes to  retain. 
                             Variants which do not result in  one of these VEP 
@@ -243,6 +269,11 @@ or:
                             
       --canonical           When used in conjunction with --csq argument, 
                             ignore consequences for non-canonical transcripts.
+                            
+      --flagged_features    When used in conjunction with --csq argument, 
+                            ignore consequences for flagged 
+                            transcripts/features (i.e. with a non-empty 
+                            'FLAGS' CSQ field).
                             
       --biotypes BIOTYPE [BIOTYPE ...]
                             When used in conjunction with --csq  argument, 
@@ -391,6 +422,48 @@ or:
                             threshold will be treated as no-calls. 
                             Default = 20.
                             
+      -dp DP, --dp DP       Minimum genotype depth threshold. Sample genotype
+                            calls with a read depth lower than this threshold 
+                            will be treated as no-calls. Default = 0.
+                            
+      -het_ab AB, --het_ab AB
+                            Minimum genotype allele balance for heterozygous 
+                            genotypes. Heterozygous sample genotype calls 
+                            with a ratio of the alternate allele vs total 
+                            depth lower than this threshold will be treated as
+                            no-calls. Default = 0.
+                            
+      -hom_ab AB, --hom_ab AB
+                            Minimum genotype allele balance for homozygous 
+                            genotypes. Homozygous sample genotype calls 
+                            with a ratio of the alternate allele vs total 
+                            depth lower than this threshold will be treated as
+                            no-calls. Default = 0.
+                            
+      -par_gq PARENT_GQ, --parent_gq PARENT_GQ
+                            Minimum genotype quality score threshold for 
+                            parents when identifying de novo variants. 
+                            Defaults to the same value as --gq but you may 
+                            wish to set this to a lower value if you require
+                            less evidence for parental genotype calls when
+                            confirming a potential de novo variant.
+                            
+      -par_dp PARENT_DP, --parent_dp PARENT_DP
+                            Minimum depth threshold for parents when 
+                            identifying de novo variants. Defaults to the same
+                            value as --gq but you may wish to set this to a 
+                            lower value if you require less evidence for 
+                            parental genotype calls when confirming a 
+                            potential de novo variant.
+                            
+      -par_ref_ab AB, --parent_max_ref_ab AB
+                            Maximum genotype allele balance for parents 
+                            with reference (0/0) genotypes when identifying 
+                            de novos. If you wish to exclude potential de 
+                            novos where parents are called as homozygous 
+                            reference but still have a low proportion of
+                            ALT alleles specify a suitable cutoff here.
+                            
       -n_cases N_CASES, --n_cases N_CASES
                             Instead of requiring a variant to be present in
                             ALL samples specified by --cases, require at least
@@ -402,7 +475,8 @@ or:
                             least this many controls to carry a variant before
                             it is filtered.
                             
-      --biallelic           Identify variants matching a recessive inheritance
+      --biallelic, --recessive
+                            Identify variants matching a recessive inheritance
                             pattern in cases present in the PED file specified
                             by the --ped argument. Input must be VEP 
                             annotated. If the --csq argument is given, only
@@ -458,12 +532,17 @@ or:
                             Report progress information every N variants.
                             Default=1000.
                             
+      --log_progress, -log_progress
+                            Use logging output for progress rather than wiping
+                            progress line after each update.
+                            
       --quiet               Do not output progress information to STDERR.
                             
       --debug               Output debugging information to STDERR.
                             
       -h, --help            Show this help message and exit
-                        
+                            
+                          
 ## AUTHOR
 
 Written by David A. Parry at the University of Edinburgh. 

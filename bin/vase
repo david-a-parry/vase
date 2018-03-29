@@ -530,7 +530,7 @@ it is filtered.
 
 ''')
     sample_args.add_argument(
-'--biallelic', action='store_true', help=
+'--biallelic', '--recessive', action='store_true', help=
 '''Identify variants matching a recessive inheritance
 pattern in cases present in the PED file specified
 by the --ped argument. Input must be VEP 
