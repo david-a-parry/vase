@@ -257,33 +257,41 @@ class GtFilter(object):
             return True
         al_dp = ad[allele]
         dp = sum(ad)
-        is_hom = False
+        is_hom_alt = False
         is_hom_ref = False
+        is_het_alt = False
         if len(set(gts['GT'][sample])) == 1:
-            is_hom = True
             if 0 in gts['GT'][sample]:
                 is_hom_ref = True
-        if is_hom_ref and self.ref_ab_filter:
-            if al_dp/dp > self.ref_ab_filter:
-                #if a 0/0 call but ALT/REF read counts > threshold
-                return False #filter
+            elif allele in gts['GT'][sample]:
+                is_hom_alt = True
+        elif allele in gts['GT'][sample]:
+            is_het_alt = True
         if al_dp is not None and dp > 0:
             ab = float(al_dp)/dp
-            if not is_hom and ab < self.het_ab:
+            if is_hom_ref and self.ref_ab_filter:
+                if ab > self.ref_ab_filter:
+                    #if a 0/0 call but ALT/REF read counts > threshold 
+                    return False #filter
+            if is_het_alt and ab < self.het_ab:
                 return False #filter
-            if is_hom and ab < self.hom_ab:
+            if is_hom_alt and ab < self.hom_ab:
                 return False #filter
         return True #do not filter
 
     def _ab_filter_ro(self, gts, sample, allele):
         aos = gts['AO'][sample]
         ro = gts['RO'][sample]
-        is_hom = False
+        is_hom_alt = False
         is_hom_ref = False
+        is_het_alt = False
         if len(set(gts['GT'][sample])) == 1:
-            is_hom = True
             if 0 in gts['GT'][sample]:
                 is_hom_ref = True
+            elif allele in gts['GT'][sample]:
+                is_hom_alt = True
+        elif allele in gts['GT'][sample]:
+                is_het_alt = True
         if aos is not None and ro is not None:
             dp = sum(aos) + ro
             if allele > 0:
@@ -296,9 +304,9 @@ class GtFilter(object):
                     if ab > self.ref_ab_filter:
                         #if a 0/0 call but ALT/REF read counts > threshold
                         return False #filter
-                if not is_hom and ab < self.het_ab:
+                if is_het_alt and ab < self.het_ab:
                     return False #filter
-                if is_hom and ab < self.hom_ab:
+                if is_hom_alt and ab < self.hom_ab:
                     return False #filter
         return True #do not filter
 
@@ -326,7 +334,7 @@ class GtFilter(object):
             self.fields.append('DP')
         if self.gq:
             self.fields.append('GQ')
-        if self.het_ab or self.hom_ab:
+        if self.het_ab or self.hom_ab or self.ref_ab_filter:
             if 'AD' in vcf.header.metadata['FORMAT']:
                 self.fields.append('AD')
                 return 'AD'
