@@ -53,13 +53,19 @@ class VaseRunner(object):
                                                 het_ab=args.het_ab,
                                                 hom_ab=args.hom_ab,)
         elif args.cases or args.controls:
-            self.sample_filter = SampleFilter(self.input, cases=args.cases, 
-                                              controls=args.controls, 
-                                              n_cases=args.n_cases,
-                                              n_controls=args.n_controls, 
-                                              gq=args.gq, dp=args.dp, 
-                                              het_ab=args.het_ab,
-                                              hom_ab=args.hom_ab,)
+            self.sample_filter = SampleFilter(
+                                    self.input, cases=args.cases, 
+                                    controls=args.controls, 
+                                    n_cases=args.n_cases,
+                                    n_controls=args.n_controls, 
+                                    gq=args.gq, dp=args.dp, 
+                                    het_ab=args.het_ab,
+                                    hom_ab=args.hom_ab,
+                                    min_control_dp=self.args.control_dp, 
+                                    min_control_gq=self.args.control_gq, 
+                                    control_het_ab=self.args.control_het_ab, 
+                                    control_hom_ab=self.args.control_hom_ab, 
+                                    con_ref_ab=self.args.control_max_ref_ab,) 
         self.de_novo_filter = None
         self.dominant_filter = None
         self.recessive_filter = None
@@ -775,6 +781,11 @@ class VaseRunner(object):
                                        het_ab=self.args.het_ab,
                                        hom_ab=self.args.hom_ab,
                                        min_families=self.args.min_families, 
+                                       min_control_dp=self.args.control_dp, 
+                                       min_control_gq=self.args.control_gq, 
+                                       control_het_ab=self.args.control_het_ab, 
+                                       control_hom_ab=self.args.control_hom_ab, 
+                                       con_ref_ab=self.args.control_max_ref_ab,
                                        report_file=self.report_fhs['dominant'])
         if not self.dominant_filter.affected:
             msg = ("No samples fit a dominant model - can not use dominant " + 
@@ -797,15 +808,17 @@ class VaseRunner(object):
         self._get_family_filter()
         self._get_control_filter()
         self.de_novo_filter = DeNovoFilter(
-                                        self.family_filter, gq=self.args.gq,
-                                        dp=self.args.dp, 
-                                        het_ab=self.args.het_ab,
-                                        hom_ab=self.args.hom_ab,
-                                        min_parent_gq=self.args.parent_gq,
-                                        min_parent_dp=self.args.parent_dp,
-                                        par_ref_ab=self.args.parent_max_ref_ab,
-                                        min_families=self.args.min_families,
-                                        report_file=self.report_fhs['de_novo'])
+                                    self.family_filter, gq=self.args.gq,
+                                    dp=self.args.dp, 
+                                    het_ab=self.args.het_ab,
+                                    hom_ab=self.args.hom_ab,
+                                    min_control_dp=self.args.control_dp, 
+                                    min_control_gq=self.args.control_gq, 
+                                    control_het_ab=self.args.control_het_ab, 
+                                    control_hom_ab=self.args.control_hom_ab, 
+                                    con_ref_ab=self.args.control_max_ref_ab,
+                                    min_families=self.args.min_families,
+                                    report_file=self.report_fhs['de_novo'])
         if not self.de_novo_filter.affected:
             msg = ("No samples fit a de novo model - can not use de novo " + 
                    "filtering")
@@ -831,6 +844,11 @@ class VaseRunner(object):
                                       het_ab=self.args.het_ab,
                                       hom_ab=self.args.hom_ab,
                                       min_families=self.args.min_families,
+                                      min_control_dp=self.args.control_dp, 
+                                      min_control_gq=self.args.control_gq, 
+                                      control_het_ab=self.args.control_het_ab, 
+                                      control_hom_ab=self.args.control_hom_ab, 
+                                      con_ref_ab=self.args.control_max_ref_ab,
                                       report_file=self.report_fhs['recessive'])
         if not self.recessive_filter.affected:
             msg = ("No samples fit a recessive model - can not use biallelic" + 
@@ -851,12 +869,18 @@ class VaseRunner(object):
     def _get_control_filter(self):
         if self.control_filter:
             return
-        self.control_filter = ControlFilter(vcf=self.input, 
-                                            family_filter=self.family_filter,
-                                            gq=self.args.gq, dp=self.args.dp,
-                                            het_ab=self.args.het_ab,
-                                            hom_ab=self.args.hom_ab,
-                                            n_controls=self.args.n_controls,)
+        self.control_filter = ControlFilter(
+                                    vcf=self.input, 
+                                    family_filter=self.family_filter,
+                                    gq=self.args.gq, dp=self.args.dp,
+                                    het_ab=self.args.het_ab,
+                                    hom_ab=self.args.hom_ab,
+                                    min_control_dp=self.args.control_dp, 
+                                    min_control_gq=self.args.control_gq, 
+                                    control_het_ab=self.args.control_het_ab, 
+                                    control_hom_ab=self.args.control_hom_ab, 
+                                    con_ref_ab=self.args.control_max_ref_ab, 
+                                    n_controls=self.args.n_controls,)
 
     def _var_or_vars(self, n):
         if n == 1:

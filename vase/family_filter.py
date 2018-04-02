@@ -198,7 +198,9 @@ class InheritanceFilter(object):
     '''
 
     def __init__(self, family_filter, gq=0, dp=0, het_ab=0., hom_ab=0., 
-                 min_families=1, report_file=None):
+                 min_control_dp=None, min_control_gq=None, control_het_ab=None,
+                 control_hom_ab=None, con_ref_ab=None, min_families=1, 
+                 report_file=None):
         self.family_filter = family_filter
         self.min_families = min_families
         self.ped = family_filter.ped
@@ -206,7 +208,20 @@ class InheritanceFilter(object):
         self.unaffected = family_filter.vcf_unaffected
         self.gt_filter = GtFilter(family_filter.vcf, gq=gq, dp=dp, 
                                   het_ab=het_ab, hom_ab=hom_ab)
-        self._gt_fields = self.gt_filter.fields
+        self._gt_fields = set(self.gt_filter.fields)
+        if min_control_gq is None:
+            min_control_gq = gq
+        if min_control_dp is None:
+            min_control_dp = dp
+        if control_het_ab is None:
+            control_het_ab = het_ab
+        if control_hom_ab is None:
+            control_hom_ab = hom_ab
+        self.con_gt_filter = GtFilter(family_filter.vcf, gq=min_control_gq,
+                                      dp=min_control_dp, het_ab=control_het_ab,
+                                      hom_ab=control_hom_ab, 
+                                      ref_ab_filter=con_ref_ab)
+        self._gt_fields.update(self.con_gt_filter.fields)
         self._prev_coordinate = (None, None)  # to ensure records are processed 
         self._processed_contigs = set()       # in coordinate order
         if self.report_file:
@@ -238,7 +253,16 @@ class InheritanceFilter(object):
 
     def _get_allele_counts(self, allele, gts):
         a_counts = dict()
-        for samp in gts['GT']:
+        for samp in self.unaffected:
+            if self.con_gt_filter.gt_is_ok(gts, samp, allele): 
+                a_counts[samp] = gts['GT'][samp].count(allele)
+            else:
+                a_counts[samp] = None
+            if (gts['GT'][samp] == (0, 0) and 
+                  self.con_gt_filter.ad_over_threshold is not None):
+                if self.con_gt_filter.ad_over_threshold(gts, samp, allele):
+                    a_counts[samp] = 1
+        for samp in self.affected:
             if self.gt_filter.gt_is_ok(gts, samp, allele): 
                 a_counts[samp] = gts['GT'][samp].count(allele)
             else:
@@ -283,7 +307,9 @@ class RecessiveFilter(InheritanceFilter):
         genetic cause of disease. It will not cope with phenocopies, 
         pseudodominance or other more complicated inheritance patterns.
     '''
-    def __init__(self, family_filter, gq=0, dp=0, het_ab=0., hom_ab=0., min_families=1, 
+    def __init__(self, family_filter, gq=0, dp=0, het_ab=0., hom_ab=0., 
+                 min_control_dp=None, min_control_gq=None, control_het_ab=None,
+                 control_hom_ab=None, con_ref_ab=None, min_families=1, 
                  strict=False, exclude_denovo=False, report_file=None):
         '''
             Args:
@@ -349,6 +375,10 @@ class RecessiveFilter(InheritanceFilter):
         self.report_file = report_file
         super().__init__(family_filter, gq=gq, dp=dp, het_ab=het_ab, 
                          hom_ab=hom_ab, min_families=min_families, 
+                         min_control_dp=min_control_dp, 
+                         min_control_gq=min_control_gq, 
+                         control_het_ab=control_het_ab, 
+                         control_hom_ab=control_hom_ab, con_ref_ab=con_ref_ab, 
                          report_file=report_file,)
         self.families = tuple(x for x in self.family_filter.inheritance_patterns 
                              if 'recessive' in 
@@ -413,7 +443,7 @@ class RecessiveFilter(InheritanceFilter):
             fams_with_allele = []
             for un in self.unaffected:
                 if gts['GT'][un] == (alt, alt):
-                    if self.gt_filter.gt_is_ok(gts, un, alt):
+                    if self.con_gt_filter.gt_is_ok(gts, un, alt):
                         #hom in a control - skip allele
                         skip_allele = True
                         break
@@ -624,7 +654,9 @@ class DominantFilter(InheritanceFilter):
         given families.
     '''
 
-    def __init__(self, family_filter, gq=0, dp=0, het_ab=0., hom_ab=0.,  min_families=1, 
+    def __init__(self, family_filter, gq=0, dp=0, het_ab=0., hom_ab=0.,  
+                 min_control_dp=None, min_control_gq=None, control_het_ab=None,
+                 control_hom_ab=None, min_families=1, con_ref_ab=None, 
                  report_file=None):
         ''' 
             Initialize with parent IDs, children IDs and VcfReader 
@@ -644,11 +676,46 @@ class DominantFilter(InheritanceFilter):
                         will be treated as no-calls. Input without DP
                         data can be used if dp=0. Default=0.
 
-                ab:     Minimum sample ALT allele balance for genotype.
-                        Genotype calls with an allele balance lower than
-                        this value will be treated as no-calls. Requires
+                het_ab: Minimum sample ALT allele balance for 
+                        heterozygous genotypes. Heterozygous genotype 
+                        calls with an allele balance lower than this 
+                        value will be treated as no-calls. Requires
                         either AD or both AO and RO FORMAT fields in 
                         VCF. Default=0.0.
+
+                hom_ab: Minimum sample ALT allele balance for 
+                        homozygous genotypes. Homozygous genotype 
+                        calls with an allele balance lower than this 
+                        value will be treated as no-calls. Requires
+                        either AD or both AO and RO FORMAT fields in 
+                        VCF. Default=0.0.
+                
+                min_control_gq:
+                        Same as 'gq' but for unaffected samples only.
+                        Unaffected genotypes with a GQ below this
+                        threshold will be considered no-calls. 
+                        Defaults to same as 'gq'.
+
+                min_control_dp:
+                        Same as 'dp' but for unaffected samples only.
+                        Unaffected genotypes with a DP below this
+                        threshold will be considered no-calls. 
+                        Defaults to same as 'dp'.
+
+                control_het_ab:
+                        Same as het_ab but for unaffected samples 
+                        only.
+
+                control_hom_ab:
+                        Same as hom_ab but for unaffected samples 
+                        only.
+
+                con_ref_ab:
+                        Maximum ALT allele fraction for homozygous
+                        reference genotype calls. Variants will be 
+                        filtered if any unaffected reference calls
+                        have an ALT allele fraction over this value.
+                        Default=None (i.e. not used).
 
                 min_families:
                         Require at least this many families to have a 
@@ -675,6 +742,10 @@ class DominantFilter(InheritanceFilter):
         self.report_file = report_file
         super().__init__(family_filter, gq=gq, dp=dp, het_ab=het_ab, 
                          hom_ab=hom_ab, min_families=min_families, 
+                         min_control_dp=min_control_dp, 
+                         min_control_gq=min_control_gq, 
+                         control_het_ab=control_het_ab, 
+                         control_hom_ab=control_hom_ab, con_ref_ab=con_ref_ab, 
                          report_file=report_file,)
         self.families = tuple(x for x in self.family_filter.inheritance_patterns 
                              if 'dominant' in 
@@ -699,6 +770,11 @@ class DominantFilter(InheritanceFilter):
             dom_filter = SampleFilter(family_filter.vcf, cases=f_aff, 
                                       controls=f_unaff, gq=gq, dp=dp, 
                                       het_ab=het_ab, hom_ab=hom_ab,
+                                      min_control_gq=min_control_gq,
+                                      min_control_dp=min_control_dp,
+                                      control_het_ab=control_het_ab,
+                                      control_hom_ab=control_hom_ab,
+                                      con_ref_ab=con_ref_ab,
                                       confirm_missing=True)
             self.filters[fam] = dom_filter 
             self.family_filter.logger.info("Analysing family {} ".format(fam) + 
@@ -859,9 +935,9 @@ class DeNovoFilter(InheritanceFilter):
     '''
 
     def __init__(self, family_filter, gq=0, dp=0, het_ab=0., hom_ab=0., 
-                 min_parent_dp=None, min_parent_gq=None,
-                 min_families=1, confirm_het=False, report_file=None,
-                 par_ref_ab=None):
+                 min_control_dp=None, min_control_gq=None, control_het_ab=None,
+                 control_hom_ab=None, min_families=1, confirm_het=False, 
+                 con_ref_ab=None, report_file=None):
         ''' 
             Initialize with parent IDs, children IDs and VcfReader 
             object.
@@ -894,24 +970,34 @@ class DeNovoFilter(InheritanceFilter):
                         either AD or both AO and RO FORMAT fields in 
                         VCF. Default=0.0.
                 
-                min_parent_gq:
-                        Same as 'gq' but for parental samples only.
-                        Parental genotypes with a GQ below this
-                        threshold will be considered no-calls and 
-                        therefore the site will not be considered as
-                        a confirmed de novo. Defaults to same as 'gq'.
+                min_control_gq:
+                        Same as 'gq' but for Unaffected samples only.
+                        Unaffected genotypes with a GQ below this
+                        threshold will be considered no-calls. For
+                        parental genotypes this means that the site 
+                        will not be considered as a confirmed de novo. 
+                        Defaults to same as 'gq'.
 
-                min_parent_dp:
-                        Same as 'dp' but for parental samples only.
-                        Parental genotypes with a DP below this
-                        threshold will be considered no-calls and 
-                        therefore the site will not be considered as
-                        a confirmed de novo. Defaults to same as 'dp'.
+                min_control_dp:
+                        Same as 'dp' but for unaffected samples only.
+                        Unaffected genotypes with a DP below this
+                        threshold will be considered no-calls. For
+                        parental genotypes this means that the site 
+                        will not be considered as a confirmed de novo. 
+                        Defaults to same as 'dp'.
 
-                par_ref_ab:
+                control_het_ab:
+                        Same as het_ab but for unaffected samples 
+                        only.
+
+                control_hom_ab:
+                        Same as hom_ab but for unaffected samples 
+                        only.
+
+                con_ref_ab:
                         Maximum ALT allele fraction for homozygous
                         reference genotype calls. Variants will be 
-                        filtered if any parental reference calls
+                        filtered if any unaffected reference calls
                         have an ALT allele fraction over this value.
                         Default=None (i.e. not used).
 
@@ -939,6 +1025,10 @@ class DeNovoFilter(InheritanceFilter):
         self.report_file = report_file
         super().__init__(family_filter, gq=gq, dp=dp, het_ab=het_ab, 
                          hom_ab=hom_ab, min_families=min_families, 
+                         min_control_dp=min_control_dp, 
+                         min_control_gq=min_control_gq, 
+                         control_het_ab=control_het_ab, 
+                         control_hom_ab=control_hom_ab, con_ref_ab=con_ref_ab, 
                          report_file=report_file,)
         self.families = tuple(x for x in self.family_filter.inheritance_patterns 
                              if 'de_novo' in 
@@ -950,11 +1040,6 @@ class DeNovoFilter(InheritanceFilter):
         self.confirm_het = confirm_het
         self.filters = defaultdict(list)
         self.prefix = "VASE_de_novo"
-        if min_parent_gq is None:
-            min_parent_gq = gq
-        if min_parent_dp is None:
-            min_parent_dp = dp
-        self.par_ab = par_ref_ab 
         for fam in self.families:
             f_aff = tuple(x for x in self.ped.families[fam].get_affected() 
                           if x in self.affected)
@@ -969,9 +1054,11 @@ class DeNovoFilter(InheritanceFilter):
                 par_filter = SampleFilter(family_filter.vcf, cases=children, 
                                           controls=parents, gq=gq, dp=dp, 
                                           het_ab=het_ab, hom_ab=hom_ab, 
-                                          con_gq=min_parent_gq,
-                                          con_dp=min_parent_dp,
-                                          con_ref_ab=self.par_ab,
+                                          min_control_gq=min_control_gq,
+                                          min_control_dp=min_control_dp,
+                                          control_het_ab=control_het_ab,
+                                          control_hom_ab=control_hom_ab,
+                                          con_ref_ab=con_ref_ab,
                                           confirm_missing=True)
                 self.filters[fam].append(par_filter)
                 self.family_filter.logger.info(
@@ -1131,6 +1218,8 @@ class ControlFilter(SampleFilter):
     ''' Filter variants if they are present in a control sample. '''
 
     def __init__(self, vcf, family_filter, gq=0, dp=0, het_ab=0., hom_ab=0.,
+                 min_control_dp=None, min_control_gq=None, control_het_ab=None,
+                 control_hom_ab=None, min_families=1, con_ref_ab=None, 
                  n_controls=0):
         '''
             Args:
@@ -1157,6 +1246,10 @@ class ControlFilter(SampleFilter):
             n_controls = len(family_filter.vcf_unaffected)
         super().__init__(vcf, controls=family_filter.vcf_unaffected, gq=gq, 
                          het_ab=het_ab, hom_ab=hom_ab, dp=dp,
+                         min_control_dp=min_control_dp, 
+                         min_control_gq=min_control_gq, 
+                         control_het_ab=control_het_ab, 
+                         control_hom_ab=control_hom_ab, con_ref_ab=con_ref_ab, 
                          n_controls=n_controls, confirm_missing=False)
 
 

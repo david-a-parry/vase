@@ -58,27 +58,27 @@ or:
 
 ## USAGE/OPTIONS
 
-
     usage: vase -i VCF [-o OUTPUT] [-r REPORT_PREFIX]
                 [-burden_counts BURDEN_COUNTS] [-gnomad_burden] [-v QUAL] [-p]
                 [-af AF] [-min_af MIN_AF] [-c [CSQ [CSQ ...]]] [--canonical]
                 [--flagged_features] [--biotypes BIOTYPE [BIOTYPE ...]]
                 [-m MISSENSE_FILTERS [MISSENSE_FILTERS ...]]
                 [--filter_unpredicted] [--keep_if_any_damaging]
-                [-cadd_files FILE [FILE ...]] [-cadd_dir DIR] [-cadd_phred FLOAT]
-                [-cadd_raw FLOAT] [-d VCF [VCF ...]] [-g VCF [VCF ...]]
-                [-vcf_filter VCF,ID [VCF,ID ...]] [-f FREQ] [--min_freq MIN_FREQ]
-                [-b dbSNP_build] [--max_build dbSNP_build] [--filter_known]
-                [--filter_novel] [--clinvar_path] [-ignore_existing]
-                [-cases SAMPLE_ID [SAMPLE_ID ...]]
-                [-controls SAMPLE_ID [SAMPLE_ID ...]] [-ped PED] [-gq GQ] [-dp DP]
-                [-het_ab AB] [-hom_ab AB] [-par_gq PARENT_GQ] [-par_dp PARENT_DP]
-                [-par_ref_ab AB] [-n_cases N_CASES] [-n_controls N_CONTROLS]
+                [--cadd_files FILE [FILE ...]] [-cadd_dir DIR]
+                [--cadd_phred FLOAT] [--cadd_raw FLOAT] [-d VCF [VCF ...]]
+                [-g VCF [VCF ...]] [--vcf_filter VCF,ID [VCF,ID ...]] [-f FREQ]
+                [--min_freq MIN_FREQ] [-b dbSNP_build] [--max_build dbSNP_build]
+                [--filter_known] [--filter_novel] [--clinvar_path]
+                [-ignore_existing] [--cases SAMPLE_ID [SAMPLE_ID ...]]
+                [--controls SAMPLE_ID [SAMPLE_ID ...]] [-ped PED] [-gq GQ]
+                [-dp DP] [-het_ab AB] [-hom_ab AB] [-con_gq CONTROL_GQ]
+                [-con_dp CONTROL_DP] [-con_het_ab AB] [-con_hom_ab AB]
+                [-con_ref_ab AB] [--n_cases N_CASES] [--n_controls N_CONTROLS]
                 [--biallelic] [--de_novo] [--dominant]
                 [--min_families MIN_FAMILIES]
                 [--singleton_recessive SAMPLE_ID [SAMPLE_ID ...]]
                 [--singleton_dominant SAMPLE_ID [SAMPLE_ID ...]]
-                [-seg_controls SAMPLE_ID [SAMPLE_ID ...]] [--prog_interval N]
+                [--seg_controls SAMPLE_ID [SAMPLE_ID ...]] [--prog_interval N]
                 [--log_progress] [--quiet] [--debug] [-h]
 
     Variant annotation, segregation and exclusion.
@@ -120,7 +120,7 @@ or:
                             
 
     Annotation File Arguments:
-      -cadd_files FILE [FILE ...], --cadd_files FILE [FILE ...]
+      --cadd_files FILE [FILE ...], -cadd_files FILE [FILE ...]
                             One or more tabix indexed CADD annotation files 
                             (such as those found at 
                             http://cadd.gs.washington.edu/download). Variants 
@@ -137,7 +137,7 @@ or:
                             files with '.gz' or '.bgz' extensions will be 
                             included.
                             
-      -cadd_phred FLOAT, --cadd_phred FLOAT
+      --cadd_phred FLOAT, -cadd_phred FLOAT
                             CADD PHRED score cutoff. Variants with a CADD 
                             PHRED score below this value will be filtered. 
                             Only used with annotations from files supplied to
@@ -146,7 +146,7 @@ or:
                             filter on CADD scores annotated using the VEP 
                             dbNSFP plugin use the --missense_filters option.
                             
-      -cadd_raw FLOAT, --cadd_raw FLOAT
+      --cadd_raw FLOAT, -cadd_raw FLOAT
                             CADD RawScore cutoff. Variants with a CADD 
                             RawScore below this value will be filtered.
                             Only used with annotations from files supplied to
@@ -163,7 +163,7 @@ or:
                             gnomAD/ExAC file for variant annotating/filtering
                             using population allele frequencies
                             
-      -vcf_filter VCF,ID [VCF,ID ...], --vcf_filter VCF,ID [VCF,ID ...]
+      --vcf_filter VCF,ID [VCF,ID ...], -vcf_filter VCF,ID [VCF,ID ...]
                             VCF file(s) and name(s) to use in INFO fields 
                             for frequency annotation and/or filtering. Each 
                             file and its associated annotation ID should be 
@@ -182,7 +182,8 @@ or:
                             this value in these sources will be filtered 
                             from your input.
                             
-      --min_freq MIN_FREQ   Minimum allele frequency cutoff (between 0 and 1).
+      --min_freq MIN_FREQ, -min_freq MIN_FREQ
+                            Minimum allele frequency cutoff (between 0 and 1).
                             Used for extenal allele frequency sources such as 
                             --dbsnp or --gnomad files. Alleles/variants with 
                             a frequency lower than this value will be filtered.
@@ -193,15 +194,17 @@ or:
                             build or earlier will be filtered from input.
                             from your input.
                             
-      --max_build dbSNP_build
+      --max_build dbSNP_build, -max_build dbSNP_build
                             Maximum dbSNP build version cutoff. For use with 
                             --dbsnp files. Alleles/variants present in dbSNP
                             builds later than this version will be filtered.
                             
-      --filter_known        Filter any allele/variant present in any of the
+      --filter_known, -filter_known
+                            Filter any allele/variant present in any of the
                             files supplied to --gnomad or --dbsnp arguments.
                             
-      --filter_novel        Filter any allele/variant NOT present in 
+      --filter_novel, -filter_novel
+                            Filter any allele/variant NOT present in 
                             any of the files supplied to --gnomad or --dbsnp
                             arguments.
                             
@@ -267,15 +270,17 @@ or:
                             include these default classes in addition to other 
                             specified classes.
                             
-      --canonical           When used in conjunction with --csq argument, 
+      --canonical, -canonical
+                            When used in conjunction with --csq argument, 
                             ignore consequences for non-canonical transcripts.
                             
-      --flagged_features    When used in conjunction with --csq argument, 
+      --flagged_features, -flagged_features
+                            When used in conjunction with --csq argument, 
                             ignore consequences for flagged 
                             transcripts/features (i.e. with a non-empty 
                             'FLAGS' CSQ field).
                             
-      --biotypes BIOTYPE [BIOTYPE ...]
+      --biotypes BIOTYPE [BIOTYPE ...], -biotypes BIOTYPE [BIOTYPE ...]
                             When used in conjunction with --csq  argument, 
                             ignore consequences in biotypes other than those 
                             specified here. By default only consequences in 
@@ -350,7 +355,8 @@ or:
                             --filter_unpredicted or --keep_if_any_damaging 
                             flags.
                             
-      --filter_unpredicted  For use in conjunction with --missense_filters. 
+      --filter_unpredicted, -filter_unpredicted
+                            For use in conjunction with --missense_filters. 
                             The default behaviour when using 
                             --missense_filters is to ignore a program if 
                             there is no prediction given (i.e. the score/pred 
@@ -363,7 +369,7 @@ or:
                             filtered if any program does not have a
                             prediction/score.
                             
-      --keep_if_any_damaging
+      --keep_if_any_damaging, -keep_if_any_damaging
                             For use in conjunction with --missense_filters. 
                             If this option is provided, a missense consequence
                             is only filtered if ALL of the programs provided 
@@ -380,7 +386,7 @@ or:
       Arguments for filtering variants based on presence/absence in samples and/or 
       inheritance patterns
 
-      -cases SAMPLE_ID [SAMPLE_ID ...], --cases SAMPLE_ID [SAMPLE_ID ...]
+      --cases SAMPLE_ID [SAMPLE_ID ...], -cases SAMPLE_ID [SAMPLE_ID ...]
                             One or more sample IDs to treat as cases. Default 
                             behaviour is to retain variants/alleles present in 
                             all of these samples as long as they are not 
@@ -388,7 +394,7 @@ or:
                             '--controls' option. This behaviour can be 
                             adjusted using other options detailed below.
                             
-      -controls SAMPLE_ID [SAMPLE_ID ...], --controls SAMPLE_ID [SAMPLE_ID ...]
+      --controls SAMPLE_ID [SAMPLE_ID ...], -controls SAMPLE_ID [SAMPLE_ID ...]
                             One or more sample IDs to treat as controls. 
                             Default behaviour is to filter variants/alleles 
                             present in any of these samples. This behaviour 
@@ -440,42 +446,67 @@ or:
                             depth lower than this threshold will be treated as
                             no-calls. Default = 0.
                             
-      -par_gq PARENT_GQ, --parent_gq PARENT_GQ
+      -con_gq CONTROL_GQ, --control_gq CONTROL_GQ
                             Minimum genotype quality score threshold for 
-                            parents when identifying de novo variants. 
-                            Defaults to the same value as --gq but you may 
-                            wish to set this to a lower value if you require
-                            less evidence for parental genotype calls when
-                            confirming a potential de novo variant.
+                            parents/unaffecteds/controls when filtering 
+                            variants. Defaults to the same value as --gq but 
+                            you may wish to set this to a lower value if, for 
+                            example, you require less evidence from 
+                            controls/unaffected in order to filter a variant 
+                            or from parental genotype calls when confirming 
+                            a potential de novo variant.
                             
-      -par_dp PARENT_DP, --parent_dp PARENT_DP
-                            Minimum depth threshold for parents when 
-                            identifying de novo variants. Defaults to the same
-                            value as --gq but you may wish to set this to a 
-                            lower value if you require less evidence for 
-                            parental genotype calls when confirming a 
-                            potential de novo variant.
+      -con_dp CONTROL_DP, --control_dp CONTROL_DP
+                            Minimum depth threshold for 
+                            parents/unaffecteds/controls when filtering 
+                            variants. Defaults to the same value as --dp but 
+                            you may wish to set this to a lower value if, for 
+                            example, you require less evidence from 
+                            controls/unaffected in order to filter a variant 
+                            or from parental genotype calls when confirming 
+                            a potential de novo variant.
                             
-      -par_ref_ab AB, --parent_max_ref_ab AB
-                            Maximum genotype allele balance for parents 
-                            with reference (0/0) genotypes when identifying 
-                            de novos. If you wish to exclude potential de 
-                            novos where parents are called as homozygous 
-                            reference but still have a low proportion of
-                            ALT alleles specify a suitable cutoff here.
+      -con_het_ab AB, --control_het_ab AB
+                            Minimum genotype allele balance for heterozygous 
+                            genotypes. Heterozygous sample genotype calls 
+                            with a ratio of the alternate allele vs total 
+                            depth lower than this threshold will be treated as
+                            no-calls. Defaults to the same as --het_ab but 
+                            you may wish to set this to a lower value if, for 
+                            example, you require less evidence from 
+                            controls/unaffected in order to filter a variant.
                             
-      -n_cases N_CASES, --n_cases N_CASES
+      -con_hom_ab AB, --control_hom_ab AB
+                            Minimum genotype allele balance for homozygous 
+                            genotypes. Homozygous sample genotype calls 
+                            with a ratio of the alternate allele vs total 
+                            depth lower than this threshold will be treated as
+                            no-calls. Defaults to the same as --hom_ab but 
+                            you may wish to set this to a lower value if, for 
+                            example, you require less evidence from 
+                            controls/unaffected in order to filter a variant.
+                            
+      -con_ref_ab AB, --control_max_ref_ab AB
+                            Maximum genotype allele balance for 
+                            parents/unaffecteds/controls with reference (0/0) 
+                            genotypes when filtering variants. If you wish to
+                            count/exclude variants where controls/unaffecteds 
+                            are called as homozygous reference but still have a 
+                            low proportion of ALT alleles specify a suitable 
+                            cutoff here.
+                            
+      --n_cases N_CASES, -n_cases N_CASES
                             Instead of requiring a variant to be present in
                             ALL samples specified by --cases, require at least
                             this many cases.
                             
-      -n_controls N_CONTROLS, --n_controls N_CONTROLS
+      --n_controls N_CONTROLS, -n_controls N_CONTROLS
                             Instead of filtering an allele/variant if present
                             in ANY sample specified by --controls, require at 
                             least this many controls to carry a variant before
                             it is filtered.
                             
-      --biallelic, --recessive
+      --biallelic, -biallelic, --recessive
                             Identify variants matching a recessive inheritance
                             pattern in cases present in the PED file specified
                             by the --ped argument. Input must be VEP 
@@ -486,32 +517,33 @@ or:
                             VEP consequences (see --csq argument for details)
                             will be used.
                             
-      --de_novo             Idenfify apparent de novo variants in cases
+      --de_novo, -de_novo   Idenfify apparent de novo variants in cases
                             present in the PED file specified by the --ped
                             argument. This requires that at least one 
                             parent-child trio exists in the given PED file.
                             
-      --dominant            Idenfify variants segregating in manner matching
+      --dominant, -dominant
+                            Idenfify variants segregating in manner matching
                             dominant inheritance in cases present in the PED 
                             file specified by the --ped argument. 
                             
-      --min_families MIN_FAMILIES
+      --min_families MIN_FAMILIES, -min_families MIN_FAMILIES
                             Minimum number of families (or unrelated samples)
                             required to contain a qualifying dominant/de novo 
                             or biallelic combination of variants in a feature
                             before they are output. Default = 1.
                             
-      --singleton_recessive SAMPLE_ID [SAMPLE_ID ...]
+      --singleton_recessive SAMPLE_ID [SAMPLE_ID ...], -singleton_recessive SAMPLE_ID [SAMPLE_ID ...]
                             One or more samples to treat as unrelated 
                             individuals and identify variants matching a 
                             recessive inheritance pattern.
                             
-      --singleton_dominant SAMPLE_ID [SAMPLE_ID ...]
+      --singleton_dominant SAMPLE_ID [SAMPLE_ID ...], -singleton_dominant SAMPLE_ID [SAMPLE_ID ...]
                             One or more samples to treat as unrelated 
                             individuals and identify variants matching a 
                             dominant inheritance pattern.
                             
-      -seg_controls SAMPLE_ID [SAMPLE_ID ...], --seg_controls SAMPLE_ID [SAMPLE_ID ...]
+      --seg_controls SAMPLE_ID [SAMPLE_ID ...], -seg_controls SAMPLE_ID [SAMPLE_ID ...]
                             One or more sample IDs to treat as controls for
                             segregation analysis only. Useful if you want to
                             specify controls to use for rejecting compound

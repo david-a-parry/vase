@@ -131,14 +131,14 @@ specified classes.
 
 ''' ) 
     filter_args.add_argument(
-'--canonical', action='store_true', help=
+'--canonical', '-canonical', action='store_true', help=
 '''When used in conjunction with --csq argument, 
 ignore consequences for non-canonical transcripts.
 
 ''')
 
     filter_args.add_argument(
-'--flagged_features', action='store_true', help=
+'--flagged_features', '-flagged_features', action='store_true', help=
 '''When used in conjunction with --csq argument, 
 ignore consequences for flagged 
 transcripts/features (i.e. with a non-empty 
@@ -146,7 +146,7 @@ transcripts/features (i.e. with a non-empty
 
 ''')
     filter_args.add_argument(
-'--biotypes', nargs='+', default=[], metavar='BIOTYPE', help=
+'--biotypes', '-biotypes', nargs='+', default=[], metavar='BIOTYPE', help=
 '''When used in conjunction with --csq  argument, 
 ignore consequences in biotypes other than those 
 specified here. By default only consequences in 
@@ -225,7 +225,7 @@ flags.
 
 ''')
     filter_args.add_argument(
-'--filter_unpredicted', action='store_true', default=False, help=
+'--filter_unpredicted', '-filter_unpredicted', action='store_true', default=False, help=
 '''For use in conjunction with --missense_filters. 
 The default behaviour when using 
 --missense_filters is to ignore a program if 
@@ -241,7 +241,8 @@ prediction/score.
 
 ''')
     filter_args.add_argument(
-'--keep_if_any_damaging', action='store_true', default=False, help=
+'--keep_if_any_damaging', '-keep_if_any_damaging', action='store_true', 
+default=False, help=
 '''For use in conjunction with --missense_filters. 
 If this option is provided, a missense consequence
 is only filtered if ALL of the programs provided 
@@ -257,7 +258,7 @@ missing for any program.
 
     #args for specifying files for annotations/filtering
     file_args.add_argument(
-'-cadd_files', '--cadd_files', metavar='FILE', nargs='+', default=[], help=
+'--cadd_files', '-cadd_files', metavar='FILE', nargs='+', default=[], help=
 '''One or more tabix indexed CADD annotation files 
 (such as those found at 
 http://cadd.gs.washington.edu/download). Variants 
@@ -280,7 +281,7 @@ included.
 ''')
 
     file_args.add_argument(
-'-cadd_phred', '--cadd_phred', metavar='FLOAT', type=float, help=
+'--cadd_phred', '-cadd_phred', metavar='FLOAT', type=float, help=
 '''CADD PHRED score cutoff. Variants with a CADD 
 PHRED score below this value will be filtered. 
 Only used with annotations from files supplied to
@@ -292,7 +293,7 @@ dbNSFP plugin use the --missense_filters option.
 ''')
 
     file_args.add_argument(
-'-cadd_raw', '--cadd_raw', metavar='FLOAT', type=float, help=
+'--cadd_raw', '-cadd_raw', metavar='FLOAT', type=float, help=
 '''CADD RawScore cutoff. Variants with a CADD 
 RawScore below this value will be filtered.
 Only used with annotations from files supplied to
@@ -317,7 +318,7 @@ using population allele frequencies
 ''')
 
     file_args.add_argument(
-'-vcf_filter', '--vcf_filter', metavar='VCF,ID', nargs='+', default=[], 
+'--vcf_filter', '-vcf_filter', metavar='VCF,ID', nargs='+', default=[], 
 help=
 '''VCF file(s) and name(s) to use in INFO fields 
 for frequency annotation and/or filtering. Each 
@@ -342,7 +343,7 @@ from your input.
 
 ''')
     file_args.add_argument(
-'--min_freq', type=float, help=
+'--min_freq', '-min_freq', type=float, help=
 '''Minimum allele frequency cutoff (between 0 and 1).
 Used for extenal allele frequency sources such as 
 --dbsnp or --gnomad files. Alleles/variants with 
@@ -359,20 +360,20 @@ from your input.
 
 ''')
     file_args.add_argument(
-'--max_build', type=int, metavar='dbSNP_build', help=
+'--max_build', '-max_build', type=int, metavar='dbSNP_build', help=
 '''Maximum dbSNP build version cutoff. For use with 
 --dbsnp files. Alleles/variants present in dbSNP
 builds later than this version will be filtered.
 
 ''')
     file_args.add_argument(
-'--filter_known', action='store_true', default=False, help=
+'--filter_known', '-filter_known', action='store_true', default=False, help=
 '''Filter any allele/variant present in any of the
 files supplied to --gnomad or --dbsnp arguments.
 
 ''')
     file_args.add_argument(
-'--filter_novel', action='store_true', default=False, help=
+'--filter_novel', '-filter_novel', action='store_true', default=False, help=
 '''Filter any allele/variant NOT present in 
 any of the files supplied to --gnomad or --dbsnp
 arguments.
@@ -401,7 +402,7 @@ relevant arguments (e.g. --freq) are given.
 
     #args for sample based filtering
     sample_args.add_argument(
-'-cases', '--cases', default=[], nargs='+', metavar='SAMPLE_ID', help=
+'--cases', '-cases', default=[], nargs='+', metavar='SAMPLE_ID', help=
 '''One or more sample IDs to treat as cases. Default 
 behaviour is to retain variants/alleles present in 
 all of these samples as long as they are not 
@@ -411,7 +412,7 @@ adjusted using other options detailed below.
 
 ''')
     sample_args.add_argument(
-'-controls', '--controls', default=[], nargs='+', metavar='SAMPLE_ID', help=
+'--controls', '-controls', default=[], nargs='+', metavar='SAMPLE_ID', help=
 '''One or more sample IDs to treat as controls. 
 Default behaviour is to filter variants/alleles 
 present in any of these samples. This behaviour 
@@ -482,47 +483,78 @@ no-calls. Default = 0.
 ''')
 
     sample_args.add_argument(
-'-par_gq', '--parent_gq', type=int, help=
+'-con_gq', '--control_gq', type=int, help=
 '''Minimum genotype quality score threshold for 
-parents when identifying de novo variants. 
-Defaults to the same value as --gq but you may 
-wish to set this to a lower value if you require
-less evidence for parental genotype calls when
-confirming a potential de novo variant.
+parents/unaffecteds/controls when filtering 
+variants. Defaults to the same value as --gq but 
+you may wish to set this to a lower value if, for 
+example, you require less evidence from 
+controls/unaffected in order to filter a variant 
+or from parental genotype calls when confirming 
+a potential de novo variant.
 
 ''')
 
     sample_args.add_argument(
-'-par_dp', '--parent_dp', type=int, help=
-'''Minimum depth threshold for parents when 
-identifying de novo variants. Defaults to the same
-value as --gq but you may wish to set this to a 
-lower value if you require less evidence for 
-parental genotype calls when confirming a 
-potential de novo variant.
+'-con_dp', '--control_dp', type=int, help=
+'''Minimum depth threshold for 
+parents/unaffecteds/controls when filtering 
+variants. Defaults to the same value as --dp but 
+you may wish to set this to a lower value if, for 
+example, you require less evidence from 
+controls/unaffected in order to filter a variant 
+or from parental genotype calls when confirming 
+a potential de novo variant.
 
 ''')
 
     sample_args.add_argument(
-'-par_ref_ab', '--parent_max_ref_ab', type=float, metavar='AB', help=
-'''Maximum genotype allele balance for parents 
-with reference (0/0) genotypes when identifying 
-de novos. If you wish to exclude potential de 
-novos where parents are called as homozygous 
-reference but still have a low proportion of
-ALT alleles specify a suitable cutoff here.
+'-con_het_ab', '--control_het_ab', type=float, metavar='AB', help=
+'''Minimum genotype allele balance for heterozygous 
+genotypes. Heterozygous sample genotype calls 
+with a ratio of the alternate allele vs total 
+depth lower than this threshold will be treated as
+no-calls. Defaults to the same as --het_ab but 
+you may wish to set this to a lower value if, for 
+example, you require less evidence from 
+controls/unaffected in order to filter a variant.
 
 ''')
 
     sample_args.add_argument(
-'-n_cases', '--n_cases', type=int, help=
+'-con_hom_ab', '--control_hom_ab', type=float,  metavar='AB', help=
+'''Minimum genotype allele balance for homozygous 
+genotypes. Homozygous sample genotype calls 
+with a ratio of the alternate allele vs total 
+depth lower than this threshold will be treated as
+no-calls. Defaults to the same as --hom_ab but 
+you may wish to set this to a lower value if, for 
+example, you require less evidence from 
+controls/unaffected in order to filter a variant.
+
+''')
+
+    sample_args.add_argument(
+'-con_ref_ab', '--control_max_ref_ab', type=float, metavar='AB', help=
+'''Maximum genotype allele balance for 
+parents/unaffecteds/controls with reference (0/0) 
+genotypes when filtering variants. If you wish to
+count/exclude variants where controls/unaffecteds 
+are called as homozygous reference but still have a 
+low proportion of ALT alleles specify a suitable 
+cutoff here.
+
+''')
+
+    sample_args.add_argument(
+'--n_cases', '-n_cases', type=int, help=
 '''Instead of requiring a variant to be present in
 ALL samples specified by --cases, require at least
 this many cases.
 
 ''')
     sample_args.add_argument(
-'-n_controls', '--n_controls', type=int, help=
+'--n_controls', '-n_controls', type=int, help=
 '''Instead of filtering an allele/variant if present
 in ANY sample specified by --controls, require at 
 least this many controls to carry a variant before
@@ -530,7 +562,7 @@ it is filtered.
 
 ''')
     sample_args.add_argument(
-'--biallelic', '--recessive', action='store_true', help=
+'--biallelic', '-biallelic', '--recessive', action='store_true', help=
 '''Identify variants matching a recessive inheritance
 pattern in cases present in the PED file specified
 by the --ped argument. Input must be VEP 
@@ -543,7 +575,7 @@ will be used.
 
 ''')
     sample_args.add_argument(
-'--de_novo', action='store_true', help=
+'--de_novo', '-de_novo', action='store_true', help=
 '''Idenfify apparent de novo variants in cases
 present in the PED file specified by the --ped
 argument. This requires that at least one 
@@ -551,14 +583,14 @@ parent-child trio exists in the given PED file.
 
 ''')
     sample_args.add_argument(
-'--dominant', action='store_true', help=
+'--dominant', '-dominant', action='store_true', help=
 '''Idenfify variants segregating in manner matching
 dominant inheritance in cases present in the PED 
 file specified by the --ped argument. 
 
 ''')
     sample_args.add_argument(
-'--min_families', type=int, default=1, help=
+'--min_families', '-min_families', type=int, default=1, help=
 '''Minimum number of families (or unrelated samples)
 required to contain a qualifying dominant/de novo 
 or biallelic combination of variants in a feature
@@ -566,21 +598,23 @@ before they are output. Default = 1.
 
 ''')
     sample_args.add_argument(
-'--singleton_recessive', default=[], nargs='+', metavar='SAMPLE_ID', help=
+'--singleton_recessive', '-singleton_recessive', default=[], nargs='+', 
+metavar='SAMPLE_ID', help=
 '''One or more samples to treat as unrelated 
 individuals and identify variants matching a 
 recessive inheritance pattern.
 
 ''')
     sample_args.add_argument(
-'--singleton_dominant', default=[], nargs='+', metavar='SAMPLE_ID', help=
+'--singleton_dominant', '-singleton_dominant', default=[], nargs='+',
+metavar='SAMPLE_ID', help=
 '''One or more samples to treat as unrelated 
 individuals and identify variants matching a 
 dominant inheritance pattern.
 
 ''')
     sample_args.add_argument(
-'-seg_controls', '--seg_controls', default=[], nargs='+', metavar='SAMPLE_ID', 
+'--seg_controls', '-seg_controls', default=[], nargs='+', metavar='SAMPLE_ID', 
 help=
 '''One or more sample IDs to treat as controls for
 segregation analysis only. Useful if you want to
