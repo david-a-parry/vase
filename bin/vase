@@ -14,7 +14,7 @@ def parse_args():
     required_args = parser.add_argument_group('Required Arguments')
     output_args = parser.add_argument_group('Output Arguments')
     file_args = parser.add_argument_group('Annotation File Arguments')
-    filter_args = parser.add_argument_group('Variant Filtering  Arguments', 
+    filter_args = parser.add_argument_group('Variant Filtering Arguments', 
         'Arguments for filtering based on variant features')
     sample_args = parser.add_argument_group('Sample Based Filtering Arguments',
 '''Arguments for filtering variants based on presence/absence in samples and/or 
@@ -29,7 +29,7 @@ inheritance patterns''')
 ''')
     #output arguments
     output_args.add_argument(
-'-o', '--output',  help=
+'-o', '--output', help=
 #'-o', '--output', type=argparse.FileType('w'), default=sys.stdout, help=
 '''Filename for VCF output. If this ends in .gz or 
 .bgz the output will be BGZIP compressed. 
@@ -102,8 +102,8 @@ AF < than this value will be filtered.
 
     filter_args.add_argument(
 '-c', '--csq', nargs='*', help=
-'''One or more VEP consequence classes to  retain. 
-Variants which do not result in  one of these VEP 
+'''One or more VEP consequence classes to retain. 
+Variants which do not result in one of these VEP 
 consequence classes will be filtered. If no 
 values are passed then the following default 
 classes will be used:
@@ -147,7 +147,7 @@ transcripts/features (i.e. with a non-empty
 ''')
     filter_args.add_argument(
 '--biotypes', '-biotypes', nargs='+', default=[], metavar='BIOTYPE', help=
-'''When used in conjunction with --csq  argument, 
+'''When used in conjunction with --csq argument, 
 ignore consequences in biotypes other than those 
 specified here. By default only consequences in 
 features with the following biotypes are 
@@ -311,7 +311,7 @@ annotating/filtering
 
 ''')
     file_args.add_argument(
-'-g', '--gnomad', '--exac',  metavar='VCF', nargs='+', default=[], help=
+'-g', '--gnomad', '--exac', metavar='VCF', nargs='+', default=[], help=
 '''gnomAD/ExAC file for variant annotating/filtering
 using population allele frequencies
 
@@ -522,7 +522,7 @@ controls/unaffected in order to filter a variant.
 ''')
 
     sample_args.add_argument(
-'-con_hom_ab', '--control_hom_ab', type=float,  metavar='AB', help=
+'-con_hom_ab', '--control_hom_ab', type=float, metavar='AB', help=
 '''Minimum genotype allele balance for homozygous 
 genotypes. Homozygous sample genotype calls 
 with a ratio of the alternate allele vs total 
