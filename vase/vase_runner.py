@@ -201,6 +201,8 @@ class VaseRunner(object):
                                     b_filt_csq[i][j])
                             self.burden_counter.count_samples(record, 
                                                               feat, i, 1)
+            else:
+                self.var_filtered += 1
         else:
             if sum(filter_alleles) == len(filter_alleles): 
                 self.var_filtered += 1
