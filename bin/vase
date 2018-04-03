@@ -127,7 +127,11 @@ default classes will be used:
 
 You may also pass the value "default" in order to 
 include these default classes in addition to other 
-specified classes.
+specified classes. Alternatively, you may specify
+'all' to include all consequence types if, for 
+example, you want to filter on other VEP 
+annotations (e.g. allele frequency or biotype)
+irrespective of consequence.
 
 ''' ) 
     filter_args.add_argument(
@@ -255,8 +259,42 @@ prediction/score. This behaviour is overridden by
 missing for any program.
 
 ''')
+    filter_args.add_argument(
+'--no_vep_freq', '-no_vep_freq', action='store_true', help=
+'''Use this option if you want to ignore VEP 
+annotated allele frequencies when using --freq and
+--csq options.
 
-    #args for specifying files for annotations/filtering
+''')
+
+    filter_args.add_argument(
+'--vep_af', '-vep_af', nargs='+', default=[], help=
+'''One or more VEP allele frequency annotations to
+use for frequency filtering. Default is to use the
+following (assuming --csq and --freq or --min_freq
+arguments are in effect): 
+
+                MAX_AF
+                AFR_AF
+                AMR_AF
+                EAS_AF
+                EUR_AF
+                SAS_AF
+                AA_AF
+                EA_AF
+                gnomAD_AF
+                gnomAD_AFR_AF
+                gnomAD_AMR_AF
+                gnomAD_ASJ_AF
+                gnomAD_EAS_AF
+                gnomAD_FIN_AF
+                gnomAD_NFE_AF
+                gnomAD_OTH_AF
+                gnomAD_SAS_AF
+
+''')
+
+        #args for specifying files for annotations/filtering
     file_args.add_argument(
 '--cadd_files', '-cadd_files', metavar='FILE', nargs='+', default=[], help=
 '''One or more tabix indexed CADD annotation files 
@@ -339,7 +377,10 @@ for extenal allele frequency sources such as
 --dbsnp or --gnomad files. Alleles/variants with
 an allele frequency equal to or greater than 
 this value in these sources will be filtered 
-from your input.
+from your input. VEP annotated allele frequencies
+will also be used for filtering if '--csq' option
+is used (VEP v90 or higher required). This can be
+disabled with the --no_vep_freq option.
 
 ''')
     file_args.add_argument(
@@ -348,6 +389,10 @@ from your input.
 Used for extenal allele frequency sources such as 
 --dbsnp or --gnomad files. Alleles/variants with 
 a frequency lower than this value will be filtered.
+VEP annotated allele frequencies will also be used 
+for filtering if '--csq' option is used (VEP v90 
+or higher required). This can be disabled with the
+--no_vep_freq option.
 
 ''')
  
@@ -443,6 +488,12 @@ Affection status should be coded:
      0 missing
      1 unaffected
      2 affected
+
+All individuals of interest, including parents, 
+should be specified in this file so that 
+affectation status can be read and dominant versus
+recessive/de novo inheritance models can be 
+inferred.
 
 ''')
     sample_args.add_argument(

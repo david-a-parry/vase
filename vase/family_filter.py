@@ -61,12 +61,12 @@ class FamilyFilter(object):
         if not self.affected:
             raise Exception("No affected individuals found in PED file '{}'"
                             .format(ped.filename))
-        self.vcf_affected = tuple(x for x in self.affected 
+        self.vcf_affected = list(x for x in self.affected 
                                   if x in self.vcf.header.samples)
         if not self.vcf_affected:
             raise Exception("No affected individuals in PED file '{}'"
                             .format(ped.filename) + " found in VCF '{}'")
-        self.vcf_unaffected = tuple(x for x in self.unaffected 
+        self.vcf_unaffected = list(x for x in self.unaffected 
                                     if x in self.vcf.header.samples)
         self.vcf_samples = self.vcf_affected + self.vcf_unaffected
         self.inheritance_patterns = defaultdict(list)
@@ -114,6 +114,14 @@ class FamilyFilter(object):
                 for par in indv.parents:
                     #is parent affected
                     if par not in fam.individuals:
+                        if par in self.vcf.header.samples:
+                            self.logger.warn("Family '{}' parent '{}' ".format(
+                                             fid, par) + "not specified in " +
+                                             "PED, but present in VCF - " + 
+                                             "assuming unaffected")
+                            self.vcf_samples.append(par)
+                            self.vcf_unaffected.append(par)
+                            add_par = Individual(fid, par, '0', '0', '0', '1')
                         continue
                     parent = fam.individuals[par]
                     par_to_child = False
@@ -140,14 +148,28 @@ class FamilyFilter(object):
             if not dominant:
                 recessive = True
             if recessive and n_affected == 1 and not no_parents:
-                if len(fam.individuals[f_aff[0]].parents) == 2:
+                f_par = fam.individuals[f_aff[0]].parents
+                if len(f_par) != 2: 
+                    self.logger.info("Can not analyze {} under ".format(fid) +
+                                     "a de novo model due to missing parents" +
+                                     " in ped")
+                elif (f_par[0] not in self.vcf.header.samples or 
+                      f_par[1] not in self.vcf.header.samples):
+                    self.logger.info("Can not analyze {} under ".format(fid) +
+                                     "a de novo model due to missing parents" +
+                                     " in VCF")
+                else:
                     denovo = True
             elif recessive and n_affected > 1:
                 # we can entertain apparent de novos due to somatic mosaicism
                 # if all affecteds share a parent
                 pars = fam.individuals[f_aff[0]].parents
                 shared_pars = None
-                if len(pars) == 2:
+                if len(pars) != 2:
+                    self.logger.info("Can not analyze {} under ".format(fid) +
+                                     "a de novo model due to missing parents" +
+                                     " in ped")
+                else:
                     shared_pars = set(pars)
                     for i in range(1, len(f_aff)):
                         ipars = self.ped.individuals[f_aff[i]].parents
@@ -158,7 +180,13 @@ class FamilyFilter(object):
                             break
                 if shared_pars:
                     denovo = True
-            
+                    for par in shared_pars:
+                        if par not in self.vcf_samples:
+                            self.logger.info("Can not analyze {}".format(fid) +
+                                             "under a de novo model due to " +
+                                             "missing parents in VCF")
+                            denovo = False
+                            break
             self.inheritance_patterns[fid] = []
             if recessive:
                 self.logger.info("Family '{}' " .format(fid) + "can be " + 

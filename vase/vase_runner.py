@@ -32,13 +32,30 @@ class VaseRunner(object):
             self.ped = PedFile(args.ped)
         self.csq_filter = None
         if args.csq is not None:
+            if args.no_vep_freq:
+                if args.vep_af:
+                    self.logger.warn("Ignoring --vep_af argument because " + 
+                                     "--no_vep_af argument is in use.")
+                vep_freq = None
+                vep_min_freq = None
+                vep_af = []
+            else:
+                vep_freq = args.freq
+                vep_min_freq = args.min_freq
+                vep_af = args.vep_af
             self.csq_filter = VepFilter(
-                                csq=args.csq, canonical=args.canonical,
+                                vcf=self.input,
+                                csq=args.csq, 
+                                canonical=args.canonical,
                                 biotypes=args.biotypes, 
                                 in_silico=args.missense_filters,
                                 filter_unpredicted=args.filter_unpredicted,
                                 keep_any_damaging=args.keep_if_any_damaging,
-                                filter_flagged_features=args.flagged_features)
+                                filter_flagged_features=args.flagged_features,
+                                freq=vep_freq,
+                                min_freq=vep_min_freq,
+                                afs=vep_af,
+                                logging_level=self.logger.level)
         self.sample_filter = None
         self.burden_counter = None
         if args.burden_counts:
