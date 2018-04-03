@@ -87,6 +87,15 @@ filtered/ignored.
 ''' )
 
     filter_args.add_argument(
+'-max_alts', '--max_alt_alleles', type=int, help=
+'''Filter variants at sites with more than this
+many ALT alleles. For example, using 
+'--max_alt_alleles 1' would retain biallelic sites
+only.
+
+''')
+
+    filter_args.add_argument(
 '-af', '--af', type=float, help=
 '''Maximum AF value in input VCF. Any allele with an
 AF > than this value will be filtered.
