@@ -189,7 +189,8 @@ class VepFilter(object):
                     self.logger.info("Found '{}' VEP allele ".format(fq) + 
                                      "frequency annotation")
         if not self.freq_fields:
-            self.logger.warn("No allele frequency fields in VEP annotations.")
+            self.logger.warn("No compatible (>= v90) allele frequency fields" +
+                             " in VEP annotations.")
 
 
     def _get_logger(self, logging_level):
