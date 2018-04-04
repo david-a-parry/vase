@@ -17,6 +17,7 @@ setup(
           'parse_vcf>=0.2.1',
       ],
     scripts = ["bin/vase", "bin/burden_test_vase", "bin/vase_reporter"],
+    include_package_data=True,
     classifiers = [
         "Programming Language :: Python :: 3",
         "Development Status :: 3 - Alpha",
