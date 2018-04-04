@@ -1142,6 +1142,7 @@ class DeNovoFilter(InheritanceFilter):
         for i in range(len(denovo_alleles)):
             if not denovo_alleles[i]:
                 continue
+            allele = i + 1
             csqs = []
             try:
                 for j in range(len(record.CSQ)):
