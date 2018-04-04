@@ -11,7 +11,7 @@ setup(
     author = "David A. Parry",
     author_email = "david.parry@igmm.ed.ac.uk",
     url = "https://github.com/gantzgraf/vase",
-    download_url = 'https://github.com/gantzgraf/vase/archive/0.1.1a.tar.gz',
+    download_url = 'https://github.com/gantzgraf/vase/archive/v0.1.1a.tar.gz',
     license='MIT',
     install_requires=[
           'pysam',
