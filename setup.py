@@ -6,12 +6,13 @@ except ImportError:
 setup(
     name = "vase",
     packages = ["vase"],
-    version = "0.1.0",
+    version = "0.1.1a",
     description = "Variant Annotation, Segregation and Exclusion",
     author = "David A. Parry",
     author_email = "david.parry@igmm.ed.ac.uk",
     url = "https://github.com/gantzgraf/vase",
-    license='GPLv3',
+    download_url = 'https://github.com/gantzgraf/vase/archive/0.1.1a.tar.gz',
+    license='MIT',
     install_requires=[
           'pysam',
           'parse_vcf>=0.2.1',
@@ -23,7 +24,7 @@ setup(
         "Development Status :: 3 - Alpha",
         "Intended Audience :: Developers",
         "Intended Audience :: Science/Research",
-        "License :: OSI Approved :: GNU Lesser General Public License v3 (LGPLv3)",
+        "License :: OSI Approved :: MIT License",
         "Topic :: Scientific/Engineering :: Bio-Informatics",
         ],
 )
