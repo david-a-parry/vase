@@ -1,0 +1,24 @@
+#!/usr/bin/env python3
+import sys
+import argparse
+from vase.vase_reporter import VaseReporter
+
+def parse_args():
+    parser = argparse.ArgumentParser(
+                   description='''Write per family reports from a VASE 
+                                  annotated VCF after running annotating for
+                                  recessive, dominant or de novo variants.''',)
+    parser.add_argument("vcf", help='''VASE annotated VCF file.''')
+    parser.add_argument("ped", help='''PED file (same as used with VASE 
+                                       segregation analysis).''')
+    parser.add_argument("out", help='''Name for output XLSX file.''')
+    parser.add_argument("-f", "--families", nargs='+', 
+                        help='''One or more families to report variants 
+                                for.''')
+    return parser
+
+if __name__ == '__main__':
+    parser = parse_args()
+    args = parser.parse_args()
+    runner = VaseReporter(**vars(args))
+    runner.write_report()
