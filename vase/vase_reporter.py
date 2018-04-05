@@ -18,7 +18,7 @@ class VaseReporter(object):
 
     def __init__(self, vcf, ped, out, families=[], all_features=False,
                  rest_lookups=False, grch37=False, prog_interval=None,
-                 timeout=2.0, quiet=False, debug=False):
+                 timeout=2.0, max_retries=2, quiet=False, debug=False):
         self._set_logger(quiet, debug)
         self.vcf = VcfReader(vcf)
         self.ped = PedFile(ped)
@@ -48,7 +48,9 @@ class VaseReporter(object):
         self.families = set(families)
         if self.rest_lookups:
             self.ensembl_rest = EnsemblRestQueries(use_grch37_server=grch37,
-                                                   timeout=timeout)
+                                                   timeout=timeout, 
+                                                   max_retries=max_retries,
+                                                   log_level=self.logger.level)
         self.rest_cache = dict()
         if prog_interval is not None:
             self.prog_interval = prog_interval
