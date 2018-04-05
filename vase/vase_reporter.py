@@ -98,7 +98,8 @@ class VaseReporter(object):
 
     def _initialize_worksheet(self, family):
         worksheet = self.workbook.add_worksheet(family)
-        header = ['INHERITANCE'] + vcf_output_columns + ['ALLELE', 'AC', 'AN']
+        header = ['INHERITANCE'] + vcf_output_columns + ['ALLELE', 'AC', 'AN',
+                                                         'FORMAT']
         header.extend(self._get_sample_order(family))
         header.extend(x for x in self.vcf.header.csq_fields if x != 'Allele')
         if self.rest_lookups:
