@@ -7,7 +7,8 @@ from .ped_file import PedFile, Family, Individual, PedError
 from parse_vcf import VcfReader, VcfHeader, VcfRecord 
 from .ensembl_rest_queries import EnsemblRestQueries
 
-vcf_output_columns = ['CHROM', 'POS', 'ID', 'REF', 'ALT', 'QUAL', 'FILTER',] 
+vcf_output_columns = ['CHROM', 'POS', 'ID', 'REF', 'ALT', 'QUAL', 'FILTER',
+                      'FORMAT'] 
 feat_annots = { 'VASE_biallelic_families': 'VASE_biallelic_features',
                 'VASE_dominant_families': 'VASE_dominant_features',
                 'VASE_de_novo_families': 'VASE_de_novo_features',}
@@ -122,6 +123,9 @@ class VaseReporter(object):
         for child in children:
             if child not in samples and child in self.vcf.header.samples:
                 samples.append(child)
+        for indv in self.ped.families[family].individuals:
+            if indv not in samples:
+                samples.append(indv)
         self.sample_orders[family] = samples
         return samples
 
