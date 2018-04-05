@@ -1,5 +1,6 @@
 import requests
 import time
+import logging
 
 server = "https://rest.ensembl.org"
 grch37_server = "http://grch37.rest.ensembl.org/"
@@ -8,7 +9,9 @@ class EnsemblRestQueries(object):
     '''Perform lookups using Ensembl's REST API'''
 
     def __init__(self, use_grch37_server=False, custom_server=None, 
-                 timeout=1.0, reqs_per_sec=15):
+                 timeout=1.0, max_retries=2, reqs_per_sec=15, 
+                 log_level=logging.INFO):
+        self._set_logger(logging_level=log_level)
         self.reqs_per_sec = reqs_per_sec
         self.req_count = 0
         self.last_req = 0
@@ -19,19 +22,27 @@ class EnsemblRestQueries(object):
         else:
             self.server = server
         self.timeout = timeout
+        self.max_retries = max_retries
         
-    def get_endpoint(self, endpoint):
+    def get_endpoint(self, endpoint, attempt=0):
         # check if we need to rate limit ourselves
         if self.req_count >= self.reqs_per_sec:
             delta = time.time() - self.last_req
             if delta < 1:
+                self.logger.debug("sleep {}s".format(1-delta))
                 time.sleep(1 - delta)
             self.last_req = time.time()
             self.req_count = 0
+        self.logger.debug("Retrieving {}".format(server+endpoint))
         r = requests.get(server+endpoint, timeout=self.timeout,
                          headers={ "Content-Type" : "application/json"})
         self.req_count += 1
         if not r.ok:
+            if attempt < self.max_retries:
+                attempt += 1
+                self.logger.info("Retry {}/{}".format(attempt,self.max_retriex)
+                                 + "for {}".format(server+endpoint))
+                return self.get_endpoint(endpoint, attempt=attempt)
             r.raise_for_status()
         return r.json()
 
@@ -62,3 +73,14 @@ class EnsemblRestQueries(object):
         if data and 'phenotypes' in data:
             return (phe['trait'] for phe in data['phenotypes'])
         return []
+
+    def _set_logger(self, logging_level=logging.INFO):
+        self.logger = logging.getLogger("Ensembl REST Queries")
+        self.logger.setLevel(logging_level)
+        formatter = logging.Formatter(
+                        '[%(asctime)s] %(name)s - %(levelname)s - %(message)s')
+        ch = logging.StreamHandler()
+        ch.setLevel(self.logger.level)
+        ch.setFormatter(formatter)
+        self.logger.addHandler(ch)
+
