@@ -142,7 +142,8 @@ class VaseReporter(object):
         mim = ''
         go_data = self.ensembl_rest.get_xref(csq['Feature'], external_db='GO')
         if go_data:
-            go = str.join("|", (x['description'] for x in go_data))
+            go = str.join("|", (x['description'] for x in go_data if 
+                                x['description'] is not None))
         if csq['Gene']:
             xref_data = self.ensembl_rest.get_xref(csq['Gene'])
             
