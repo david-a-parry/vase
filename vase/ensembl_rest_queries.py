@@ -40,7 +40,7 @@ class EnsemblRestQueries(object):
         if not r.ok:
             if attempt < self.max_retries:
                 attempt += 1
-                self.logger.info("Retry {}/{}".format(attempt,self.max_retriex)
+                self.logger.info("Retry {}/{}".format(attempt,self.max_retries)
                                  + "for {}".format(server+endpoint))
                 return self.get_endpoint(endpoint, attempt=attempt)
             r.raise_for_status()
