@@ -2,9 +2,10 @@ import sys
 import re
 import logging
 import xlsxwriter
+from collections import namedtuple
 from .ped_file import PedFile, Family, Individual, PedError
 from parse_vcf import VcfReader, VcfHeader, VcfRecord 
-
+from .ensembl_rest_queries import EnsemblRestQueries
 
 vcf_output_columns = ['CHROM', 'POS', 'ID', 'REF', 'ALT', 'QUAL', 'FILTER',] 
 feat_annots = { 'VASE_biallelic_families': 'VASE_biallelic_features',
@@ -15,8 +16,9 @@ class VaseReporter(object):
     ''' Read a VASE annotated VCF and output XLSX format summary of 
         segregating variants. '''
 
-    def __init__(self, vcf, ped, out, families=[], all_features=False, 
-                 quiet=False, debug=False):
+    def __init__(self, vcf, ped, out, families=[], all_features=False,
+                 rest_lookups=False, grch37=False, prog_interval=None,
+                 timeout=2.0, quiet=False, debug=False):
         self._set_logger(quiet, debug)
         self.vcf = VcfReader(vcf)
         self.ped = PedFile(ped)
@@ -31,6 +33,7 @@ class VaseReporter(object):
         self.bold = self.workbook.add_format({'bold': True})
         self.worksheets = dict()
         self.rows = dict()
+        self.rest_lookups = rest_lookups
         if not families:
             families = sorted(self.ped.families.keys())
         for f in families:#respect the order of families provided before converting to set
@@ -43,6 +46,16 @@ class VaseReporter(object):
                 self.worksheets[f] = self._initialize_worksheet(f)
                 self.rows[f] = 1
         self.families = set(families)
+        if self.rest_lookups:
+            self.ensembl_rest = EnsemblRestQueries(use_grch37_server=grch37,
+                                                   timeout=timeout)
+        self.rest_cache = dict()
+        if prog_interval is not None:
+            self.prog_interval = prog_interval
+        elif self.rest_lookups:
+            self.prog_interval = 100
+        else:
+            self.prog_interval = 1000
 
     def _set_logger(self, quiet=False, debug=False):
         self.logger = logging.getLogger("VASE Reporter")
@@ -75,7 +88,7 @@ class VaseReporter(object):
             self.logger.info("Found VASE de_novo annotations.")
             seg = True
         if not seg:
-            raise runtimeerror("no vase recessive/dominant/de novo " + 
+            raise RuntimeError("no vase recessive/dominant/de novo " + 
                                "annotations found in vcf - please run vase " +
                                "with --biallelic, --dominant or --de_novo " + 
                                " options first.")
@@ -86,6 +99,9 @@ class VaseReporter(object):
         header = ['INHERITANCE'] + vcf_output_columns + ['ALLELE', 'AC', 'AN']
         header.extend(self._get_sample_order(family))
         header.extend(x for x in self.vcf.header.csq_fields if x != 'Allele')
+        if self.rest_lookups:
+            header.extend(["ENTREZ", "GO", "REACTOME", "MOUSE_TRAITS", 
+                           "MIM_MORBID"])
         for i in range(len(header)):
             worksheet.write(0, i, header[i], self.bold)
         return worksheet
@@ -107,10 +123,57 @@ class VaseReporter(object):
         self.sample_orders[family] = samples
         return samples
 
+    def get_ensembl_rest_data(self, csq):
+        if csq['Feature'] not in self.rest_cache:
+            try:
+                self.rest_cache[csq['Feature']] = self._get_rest_data(csq)
+            except Exception as err:
+                self.logger.warn(err)
+                self.logger.warn("REST lookups for {} failed".format(
+                                                               csq['Feature']))
+                self.rest_cache[csq['Feature']] = [''] * 5
+        return self.rest_cache[csq['Feature']]
+
+    def _get_rest_data(self, csq):
+        entrez = ''
+        go = ''
+        reactome = ''
+        traits = ''
+        mim = ''
+        go_data = self.ensembl_rest.get_xref(csq['Feature'], external_db='GO')
+        if go_data:
+            go = str.join("|", (x['description'] for x in go_data))
+        if csq['Gene']:
+            xref_data = self.ensembl_rest.get_xref(csq['Gene'])
+            
+            entrez = str.join("|", (x['primary_id'] for x in xref_data 
+                                    if x['dbname'] == 'EntrezGene'))
+            reactome = str.join("|", (x['description'] for x in xref_data 
+                                      if x['dbname'] == 'Reactome_gene'))
+            mim = str.join("|", (x['description'] for x in xref_data 
+                                 if x['dbname'] == 'MIM_MORBID'))
+            orth = self.ensembl_rest.lookup_ortholog(csq['Gene'])
+            if orth is not None:
+                traits = str.join("|", self.ensembl_rest.get_traits(orth))
+        return [entrez, go, reactome, traits, mim]
+
     def write_row(self, worksheet, row, values):
         ''' Write a list of values to given worksheet and row '''
         col = 0
         for x in values:
+            worksheet.write(row, col, x)
+            col += 1
+        return col
+
+    def write_rest_data(self, worksheet, row, col, csq):
+        entrez, *rest = (self.get_ensembl_rest_data(csq))
+        if entrez:
+            worksheet.write_url(row, col, 'https://www.ncbi.nlm.nih.gov/gene/'+
+                                entrez, string=entrez)
+        else:
+            worksheet.write(row, col, entrez)
+        col += 1
+        for x in rest:
             worksheet.write(row, col, x)
             col += 1
 
@@ -128,7 +191,13 @@ class VaseReporter(object):
                           self._get_sample_order(family))
             values.extend(csq[x] for x in self.vcf.header.csq_fields if 
                               x != 'Allele')
-            self.write_row(self.worksheets[family], self.rows[family], values)
+            col = self.write_row(self.worksheets[family], self.rows[family], 
+                                 values)
+            if self.rest_lookups:
+                self.write_rest_data(self.worksheets[family],  
+                                     self.rows[family],
+                                     col, 
+                                     csq)
             self.rows[family] += 1
 
     def write_report(self):
@@ -155,7 +224,7 @@ class VaseReporter(object):
                             if fam in self.families:
                                 self.write_records(record, fam, pattern, i+1, 
                                                    feat)
-            if n % 1000 == 0:
+            if n % self.prog_interval == 0:
                 self.logger.info("Parsed {:,} records".format(n))
         self.logger.info("Finished parsing {:,} records".format(n))
         self.workbook.close()
