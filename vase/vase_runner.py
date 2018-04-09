@@ -104,7 +104,7 @@ class VaseRunner(object):
         self.var_filtered = 0
 
     def run(self):
-        ''' Run VCF filtering/annotation using args from bin/vase.py'''
+        ''' Run VCF filtering/annotation using args from bin/vase'''
         self.logger.info('Starting variant processing')
         self.print_header()
         var_count = 0
@@ -685,7 +685,7 @@ class VaseRunner(object):
         vase_opts = []
         for k,v in vars(self.args).items():
             vase_opts.append('--{} {}'.format(k, v))
-        self.input.header.add_header_field(name="vase.py", 
+        self.input.header.add_header_field(name="vase", 
                                    string='"' + str.join(" ", vase_opts) + '"')
         self.out.write(str(self.input.header))
 
