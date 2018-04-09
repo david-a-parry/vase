@@ -104,7 +104,7 @@ class VaseRunner(object):
         self.var_filtered = 0
 
     def run(self):
-        ''' Run VCF filtering/annotation using args from bin/vase.py '''
+        ''' Run VCF filtering/annotation using args from bin/vase.py'''
         self.logger.info('Starting variant processing')
         self.print_header()
         var_count = 0
@@ -291,7 +291,6 @@ class VaseRunner(object):
             allele should be filtered based on information from VEP, 
             dbSNP, ClinVar or gnomAD.
         '''
-
         # remove_alleles indicates whether allele should be filtered; 
         # keep_alleles indicates whether allele should be kept, overriding any 
         # indications in remove_alleles (e.g. if labelled pathogenic in 
@@ -316,15 +315,21 @@ class VaseRunner(object):
                 # path variants - if using clinvar path we have to ensure we 
                 # haven't got a path variant with a non-qualifying allele
                 return remove_alleles, remove_csq
+        #check VCF's internal AC
+        if self.args.ac or self.args.min_ac:
+            r_alts = self.filter_on_ac(record)
+            self._set_to_true_if_true(remove_alleles, r_alts)
+            if (not self.args.clinvar_path and 
+                sum(remove_alleles) == len(remove_alleles)):
+                # bail out now if no valid allele and not keeping clinvar
+                return remove_alleles, remove_csq
         #check functional consequences
         if self.csq_filter:
             r_alts, remove_csq = self.csq_filter.filter(record)
             self._set_to_true_if_true(remove_alleles, r_alts)
             if (not self.args.clinvar_path and 
                 sum(remove_alleles) == len(remove_alleles)):
-                # bail out now if no valid consequence and not keeping clinvar
-                # path variants - if using clinvar path we have to ensure we 
-                # haven't got a path variant with a non-qualifying consequence
+                # bail out now if no valid consequence 
                 return remove_alleles, remove_csq
         if self.prev_cadd_phred and self.args.cadd_phred:
             r_alts = self.filter_on_existing_cadd_phred(record)
@@ -385,6 +390,18 @@ class VaseRunner(object):
                     remove[i] = True
             if self.args.min_af:
                 if af[i] is None or af[i] < self.args.min_af:
+                    remove[i] = True
+        return remove
+
+    def filter_on_ac(self, record):
+        remove  = [False] * (len(record.ALLELES) -1)
+        ac = record.parsed_info_fields(fields=['AC'])['AC']
+        for i in range(len(remove)):
+            if self.args.ac:
+                if ac[i] is not None and ac[i] > self.args.ac:
+                    remove[i] = True
+            if self.args.min_ac:
+                if ac[i] is None or ac[i] < self.args.min_ac:
                     remove[i] = True
         return remove
 

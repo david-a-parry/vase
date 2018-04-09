@@ -110,6 +110,20 @@ AF < than this value will be filtered.
 ''')
 
     filter_args.add_argument(
+'-ac', '--ac', type=int, help=
+'''Maximum AC value in input VCF. Any allele with an
+AC > than this value will be filtered.
+
+''')
+
+    filter_args.add_argument(
+'-min_ac', '--min_ac', type=float, help=
+'''Minimum AC value in input VCF. Any allele with an
+AC < than this value will be filtered.
+
+''')
+
+    filter_args.add_argument(
 '-c', '--csq', nargs='*', help=
 '''One or more VEP consequence classes to retain. 
 Variants which do not result in one of these VEP 
