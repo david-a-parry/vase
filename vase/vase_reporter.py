@@ -192,8 +192,11 @@ class VaseReporter(object):
             values = [inheritance]
             values.extend(getattr(record, f) for f in vcf_output_columns)
             values.append(allele)
-            values.append(record.INFO_FIELDS['AC'])
-            values.append(record.INFO_FIELDS['AN'])
+            for i_field in (('AC', 'AN')):
+                if i_field in record.INFO_FIELDS:
+                    values.append(record.INFO_FIELDS[i_field])
+                else:
+                    values.append('.')
             values.append(record.FORMAT)
             values.extend(record.CALLS[x] for x in 
                           self._get_sample_order(family))
