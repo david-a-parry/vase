@@ -201,7 +201,6 @@ class dbSnpFilter(VcfFilter):
         for f in build:
             if f in self.vcf.metadata['INFO']:
                 self.build_fields[f] = self.vcf.metadata['INFO'][f][-1]
-
         # raise an Exception if no freq fields if filtering on frequency or if 
         # no build fields if filtering on build, but let lack of ClinVar fields 
         # slide as clinvar filtering may be occuring with a separate ClinVar 
@@ -235,4 +234,6 @@ class dbSnpFilter(VcfFilter):
             self._make_metadata(f, v)
         for f,v in self.clinvar_fields.items():
             self._make_metadata(f, v)
+        self._make_metadata('RSID', {'Type': 'String', 
+                                     'Description': 'dbSNP ID'})
 
