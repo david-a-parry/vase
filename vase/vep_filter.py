@@ -10,7 +10,8 @@ class VepFilter(object):
     def __init__(self, vcf, csq=[], canonical=False, biotypes=[], in_silico=[],
                  filter_unpredicted=False, keep_any_damaging=False,
                  filter_flagged_features=False, freq=None, min_freq=None,
-                 afs=[], logging_level=logging.WARNING):
+                 afs=[], filter_known=False, filter_novel=False,
+                 logging_level=logging.WARNING):
         self.logger = self._get_logger(logging_level)
         default_csq, valid_csq = self._read_csq_file()
         default_biotypes, valid_biotypes = self._read_biotype_file()
@@ -61,6 +62,8 @@ class VepFilter(object):
         self.freq = freq
         self.min_freq = min_freq
         self.afs = afs
+        self.filter_known = filter_known
+        self.filter_novel = filter_novel
         self._check_freq_fields(vcf)
         self.in_silico = False
         if in_silico:
@@ -99,22 +102,34 @@ class VepFilter(object):
                     pass
             if c['BIOTYPE'] not in self.biotypes:
                 continue
-            if self.freq or self.min_freq:
+            if (self.freq or self.min_freq or self.filter_known or
+                self.filter_novel):
+                known = False
                 for af in self.freq_fields:
-                    if c[af] == '':
+                    if c[af] == '' or c[af] == '.':
                         continue
-                    if self.freq:
+                    try:
+                        c_af = float(c[af])
+                    except ValueError:
                         try:
-                            c_af = float(c[af])
+                            c_af = max(float(x) for x in c[af].split('&') if x
+                                       != '.')
                         except ValueError:
-                            c_af = max(float(x) for x in c[af].split('&'))
-                        if  c_af >= self.freq:
+                            continue
+                    known = True
+                    if self.filter_known:
+                        filter_af[alt_i] = True
+                        break
+                    if self.freq:
+                        if c_af >= self.freq:
                             filter_af[alt_i] = True
                             break
                     if self.min_freq:
-                        if float(c[af]) < self.min_freq:
+                        if c_af < self.min_freq:
                             filter_af[alt_i] = True
                             break
+                if self.filter_novel and not known:
+                    filter_af[alt_i] = True
                 if filter_af[alt_i]:
                     continue
             consequence = c['Consequence'].split('&')
@@ -171,7 +186,8 @@ class VepFilter(object):
 
     def _check_freq_fields(self, vcf):
         self.freq_fields = []
-        if not self.freq and not self.min_freq:
+        if (not self.freq and not self.min_freq and not self.filter_novel and
+                not self.filter_known):
             return
         if self.afs:
             for fq in self.afs:
