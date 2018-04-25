@@ -1,6 +1,6 @@
 import sys
 import logging
-from parse_vcf import * 
+from parse_vcf import *
 from .insilico_filter import *
 
 
@@ -8,8 +8,8 @@ class VepFilter(object):
     '''An object that filters VCF records based on annotated VEP data.'''
 
     def __init__(self, vcf, csq=[], canonical=False, biotypes=[], in_silico=[],
-                 filter_unpredicted=False, keep_any_damaging=False, 
-                 filter_flagged_features=False, freq=None, min_freq=None, 
+                 filter_unpredicted=False, keep_any_damaging=False,
+                 filter_flagged_features=False, freq=None, min_freq=None,
                  afs=[], logging_level=logging.WARNING):
         self.logger = self._get_logger(logging_level)
         default_csq, valid_csq = self._read_csq_file()
@@ -27,7 +27,7 @@ class VepFilter(object):
                 if c.lower() in valid_csq:
                     self.csq.add(c.lower())
                 else:
-                    raise RuntimeError("ERROR: Unrecognised VEP consequence " +  
+                    raise RuntimeError("ERROR: Unrecognised VEP consequence " +
                                        "class '{}'".format(c))
         if len(biotypes) == 0:
             biotypes = ['default']
@@ -40,7 +40,7 @@ class VepFilter(object):
                 if b.lower() in valid_biotypes:
                     self.biotypes.add(b.lower())
                 else:
-                    raise RuntimeError("ERROR: Unrecognised VEP biotype " +  
+                    raise RuntimeError("ERROR: Unrecognised VEP biotype " +
                                        "'{}'".format(b))
         required = ['Consequence', 'BIOTYPE']
         self.canonical = canonical
@@ -52,7 +52,7 @@ class VepFilter(object):
         for rq in required:
             try:
                 if rq not in vcf.header.csq_fields:
-                    raise RuntimeError("Could not find required VEP " + 
+                    raise RuntimeError("Could not find required VEP " +
                                        "annotation '{}' in VCF".format(rq))
             except HeaderError:
                 raise RuntimeError("Could not identify CSQ or ANN fields in " +
@@ -65,7 +65,7 @@ class VepFilter(object):
         self.in_silico = False
         if in_silico:
             in_silico = set(in_silico)
-            self.in_silico = InSilicoFilter(in_silico, filter_unpredicted, 
+            self.in_silico = InSilicoFilter(in_silico, filter_unpredicted,
                                             keep_any_damaging)
 
     def filter(self, record):
@@ -73,7 +73,7 @@ class VepFilter(object):
         #whether an ALT allele should be filtered or not
         filter_af = [False] * (len(record.ALLELES) -1)
         try:
-            filter_csq = [True] * len(record.CSQ) 
+            filter_csq = [True] * len(record.CSQ)
             #whether each csq should be filtered or not
         except HeaderError:
             raise RuntimeError("Could not identify CSQ or ANN fields in VCF " +
@@ -86,7 +86,7 @@ class VepFilter(object):
             if filter_af[alt_i]: #already filtered on freq for this allele
                 continue
             if self.canonical:
-                try: 
+                try:
                     if c['CANONICAL'] != 'YES':
                         continue
                 except KeyError:
@@ -131,14 +131,14 @@ class VepFilter(object):
         return filter_alleles, filter_csq
 
     def _read_csq_file(self):
-        data_file = os.path.join(os.path.dirname(__file__), 
-                                 "data", 
+        data_file = os.path.join(os.path.dirname(__file__),
+                                 "data",
                                  "vep_classes.tsv")
         return self._get_valid_and_default(data_file)
 
     def _read_biotype_file(self):
-        data_file = os.path.join(os.path.dirname(__file__), 
-                                 "data", 
+        data_file = os.path.join(os.path.dirname(__file__),
+                                 "data",
                                  "biotypes.tsv")
         return self._get_valid_and_default(data_file)
 
@@ -158,8 +158,8 @@ class VepFilter(object):
         return defaults, valid
 
     def _read_maf_file(self):
-        data_file = os.path.join(os.path.dirname(__file__), 
-                                 "data", 
+        data_file = os.path.join(os.path.dirname(__file__),
+                                 "data",
                                  "vep_maf.tsv")
         values = []
         with open(data_file,encoding='UTF-8') as fh:
@@ -177,16 +177,16 @@ class VepFilter(object):
             for fq in self.afs:
                 if fq in vcf.header.csq_fields:
                     self.freq_fields.append(fq)
-                    self.logger.info("Found '{}' VEP allele ".format(fq) + 
+                    self.logger.info("Found '{}' VEP allele ".format(fq) +
                                      "frequency annotation")
                 else:
-                    raise RuntimeError("Could not find '{}' ".format(fq) + 
+                    raise RuntimeError("Could not find '{}' ".format(fq) +
                                        "VEP AF field in VEP annotations.")
         else:
             for fq in self._read_maf_file():
                 if fq in vcf.header.csq_fields:
                     self.freq_fields.append(fq)
-                    self.logger.info("Found '{}' VEP allele ".format(fq) + 
+                    self.logger.info("Found '{}' VEP allele ".format(fq) +
                                      "frequency annotation")
         if not self.freq_fields:
             self.logger.warn("No compatible (>= v90) allele frequency fields" +
