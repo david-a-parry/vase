@@ -314,6 +314,13 @@ arguments are in effect):
                 gnomAD_NFE_AF
                 gnomAD_OTH_AF
                 gnomAD_SAS_AF
+                gnomADg_AF_AFR
+                gnomADg_AF_AMR
+                gnomADg_AF_ASJ
+                gnomADg_AF_EAS
+                gnomADg_AF_FIN
+                gnomADg_AF_NFE
+                gnomADg_AF_OTH
 
 ''')
 
@@ -437,14 +444,19 @@ builds later than this version will be filtered.
     file_args.add_argument(
 '--filter_known', '-filter_known', action='store_true', default=False, help=
 '''Filter any allele/variant present in any of the
-files supplied to --gnomad or --dbsnp arguments.
+files supplied to --gnomad, --dbsnp or
+--vcf_filter arguments, or if using '--csq' if any
+allele frequency is recorded for any of VEP's AF
+annotations.
 
 ''')
     file_args.add_argument(
 '--filter_novel', '-filter_novel', action='store_true', default=False, help=
 '''Filter any allele/variant NOT present in
-any of the files supplied to --gnomad or --dbsnp
-arguments.
+any of the files supplied to --gnomad or --dbsnp or
+--vcf_filter arguments, or if using '--csq' if no
+allele frequency is recorded for any of VEP's AF
+annotations.
 
 ''')
     file_args.add_argument(
