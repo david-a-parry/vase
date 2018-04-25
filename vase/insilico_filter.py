@@ -1,70 +1,70 @@
 import re
 import os
 
-vep_internal_pred_re = re.compile(r'\(\d(\.\d+)?\)') 
-# for removing numbers in brackets at end of PolyPhen, SIFT and Condel VEP 
+vep_internal_pred_re = re.compile(r'\(\d(\.\d+)?\)')
+# for removing numbers in brackets at end of PolyPhen, SIFT and Condel VEP
 # annotations
 
 class InSilicoFilter(object):
-    ''' 
-        Stores in silico prediction formats for VEP and indicates 
-        whether a given variant consequence should be filtered on the 
-        basis of the options provided on initialization. Data on the in 
-        silico formats recognised are stored in the text file 
+    '''
+        Stores in silico prediction formats for VEP and indicates
+        whether a given variant consequence should be filtered on the
+        basis of the options provided on initialization. Data on the in
+        silico formats recognised are stored in the text file
         "data/vep_insilico_pred.tsv"
 
     '''
-    
-    
-    def __init__(self, programs, filter_unpredicted=False, 
+
+
+    def __init__(self, programs, filter_unpredicted=False,
                  keep_if_any_damaging=False):
-        ''' 
+        '''
             Initialize with a list of program names to use as filters.
 
             Args:
-                programs:   A list of in silico prediction programs to 
-                            use for filtering. These must be present in 
-                            the VEP annotations of a VcfRecord as added 
-                            either directly by VEP or via the dbNSFP VEP 
-                            plugin. You may also optionally specify 
-                            score criteria for filtering as in the the 
+                programs:   A list of in silico prediction programs to
+                            use for filtering. These must be present in
+                            the VEP annotations of a VcfRecord as added
+                            either directly by VEP or via the dbNSFP VEP
+                            plugin. You may also optionally specify
+                            score criteria for filtering as in the the
                             following examples:
                                                 FATHMM_pred=D
                                                 MutationTaster_pred=A
                                                 MetaSVM_rankscore=0.8
-            
-                            Or you may just provide the program names 
-                            and the default 'damaging' prediction values 
-                            will be used, as listed in the file
-                            "data/vep_insilico_pred.tsv". 
 
-                            The filter() function, which must be 
-                            provided with dict of VEP consequences to 
-                            values, will return False if ALL of the 
+                            Or you may just provide the program names
+                            and the default 'damaging' prediction values
+                            will be used, as listed in the file
+                            "data/vep_insilico_pred.tsv".
+
+                            The filter() function, which must be
+                            provided with dict of VEP consequences to
+                            values, will return False if ALL of the
                             programs provided here contain appropriate
                             prediction values or have no prediction.
-                            This behaviour can be modified with the 
+                            This behaviour can be modified with the
                             keep_if_any_damaging/filter_unpredicted
                             arguments.
 
-                filter_unpredicted: 
+                filter_unpredicted:
                             The default behaviour is to ignore a program
-                            if there is no prediction given (i.e. the 
-                            score/pred is empty). That is, if there are 
-                            no predictions for any of the programs 
-                            filter() will return False, while if 
-                            predictions are missing for only some, 
-                            filtering will proceed as normal, ignoring 
-                            those programs with missing predictions. If 
+                            if there is no prediction given (i.e. the
+                            score/pred is empty). That is, if there are
+                            no predictions for any of the programs
+                            filter() will return False, while if
+                            predictions are missing for only some,
+                            filtering will proceed as normal, ignoring
+                            those programs with missing predictions. If
                             this argument is set to True, filter() will
                             return True if any program does not have a
                             prediction/score.
 
                 keep_if_any_damaging:
                             If set to True, filter() will return False
-                            if ANY of the given programs has a 
-                            matching prediction/score unless 
-                            'filter_unpredicted' is True and a 
+                            if ANY of the given programs has a
+                            matching prediction/score unless
+                            'filter_unpredicted' is True and a
                             prediction/score is missing for any program.
 
         '''
@@ -76,7 +76,7 @@ class InSilicoFilter(object):
         default_progs = {}
         case_insensitive = {}
         self.lower_more_damaging = set()
-        pred_file = os.path.join(os.path.dirname(__file__), "data", 
+        pred_file = os.path.join(os.path.dirname(__file__), "data",
                                  "vep_insilico_pred.tsv")
         with open(pred_file, encoding='UTF-8') as insilico_d:
             for line in insilico_d:
@@ -91,7 +91,7 @@ class InSilicoFilter(object):
                         default_progs[cols[0]][cols[2]] = [cols[1]]
                     else:
                         raise RuntimeError("Error in {}:".format(pred_file) +
-                                           " Should only have one entry for " + 
+                                           " Should only have one entry for " +
                                            "score prediction '{}'"
                                            .format(cols[0]))
                 else:
@@ -99,7 +99,7 @@ class InSilicoFilter(object):
                         default_progs[cols[0]] = {'type' : 'pred'}
                         default_progs[cols[0]][cols[2]] = [cols[1]]
                     else:
-                        default_progs[cols[0]] = {'type' : 'score', 
+                        default_progs[cols[0]] = {'type' : 'score',
                                                   'default' : float(cols[1])}
                 if len(cols) >= 4:
                     if cols[3] == 'lower=damaging':
@@ -121,11 +121,11 @@ class InSilicoFilter(object):
                         score = float(pred)
                         self.score_filters[prog] = score
                     except ValueError:
-                        raise RuntimeError("ERROR: {} score must be numeric. " 
+                        raise RuntimeError("ERROR: {} score must be numeric. "
                                            .format(prog) + "Could not " +
                                            "convert value '{}' to a number."
                                            .format(pred))
-                elif (pred in default_progs[prog]['default'] or 
+                elif (pred in default_progs[prog]['default'] or
                      pred in default_progs[prog]['valid']):
                     if prog in self.pred_filters:
                         self.pred_filters[prog].add(pred)
@@ -133,9 +133,9 @@ class InSilicoFilter(object):
                         self.pred_filters[prog] = set(pred)
                 else:
                     raise RuntimeError("ERROR: score '{}' not " .format(pred) +
-                                       "recognised as valid for in silico " + 
+                                       "recognised as valid for in silico " +
                                        "prediction program '{}' ".format(prog))
-            else:            
+            else:
                 if default_progs[prog]['type'] == 'score':
                     score = float(default_progs[prog]['default'])
                     self.score_filters[prog] = score
@@ -143,16 +143,16 @@ class InSilicoFilter(object):
                     self.pred_filters[prog] = default_progs[prog]['default']
 
     def filter(self, csq):
-        ''' 
-            Returns False if prediction matches filters for given 
+        '''
+            Returns False if prediction matches filters for given
             consequence, otherwise returns True.
-        
+
             Args:
-                csq: dict of VEP consequence fields to values, as 
+                csq: dict of VEP consequence fields to values, as
                      provided by the CSQ property of a VcfRecord object.
 
         '''
-        
+
         for prog in self.pred_filters:
             try:
                 if csq[prog] != '':
@@ -180,7 +180,7 @@ class InSilicoFilter(object):
                     for p in csq[prog].split('&'):
                         try:
                             score = float(p)
-                        except ValueError: 
+                        except ValueError:
                             continue
                         if prog in self.lower_more_damaging:
                             if score <= self.score_filters[prog]: #
@@ -194,13 +194,13 @@ class InSilicoFilter(object):
                         return False
                     elif do_filter:
                         return True #score not over threshold - filter
-            
+
             except KeyError:
                 raise RuntimeError(self._get_prog_missing_string(prog))
         return False
 
 
     def _get_prog_missing_string(self, prog):
-        return ("'{}' in silico filter program is not present in".format(prog) + 
-               " CSQ field of input VCF - please ensure your input was " + 
+        return ("'{}' in silico filter program is not present in".format(prog) +
+               " CSQ field of input VCF - please ensure your input was " +
                "annotated with the relevant program by VEP.")
