@@ -21,6 +21,7 @@ class VaseRunner(object):
         self.args = args
         self._set_logger()
         self.input = VcfReader(self.args.input)
+        self.var_stream = self.input.parser
         self.prev_cadd_phred = False
         self.prev_cadd_raw = False
         self._get_prev_annotations()
@@ -31,6 +32,10 @@ class VaseRunner(object):
         if args.ped:
             self.ped = PedFile(args.ped)
         self.csq_filter = None
+        self.gene_filter = None
+        if args.gene_bed is not None:
+            self.gene_filter = VarByRegion(self.input, args.gene_bed, True)
+            self.var_stream = self.gene_filter
         if args.csq is not None:
             if args.no_vep_freq:
                 if args.vep_af:
@@ -55,6 +60,7 @@ class VaseRunner(object):
                                 freq=vep_freq,
                                 min_freq=vep_min_freq,
                                 afs=vep_af,
+                                gene_filter=self.gene_filter,
                                 logging_level=self.logger.level)
         self.sample_filter = None
         self.burden_counter = None
@@ -109,7 +115,7 @@ class VaseRunner(object):
         self.print_header()
         var_count = 0
         prog_string = ''
-        for record in self.input.parser:
+        for record in self.var_stream:
             self.process_record(record)
             var_count += 1
             if not self.args.quiet and var_count % self.prog_interval == 0:

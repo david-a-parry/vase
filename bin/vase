@@ -16,6 +16,8 @@ def parse_args():
     file_args = parser.add_argument_group('Annotation File Arguments')
     filter_args = parser.add_argument_group('Variant Filtering Arguments',
         'Arguments for filtering based on variant features')
+    region_args = parser.add_argument_group('Region Filtering Arguments',
+        'Arguments for filtering variants on genomic regions.')
     sample_args = parser.add_argument_group('Sample Based Filtering Arguments',
 '''Arguments for filtering variants based on presence/absence in samples and/or
 inheritance patterns''')
@@ -317,6 +319,12 @@ arguments are in effect):
 
 ''')
 
+        #args for specifying files for annotations/filtering
+    region_args.add_argument(
+'--gene_bed', metavar='BED', help=
+'''Documentation to follow.
+
+''')
         #args for specifying files for annotations/filtering
     file_args.add_argument(
 '--cadd_files', '-cadd_files', metavar='FILE', nargs='+', default=[], help=
