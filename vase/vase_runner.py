@@ -54,6 +54,8 @@ class VaseRunner(object):
                                 filter_flagged_features=args.flagged_features,
                                 freq=vep_freq,
                                 min_freq=vep_min_freq,
+                                filter_known=self.args.filter_known,
+                                filter_novel=self.args.filter_novel,
                                 afs=vep_af,
                                 logging_level=self.logger.level)
         self.sample_filter = None
@@ -373,10 +375,13 @@ class VaseRunner(object):
                 verdict.append(False)
             elif remove_alleles[i]:
                 verdict.append(True)
-            elif self.args.filter_known and matched_alleles[i]:
-                verdict.append(True)
-            elif self.args.filter_novel and not matched_alleles[i]:
-                verdict.append(True)
+            elif self.vcf_filters:
+                if self.args.filter_known and matched_alleles[i]:
+                    verdict.append(True)
+                elif self.args.filter_novel and not matched_alleles[i]:
+                    verdict.append(True)
+                else:
+                    verdict.append(False)
             else:
                 verdict.append(False)
         return verdict, remove_csq
