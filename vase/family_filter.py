@@ -59,13 +59,13 @@ class FamilyFilter(object):
         self.ped = ped
         self.vcf = vcf
         if not self.affected:
-            raise Exception("No affected individuals found in PED file '{}'"
-                            .format(ped.filename))
+            raise RuntimeError("No affected individuals found in PED file '{}'"
+                               .format(ped.filename))
         self.vcf_affected = list(x for x in self.affected 
                                   if x in self.vcf.header.samples)
         if not self.vcf_affected:
-            raise Exception("No affected individuals in PED file '{}'"
-                            .format(ped.filename) + " found in VCF '{}'")
+            raise RuntimeError("No affected individuals in PED file '{}'"
+                               .format(ped.filename) + " found in VCF '{}'")
         self.vcf_unaffected = list(x for x in self.unaffected 
                                     if x in self.vcf.header.samples)
         self.vcf_samples = self.vcf_affected + self.vcf_unaffected
@@ -74,9 +74,10 @@ class FamilyFilter(object):
             self._infer_inheritance()
         if force_inheritance:
             if force_inheritance not in ('dominant', 'recessive'):
-                raise Exception("Unrecognised inheritance pattern specified " +
-                                "with 'force_inheritance' argument. Valid " +
-                                "options are 'dominant' or 'recessive'.")
+                raise RuntimeError("Unrecognised inheritance pattern " +
+                                   "specified with 'force_inheritance' " +
+                                   "argument. Valid options are 'dominant' " + 
+                                   "or 'recessive'.")
             for fid in self.ped.families:
                 self.inheritance_patterns[fid].append(force_inheritance)
 
@@ -300,19 +301,20 @@ class InheritanceFilter(object):
     def _check_sorted(self, record):
         if self._prev_coordinate[0] != record.CHROM:
             if record.CHROM in self._processed_contigs:
-                raise Exception("Input must be sorted by chromosome and " + 
-                                "position for recessive filtering. " + 
-                                "Contig '{}' " .format(record.CHROM) + 
-                                "encountered before and after contig " + 
-                                "'{}'." .format(self._prev_coordinate[0]))
+                raise RuntimeError("Input must be sorted by chromosome and " + 
+                                   "position for recessive filtering. " + 
+                                   "Contig '{}' " .format(record.CHROM) + 
+                                   "encountered before and after contig " + 
+                                   "'{}'." .format(self._prev_coordinate[0]))
             if self._prev_coordinate[0] is not None:
                 self._processed_contigs.add(self._prev_coordinate[0])
         elif record.POS < self._prev_coordinate[1]:
-            raise Exception("Input must be sorted by chromosome and position" + 
-                            "for inheritance filtering. Encountered position" + 
-                            " {}:{} after {}:{}" .format(record.CHROM, 
-                             record.POS, self._prev_coordinate[0], 
-                             self._prev_coordinate[1]))
+            raise RuntimeError("Input must be sorted by chromosome and " + 
+                               "position for inheritance filtering. " + 
+                               "Encountered position {}:{} after {}:{}"
+                               .format(record.CHROM, record.POS, 
+                                       self._prev_coordinate[0], 
+                                       self._prev_coordinate[1]))
         self._prev_coordinate = (record.CHROM, record.POS)
 
     def process_record(self, record):
@@ -519,10 +521,11 @@ class RecessiveFilter(InheritanceFilter):
                                 self._potential_recessives[feat] = OrderedDict(
                                     [(pr.alt_id, pr)])
                 except HeaderError:
-                    raise Exception("Could not identify CSQ or ANN fields " +
-                                    "in VCF header. Please ensure your input" +
-                                    " is annotated with Ensembl's VEP to " +
-                                    "perform recessive filtering")
+                    raise RuntimeError("Could not identify CSQ or ANN " +
+                                       "fields in VCF header. Please ensure " +
+                                       "your input is annotated with " +
+                                       "Ensembl'sVEP to perform recessive "+
+                                       "filtering")
         self._last_added = added_prs
         return stored
 
@@ -861,10 +864,10 @@ class DominantFilter(InheritanceFilter):
                         csqs.append(record.CSQ[j])
             except HeaderError:
                 if self.min_families > 1:
-                    raise Exception("Could not identify CSQ or ANN fields in" +
-                                    " VCF header. Please ensure your input " +
-                                    "is annotated with Ensembl's VEP to " + 
-                                    "perform dominant filtering.")
+                    raise RuntimeError("Could not identify CSQ or ANN fields" +
+                                    " in VCF header. Please ensure your " +
+                                    "input is annotated with Ensembl's VEP " + 
+                                    "to perform dominant filtering.")
             if self.min_families <= 1 or csqs:
                 gts = record.parsed_gts(fields=self._gt_fields, 
                                         samples=self.samples)
@@ -1153,10 +1156,10 @@ class DeNovoFilter(InheritanceFilter):
                         csqs.append(record.CSQ[j])
             except HeaderError:
                 if self.min_families > 1:
-                    raise Exception("Could not identify CSQ or ANN fields in" +
-                                    " VCF header. Please ensure your input " +
-                                    "is annotated with Ensembl's VEP to " + 
-                                    "perform de novo filtering.")
+                    raise RuntimeError("Could not identify CSQ or ANN fields" +
+                                       " in VCF header. Please ensure your " +
+                                       "input is annotated with Ensembl's " + 
+                                       "VEP to perform de novo filtering.")
             if self.min_families <= 1 or csqs:
                 gts = record.parsed_gts(fields=self._gt_fields, 
                                         samples=self.samples)

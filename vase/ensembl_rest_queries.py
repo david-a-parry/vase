@@ -9,7 +9,7 @@ class EnsemblRestQueries(object):
     '''Perform lookups using Ensembl's REST API'''
 
     def __init__(self, use_grch37_server=False, custom_server=None, 
-                 timeout=1.0, max_retries=2, reqs_per_sec=15, 
+                 timeout=1.0, max_retries=2, reqs_per_sec=5, 
                  log_level=logging.INFO):
         self._set_logger(logging_level=log_level)
         self.reqs_per_sec = reqs_per_sec
@@ -50,9 +50,29 @@ class EnsemblRestQueries(object):
         return self.get_endpoint("/xrefs/id/"+query+"?all_levels="+all_levels +
                                  ";external_db=" + external_db)
 
+    def get_via_xref(self, query, species, get_type):
+        endp = "/xrefs/symbol/{}/{}?object_type={}".format(species, query, 
+                                                           get_type)
+        return self.get_endpoint(endp)
+
     def lookup_id(self, query, expand='0', phenotypes='0'):
         return self.get_endpoint("/lookup/id/"+query+"?expand="+expand+
                                  ";phenotypes="+phenotypes)
+
+    def get_parent(self, query, expand='0'):
+        info = self.lookup_id(query)
+        if info:
+            return self.lookup_id(info['Parent'], expand)
+        return None
+
+    def gene_from_enst(self, query, expand='0'):
+        return self.get_parent(query, expand)       
+
+    def gene_from_ensp(self, query, expand='0'):
+        trans = self.get_parent(query)
+        if trans:
+            return self.gene_from_enst(trans['id'])
+        return None
 
     def lookup_variant(self, var, species='human', phenotypes='0'):
         return self.get_endpoint("/variation/"+species+"/"+var+"?phenotypes="

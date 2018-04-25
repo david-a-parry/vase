@@ -90,10 +90,10 @@ class InSilicoFilter(object):
                     elif cols[2] != 'score' :
                         default_progs[cols[0]][cols[2]] = [cols[1]]
                     else:
-                        raise Exception("Error in data/vep_insilico_pred.tsv:"+
-                                        " Should only have one entry for " + 
-                                        "score prediction '{}'".format(cols[0])
-                                        )
+                        raise RuntimeError("Error in {}:".format(pred_file) +
+                                           " Should only have one entry for " + 
+                                           "score prediction '{}'"
+                                           .format(cols[0]))
                 else:
                     if cols[2] != 'score':
                         default_progs[cols[0]] = {'type' : 'pred'}
@@ -113,17 +113,18 @@ class InSilicoFilter(object):
             if prog.lower() in case_insensitive:
                 prog = case_insensitive[prog.lower()]
             else:
-                raise Exception("ERROR: in silico prediction program '{}' "
-                                .format(prog) + "not recognised.")
+                raise RuntimeError("ERROR: in silico prediction program '{}' "
+                                   .format(prog) + "not recognised.")
             if pred is not None:
                 if default_progs[prog]['type'] == 'score':
                     try:
                         score = float(pred)
                         self.score_filters[prog] = score
                     except ValueError:
-                        raise Exception("ERROR: {} score must be numeric. " 
-                                        .format(prog) + "Could not convert " +
-                                        "value '{}' to a number.".format(pred))
+                        raise RuntimeError("ERROR: {} score must be numeric. " 
+                                           .format(prog) + "Could not " +
+                                           "convert value '{}' to a number."
+                                           .format(pred))
                 elif (pred in default_progs[prog]['default'] or 
                      pred in default_progs[prog]['valid']):
                     if prog in self.pred_filters:
@@ -131,9 +132,9 @@ class InSilicoFilter(object):
                     else:
                         self.pred_filters[prog] = set(pred)
                 else:
-                    raise Exception("ERROR: score '{}' not " .format(pred) +
-                                    "recognised as valid for in silico " + 
-                                    "prediction program '{}' ".format(prog))
+                    raise RuntimeError("ERROR: score '{}' not " .format(pred) +
+                                       "recognised as valid for in silico " + 
+                                       "prediction program '{}' ".format(prog))
             else:            
                 if default_progs[prog]['type'] == 'score':
                     score = float(default_progs[prog]['default'])
@@ -168,7 +169,7 @@ class InSilicoFilter(object):
                 elif self.filter_unpredicted:
                         return True
             except KeyError:
-                raise Exception(self._get_prog_missing_string(prog))
+                raise RuntimeError(self._get_prog_missing_string(prog))
         for prog in self.score_filters:
             try:
                 if csq[prog] == '':
@@ -195,7 +196,7 @@ class InSilicoFilter(object):
                         return True #score not over threshold - filter
             
             except KeyError:
-                raise Exception(self._get_prog_missing_string(prog))
+                raise RuntimeError(self._get_prog_missing_string(prog))
         return False
 
 

@@ -46,8 +46,8 @@ class SampleFilter(object):
                         calculated using 'AD' fields if present, 
                         otherwise 'AO' and 'RO' fields (e.g. from 
                         freebayes). If none of these fields are present
-                        in the VCF header and ab is not 0.0 an Exception
-                        will be thrown. Default=0.0.
+                        in the VCF header and ab is not 0.0 a 
+                        RuntimeError will be thrown. Default=0.0.
 
                 confirm_missing:
                         If True, only keep a variant if all controls are
@@ -131,27 +131,28 @@ class SampleFilter(object):
                 case_set.add(c)
             elif c.lower() == 'all':
                 if len(cases) > 1:
-                    raise Exception("'all' can not be used in --cases " + 
-                                    "argument in conjunction with sample " + 
-                                    "names - please specify either 'all' or " +
-                                    "a list of sample IDs, not both.")
+                    raise RuntimeError("'all' can not be used in --cases " + 
+                                       "argument in conjunction with sample " + 
+                                       "names - please specify either 'all' " +
+                                       "or a list of sample IDs, not both.")
                 case_set.update(self.vcf.header.samples)
             else:
                 not_found.add(c)
         if not_found:
             s = list(not_found)
             s.sort()
-            raise Exception("The following samples specified by --cases were" +
-                            " not found in the input VCF: " + str.join(", ",s))
+            raise RuntimeError("The following samples specified by --cases " +
+                               "were not found in the input VCF: " 
+                               + str.join(", ",s))
         for c in controls:
             if c in self.vcf.header.samples:
                 control_set.add(c)
             elif c.lower() == 'all':
                 if len(controls) > 1:
-                    raise Exception("'all' can not be used in --controls " + 
-                                    "argument in conjunction with sample " + 
-                                    "names - please specify either 'all' or " +
-                                    "a list of sample IDs, not both.")
+                    raise RuntimeError("'all' can not be used in --controls " + 
+                                       "argument in conjunction with sample " + 
+                                       "names - please specify either 'all' " +
+                                       "or a list of sample IDs, not both.")
                 for samp in self.vcf.header.samples:
                     if samp not in case_set:
                         control_set.add(samp)
@@ -160,21 +161,21 @@ class SampleFilter(object):
         if not_found:
             s = list(not_found)
             s.sort()
-            raise Exception("The following samples specified by --controls " +
-                            "were not found in the input VCF: " + 
-                            str.join(", ", s))
+            raise RuntimeError("The following samples specified by --controls"+
+                               " were not found in the input VCF: " + 
+                               str.join(", ", s))
         self.cases = list(case_set)
         self.controls = list(control_set)
         self.n_cases = None
         self.n_controls = None
         if n_cases and len(self.cases) < n_cases:
-            raise Exception("Number of cases specified by --n_cases is " + 
-                            "greater than the number of cases specified by " +
-                            "--cases")
+            raise RuntimeError("Number of cases specified by --n_cases is " + 
+                               "greater than the number of cases specified by " +
+                               "--cases")
         if n_controls and len(self.controls) < n_controls:
-            raise Exception("Number of controls specified by --n_controls " + 
-                            "is greater than the number of controls " +
-                            "specified by --controls")
+            raise RuntimeError("Number of controls specified by --n_controls" + 
+                               "is greater than the number of controls " +
+                               "specified by --controls")
         self.samples = self.cases + self.controls
         self.gt_filter = GtFilter(self.vcf, gq=gq, dp=dp, het_ab=het_ab, 
                                   hom_ab=hom_ab)
@@ -226,13 +227,13 @@ class GtFilter(object):
                         genotype. This is calculated using AD FORMAT 
                         field if present. If AD is not present, AO and
                         RO will be used instead if present, otherwise 
-                        throws an Exception. Default=0.
+                        throws a RuntimeError. Default=0.
 
                 hom_ab: Minimum allele balance for a homozygous 
                         genotype. This is calculated using AD FORMAT 
                         field if present. If AD is not present, AO and
                         RO will be used instead if present, otherwise 
-                        throws an Exception. Default=0.
+                        throws a RuntimeError. Default=0.
 
                 ref_ab_filter:
                         Maximum ALT allele balance of homozygous 

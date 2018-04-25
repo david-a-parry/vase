@@ -702,10 +702,10 @@ class VaseRunner(object):
                 try:
                     from Bio import bgzf
                 except ImportError:
-                    raise Exception("Can not import bgzf via " + 
-                                    "biopython. Please install biopython in" +
-                                    " order to write bgzip compressed " + 
-                                    "(.gz/.bgz) output.")
+                    raise RuntimeError("Can not import bgzf via " + 
+                                       "biopython. Please install biopython " +
+                                       "in order to write bgzip compressed " + 
+                                       "(.gz/.bgz) output.")
                 fh = bgzf.BgzfWriter(self.args.output)
             else:
                 fh = open(self.args.output, 'w')
@@ -743,11 +743,11 @@ class VaseRunner(object):
         if not self.ped:
             if (not self.args.singleton_recessive and 
                 not  self.args.singleton_dominant):
-                raise Exception("Inheritance filtering options require a " + 
-                                "PED file specified using --ped or else " + 
-                                "samples specified using " + 
-                                "--singleton_recessive or " +
-                                "--singleton_dominant arguments")
+                raise RuntimeError("Inheritance filtering options require a " + 
+                                   "PED file specified using --ped or else " + 
+                                   "samples specified using " + 
+                                   "--singleton_recessive or " +
+                                   "--singleton_dominant arguments")
             else:
                 self.ped = self._make_ped_io()
                 no_ped = True
@@ -769,10 +769,11 @@ class VaseRunner(object):
                 try:
                     self.ped.add_individual(indv)
                 except PedError:
-                    raise Exception("Sample '{}' ".format(s) + "specified as" +
-                                    " either --singleton_recessive or " +
-                                    "--singleton_dominant already exists in" +
-                                    " PED file {}" .format(self.ped.filename))
+                    raise RuntimeError("Sample '{}' ".format(s) + "specified" +
+                                       " as either --singleton_recessive or " +
+                                       "--singleton_dominant already exists " +
+                                       "in PED file {}" .format(
+                                                            self.ped.filename))
         for s in set(self.args.singleton_dominant):
             self.family_filter.inheritance_patterns[s].append('dominant')
         for s in set(self.args.singleton_recessive):
@@ -806,10 +807,10 @@ class VaseRunner(object):
         if self.args.de_novo or self.args.biallelic or self.args.dominant:
             if (not self.recessive_filter and not self.de_novo_filter and
                 not self.dominant_filter):
-                raise Exception("No inheritance filters could be created " + 
-                                "with current settings. Please check your " +
-                                "ped/sample inputs or run without --biallelic"+
-                                "/--dominant/--de_novo options.")
+                raise RuntimeError("No inheritance filters could be created " + 
+                                   "with current settings. Please check your" +
+                                   " ped/sample inputs or run without "+
+                                   "--biallelic/--dominant/--de_novo options.")
 
     def _get_dominant_filter(self):
         self._get_family_filter()
@@ -830,7 +831,7 @@ class VaseRunner(object):
             msg = ("No samples fit a dominant model - can not use dominant " + 
                    "filtering")
             if not self.args.biallelic and not self.args.de_novo:
-                raise Exception("Error: " + msg)
+                raise RuntimeError("Error: " + msg)
             else:
                 self.logger.warn(msg + ". Will continue with other models.")
                 self.dominant_filter = None
@@ -862,7 +863,7 @@ class VaseRunner(object):
             msg = ("No samples fit a de novo model - can not use de novo " + 
                    "filtering")
             if not self.args.biallelic and not self.args.dominant:
-                raise Exception("Error: " + msg)
+                raise RuntimeError("Error: " + msg)
             else:
                 self.logger.warn(msg + ". Will continue with other models.")
                 self.de_novo_filter = None
@@ -893,7 +894,7 @@ class VaseRunner(object):
             msg = ("No samples fit a recessive model - can not use biallelic" + 
                   " filtering")
             if not self.args.de_novo and not self.args.dominant:
-                raise Exception("Error: " + msg)
+                raise RuntimeError("Error: " + msg)
             else:
                 self.logger.warn(msg + ". Will continue with other models.")
                 self.recessive_filter = None

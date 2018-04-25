@@ -26,10 +26,10 @@ class CaddFilter(object):
                                os.path.isfile(os.path.join(cadd_dir, f))])
         if not cadd_files:
             if cadd_dir:
-                raise Exception("No .gz or .bgz files identified in " + 
-                                cadd_dir)
+                raise RuntimeError("No .gz or .bgz files identified in " + 
+                                   cadd_dir)
             else:
-                raise Exception("No CADD files or directory provided.")
+                raise RuntimeError("No CADD files or directory provided.")
         self.cadd_tabix = self._get_tabix_files(cadd_files)
         self.phred = min_phred
         self.raw = min_raw_score

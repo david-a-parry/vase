@@ -27,8 +27,8 @@ class VepFilter(object):
                 if c.lower() in valid_csq:
                     self.csq.add(c.lower())
                 else:
-                    raise Exception("ERROR: Unrecognised VEP consequence " +  
-                                    "class '{}'".format(c))
+                    raise RuntimeError("ERROR: Unrecognised VEP consequence " +  
+                                       "class '{}'".format(c))
         if len(biotypes) == 0:
             biotypes = ['default']
         for b in biotypes:
@@ -40,8 +40,8 @@ class VepFilter(object):
                 if b.lower() in valid_biotypes:
                     self.biotypes.add(b.lower())
                 else:
-                    raise Exception("ERROR: Unrecognised VEP biotype " +  
-                                    "'{}'".format(b))
+                    raise RuntimeError("ERROR: Unrecognised VEP biotype " +  
+                                       "'{}'".format(b))
         required = ['Consequence', 'BIOTYPE']
         self.canonical = canonical
         if self.canonical:
@@ -76,9 +76,9 @@ class VepFilter(object):
             filter_csq = [True] * len(record.CSQ) 
             #whether each csq should be filtered or not
         except HeaderError:
-            raise Exception("Could not identify CSQ or ANN fields in VCF " +
-                            "header. Please ensure your input is annotated " +
-                            "with Ensembl's VEP")
+            raise RuntimeError("Could not identify CSQ or ANN fields in VCF " +
+                               "header. Please ensure your input is annotated " +
+                               "with Ensembl's VEP")
         i = -1
         for c in record.CSQ:
             i += 1

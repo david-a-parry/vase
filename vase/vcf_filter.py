@@ -38,8 +38,8 @@ class VcfFilter(object):
         self.an_info = an_fields
         if self.freq is not None and self.min_freq is not None:
             if self.freq <= self.min_freq:
-                raise Exception("freq argument must be greater than " +
-                                "min_freq argument")
+                raise RuntimeError("freq argument must be greater than " +
+                                   "min_freq argument")
         self.freq_fields = dict()
         self.ac_fields = dict()
         self.an_fields = dict()
@@ -201,11 +201,11 @@ class VcfFilter(object):
                                      self.min_freq is not None):
             self._get_an_and_ac(self.an_info, self.ac_info)
             if not self.an_fields:
-                raise Exception("ERROR: no frequency fields identified in " + 
-                                "VCF header for file '{}'."
-                                .format(self.vcf.filename) + " Unable to use" +
-                                "freq/min_freq arguments for variant " + 
-                                "filtering.")
+                raise RuntimeError("ERROR: no frequency fields identified in" + 
+                                   " VCF header for file '{}'."
+                                   .format(self.vcf.filename) + " Unable to use" +
+                                   "freq/min_freq arguments for variant " + 
+                                   "filtering.")
 
     def create_header_fields(self):
         '''

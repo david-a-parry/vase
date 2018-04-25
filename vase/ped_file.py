@@ -211,5 +211,5 @@ class Individual(object):
     def is_unknown_gender(self):
         return self.sex != 1 and self.sex != 2
 
-class PedError(Exception):
+class PedError(ValueError):
     pass

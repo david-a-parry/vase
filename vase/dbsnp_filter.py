@@ -50,8 +50,8 @@ class dbSnpFilter(VcfFilter):
         super().__init__(vcf, prefix, freq, min_freq)
         if self.build is not None and self.max_build is not None:
             if self.build > self.max_build:
-                raise Exception("build argument must not be greater than " +
-                                "max_build argument")
+                raise RuntimeError("build argument must not be greater than " +
+                                   "max_build argument")
 
     def annotate_and_filter_record(self, record):
         filter_alleles = []
@@ -201,24 +201,24 @@ class dbSnpFilter(VcfFilter):
         for f in build:
             if f in self.vcf.metadata['INFO']:
                 self.build_fields[f] = self.vcf.metadata['INFO'][f][-1]
-        # raise an Exception if no freq fields if filtering on frequency or if 
-        # no build fields if filtering on build, but let lack of ClinVar fields 
-        # slide as clinvar filtering may be occuring with a separate ClinVar 
-        # file
+        # raise a RuntimeError if no freq fields if filtering on frequency or 
+        # if no build fields if filtering on build, but let lack of ClinVar 
+        # fields slide as clinvar filtering may be occuring with a separate 
+        # ClinVar file
         if not self.freq_fields and (self.freq is not None or 
                                      self.min_freq is not None):
-            raise Exception("ERROR: no frequency fields identified in dbSNP " +  
-                            "VCF header for file '{}'." .format(
-                            self.vcf.filename) + " Unable to use freq/" + 
-                            "min_freq arguments for variant filtering.")
+            raise RuntimeError("ERROR: no frequency fields identified in " +  
+                               "dbSNP VCF header for file '{}'." .format(
+                               self.vcf.filename) + " Unable to use freq/" + 
+                               "min_freq arguments for variant filtering.")
 
         if not self.build_fields and (self.build is not None or 
-                                     self.min_build is not None):
-            raise Exception("ERROR: no dbSNPBuildID field identified in dbSNP " + 
-                            "VCF header for file '{}'." 
-                            .format(self.vcf.filename) +
-                            " Unable to use build/min_build arguments for " + 
-                            "variant filtering.")
+                                     self.max_build is not None):
+            raise RuntimeError("ERROR: no dbSNPBuildID field identified in " + 
+                               "dbSNP VCF header for file '{}'. " 
+                               .format(self.vcf.filename) +
+                               "Unable to use build/max_build arguments for " + 
+                               "variant filtering.")
         
     def create_header_fields(self):
         '''
