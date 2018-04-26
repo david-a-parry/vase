@@ -8,8 +8,8 @@ grch37_server = "http://grch37.rest.ensembl.org/"
 class EnsemblRestQueries(object):
     '''Perform lookups using Ensembl's REST API'''
 
-    def __init__(self, use_grch37_server=False, custom_server=None, 
-                 timeout=1.0, max_retries=2, reqs_per_sec=5, 
+    def __init__(self, use_grch37_server=False, custom_server=None,
+                 timeout=1.0, max_retries=2, reqs_per_sec=5,
                  log_level=logging.INFO):
         self._set_logger(logging_level=log_level)
         self.reqs_per_sec = reqs_per_sec
@@ -23,7 +23,7 @@ class EnsemblRestQueries(object):
             self.server = server
         self.timeout = timeout
         self.max_retries = max_retries
-        
+
     def get_endpoint(self, endpoint, attempt=0):
         # check if we need to rate limit ourselves
         if self.req_count >= self.reqs_per_sec:
@@ -51,7 +51,7 @@ class EnsemblRestQueries(object):
                                  ";external_db=" + external_db)
 
     def get_via_xref(self, query, species, get_type):
-        endp = "/xrefs/symbol/{}/{}?object_type={}".format(species, query, 
+        endp = "/xrefs/symbol/{}/{}?object_type={}".format(species, query,
                                                            get_type)
         return self.get_endpoint(endp)
 
@@ -66,7 +66,7 @@ class EnsemblRestQueries(object):
         return None
 
     def gene_from_enst(self, query, expand='0'):
-        return self.get_parent(query, expand)       
+        return self.get_parent(query, expand)
 
     def gene_from_ensp(self, query, expand='0'):
         trans = self.get_parent(query)
