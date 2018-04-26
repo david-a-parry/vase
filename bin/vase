@@ -17,7 +17,8 @@ def parse_args():
     filter_args = parser.add_argument_group('Variant Filtering Arguments',
         'Arguments for filtering based on variant features')
     region_args = parser.add_argument_group('Region Filtering Arguments',
-        'Arguments for filtering variants on genomic regions.')
+        'Arguments for filtering variants on genomic regions. These arguments'+
+                                           ' are mutually exclusive.')
     bed_args = region_args.add_mutually_exclusive_group()
     sample_args = parser.add_argument_group('Sample Based Filtering Arguments',
 '''Arguments for filtering variants based on presence/absence in samples and/or
@@ -329,6 +330,13 @@ arguments are in effect):
 ''')
 
     #args for specifying files for annotations/filtering
+    bed_args.add_argument(
+'--region', metavar='REGION', nargs='+', help=
+'''Only include variants overlapping these intervals
+(in the format chr1:1000-2000).
+
+''')
+
     bed_args.add_argument(
 '--bed', metavar='BED', help=
 '''Only include variants overlapping the intervals in
