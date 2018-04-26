@@ -14,6 +14,7 @@ from .family_filter import FamilyFilter, ControlFilter
 from .family_filter import RecessiveFilter, DominantFilter, DeNovoFilter
 from .burden_counter import BurdenCounter
 from .var_by_region import VarByRegion
+from .region_iter import RegionIter
 
 class VaseRunner(object):
 
@@ -34,11 +35,15 @@ class VaseRunner(object):
             self.ped = PedFile(args.ped)
         self.csq_filter = None
         self.gene_filter = None
-        #args.bed and args.gene_bed are mutually exclusive (handled by parser)
-        if args.bed is not None: 
-            self.var_stream = VarByRegion(self.input, args.bed)
+        #region, bed and gene_bed args are mutually exclusive (handled by parser)
+        if args.region is not None:
+            self.var_stream = VarByRegion(self.input,
+                                          region_iter=RegionIter(args.region))
+        if args.bed is not None:
+            self.var_stream = VarByRegion(self.input, bed=args.bed)
         if args.gene_bed is not None:
-            self.gene_filter = VarByRegion(self.input, args.gene_bed, True)
+            self.gene_filter = VarByRegion(self.input, bed=args.gene_bed,
+                                           gene_targets=True)
             if args.csq is None:
                 args.csq = ['all']
             self.var_stream = self.gene_filter
