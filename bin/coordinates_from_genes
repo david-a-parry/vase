@@ -95,6 +95,8 @@ def read_gene_list(f, logger):
     genes = []
     with open(f, 'rt') as infile:
         for line in infile:
+            if line.startswith('#'):
+                continue
             x = line.rstrip().split()
             if x:
                 genes.append(x[0])
