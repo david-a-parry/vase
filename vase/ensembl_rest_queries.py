@@ -33,15 +33,15 @@ class EnsemblRestQueries(object):
                 time.sleep(1 - delta)
             self.last_req = time.time()
             self.req_count = 0
-        self.logger.debug("Retrieving {}".format(server+endpoint))
-        r = requests.get(server+endpoint, timeout=self.timeout,
+        self.logger.debug("Retrieving {}".format(self.server+endpoint))
+        r = requests.get(self.server+endpoint, timeout=self.timeout,
                          headers={ "Content-Type" : "application/json"})
         self.req_count += 1
         if not r.ok:
             if attempt < self.max_retries:
                 attempt += 1
                 self.logger.info("Retry {}/{}".format(attempt,self.max_retries)
-                                 + " for {}".format(server+endpoint))
+                                 + " for {}".format(self.server+endpoint))
                 return self.get_endpoint(endpoint, attempt=attempt)
             r.raise_for_status()
         return r.json()
