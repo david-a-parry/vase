@@ -98,7 +98,7 @@ class VarByRegion(object):
                         attribute)
 
         '''
-        for k,v in self.current_targets:
+        for k,v in self.current_targets.items():
             if csq[k] in v:
                 return True
         return False
