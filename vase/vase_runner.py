@@ -13,6 +13,7 @@ from .ped_file import PedFile, Family, Individual, PedError
 from .family_filter import FamilyFilter, ControlFilter
 from .family_filter import RecessiveFilter, DominantFilter, DeNovoFilter
 from .burden_counter import BurdenCounter
+from .var_by_region import VarByRegion
 
 class VaseRunner(object):
 

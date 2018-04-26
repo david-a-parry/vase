@@ -1,5 +1,6 @@
 from .bed_parser import BedParser, BedFormatError
 from collections import defaultdict
+import re
 
 ENSG = re.compile(r'''^ENS\w*G\d{11}(\.\d+)?''')
 ENST = re.compile(r'''^ENS\w*T\d{11}(\.\d+)?''')
