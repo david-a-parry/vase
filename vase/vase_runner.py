@@ -13,6 +13,7 @@ from .ped_file import PedFile, Family, Individual, PedError
 from .family_filter import FamilyFilter, ControlFilter
 from .family_filter import RecessiveFilter, DominantFilter, DeNovoFilter
 from .burden_counter import BurdenCounter
+from .var_by_region import VarByRegion
 
 class VaseRunner(object):
 
@@ -21,6 +22,7 @@ class VaseRunner(object):
         self.args = args
         self._set_logger()
         self.input = VcfReader(self.args.input)
+        self.var_stream = self.input.parser
         self.prev_cadd_phred = False
         self.prev_cadd_raw = False
         self._get_prev_annotations()
@@ -31,6 +33,15 @@ class VaseRunner(object):
         if args.ped:
             self.ped = PedFile(args.ped)
         self.csq_filter = None
+        self.gene_filter = None
+        #args.bed and args.gene_bed are mutually exclusive (handled by parser)
+        if args.bed is not None: 
+            self.var_stream = VarByRegion(self.input, args.bed)
+        if args.gene_bed is not None:
+            self.gene_filter = VarByRegion(self.input, args.gene_bed, True)
+            if args.csq is None:
+                args.csq = ['all']
+            self.var_stream = self.gene_filter
         if args.csq is not None:
             if args.no_vep_freq:
                 if args.vep_af:
@@ -57,6 +68,7 @@ class VaseRunner(object):
                                 filter_known=self.args.filter_known,
                                 filter_novel=self.args.filter_novel,
                                 afs=vep_af,
+                                gene_filter=self.gene_filter,
                                 logging_level=self.logger.level)
         self.sample_filter = None
         self.burden_counter = None
@@ -111,7 +123,7 @@ class VaseRunner(object):
         self.print_header()
         var_count = 0
         prog_string = ''
-        for record in self.input.parser:
+        for record in self.var_stream:
             self.process_record(record)
             var_count += 1
             if not self.args.quiet and var_count % self.prog_interval == 0:

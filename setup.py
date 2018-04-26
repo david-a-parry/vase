@@ -16,6 +16,7 @@ setup(
     install_requires=[
           'pysam',
           'parse_vcf>=0.2.2',
+          'natsort',
       ],
     scripts = ["bin/vase", "bin/burden_test_vase", "bin/vase_reporter"],
     include_package_data=True,

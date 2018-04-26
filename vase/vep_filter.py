@@ -10,8 +10,81 @@ class VepFilter(object):
     def __init__(self, vcf, csq=[], canonical=False, biotypes=[], in_silico=[],
                  filter_unpredicted=False, keep_any_damaging=False,
                  filter_flagged_features=False, freq=None, min_freq=None,
-                 afs=[], filter_known=False, filter_novel=False,
-                 logging_level=logging.WARNING):
+                 afs=[], gene_filter=None, filter_known=False, 
+                 filter_novel=False, logging_level=logging.WARNING):
+        '''
+            Args:
+                vcf:    input VcfReader object
+
+                csq:    list of consequence types to keep. If 'default'
+                        appears anywhere in this list then the default
+                        consequence set (as indicated in
+                        data/vep_classes.tsv) will be used. Similarly if
+                        'all' appears anywhere in this list no filtering
+                        on consequence type will occur.
+
+                canonical:
+                        Filter consequences on non-canonical transcirpts.
+
+                biotypes:
+                        Filter consequences for features not of the
+                        given biotypes. If not provided the default set
+                        of biotypes (as indicated in data/biotypes.tsv)
+                        will be used for biotype filtering.
+
+                in_silico:
+                        List of programs and optionally score criteria
+                        for filtering of missense variants using the
+                        InSilicoFilter class in vase.insilico_filter.
+
+                filter_unpredicted:
+                        If using 'in_silico' option, filter missense
+                        variants that have missing values for any of the
+                        specified filtering programs.
+
+                keep_any_damaging:
+                        If using 'in_silico' option, retain variants if
+                        any of the criteria are met for any of the
+                        specified filtering programs.
+
+                filter_flagged_features:
+                        Filter consequences on features which are
+                        flagged by VEP.
+
+                freq:   Filter consequences if the annotated allele
+                        frequency is equal to or greater than this value.
+                        By default all allele frequency annotations as
+                        listed in "data/vep_maf.tsv" are used, but this
+                        can be altered using the 'afs' option.
+
+                min_freq:
+                        As for 'freq' argument but filters consequences
+                        if the allele frequency annotation is less than
+                        this value.
+
+                filter_known:
+                        Filter consequences if allele frequency is given
+                        for any of the available VEP frequency
+                        annotations.
+
+                filter_novel:
+                        Filter consequences if no allele frequency is
+                        given for any of the available VEP frequency
+                        annotations.
+
+                afs:    Only use the listed allele frequency annotations
+                        for freq/min_freq/novelty filtering.
+
+                gene_filter:
+                        VarByRegion object from vase.var_by_region. If
+                        provided, consequences will be filtered if they
+                        do not alter the features specified in the
+                        VarByRegion object for the current region.
+
+                logging_level:
+                        Logging level to use. Default=logging.WARNING.
+
+        '''
         self.logger = self._get_logger(logging_level)
         default_csq, valid_csq = self._read_csq_file()
         default_biotypes, valid_biotypes = self._read_biotype_file()
@@ -59,6 +132,7 @@ class VepFilter(object):
                 raise RuntimeError("Could not identify CSQ or ANN fields in " +
                                 "VCF header. Please ensure your input is " +
                                 "annotated with Ensembl's VEP")
+        self.gene_filter = gene_filter
         self.freq = freq
         self.min_freq = min_freq
         self.afs = afs
@@ -102,8 +176,11 @@ class VepFilter(object):
                     pass
             if c['BIOTYPE'] not in self.biotypes:
                 continue
+            if self.gene_filter:
+                if not self.gene_filter.target_in_csq(c):
+                    continue
             if (self.freq or self.min_freq or self.filter_known or
-                self.filter_novel):
+                    self.filter_novel):
                 known = False
                 for af in self.freq_fields:
                     if c[af] == '' or c[af] == '.':
