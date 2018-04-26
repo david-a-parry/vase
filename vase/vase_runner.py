@@ -34,6 +34,9 @@ class VaseRunner(object):
             self.ped = PedFile(args.ped)
         self.csq_filter = None
         self.gene_filter = None
+        #args.bed and args.gene_bed are mutually exclusive (handled by parser)
+        if args.bed is not None: 
+            self.var_stream = VarByRegion(self.input, args.bed)
         if args.gene_bed is not None:
             self.gene_filter = VarByRegion(self.input, args.gene_bed, True)
             if args.csq is None:
