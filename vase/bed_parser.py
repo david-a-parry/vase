@@ -5,19 +5,19 @@ from natsort import natsorted
 from .genomic_interval import GenomicInterval
 
 class BedParser(object):
-    ''' 
-        For a given BED file, read into memory and merge overlapping 
+    '''
+        For a given BED file, read into memory and merge overlapping
         intervals. Merged intervals are iterable as GenomicInterval
-        objects with unmerged intervals retained in the 'regions' 
+        objects with unmerged intervals retained in the 'regions'
         property of the GenomicInterval object.
     '''
 
-    __slots__ = ['bed', 'min_col', 'intervals', 'current'] 
+    __slots__ = ['bed', 'min_col', 'intervals', 'current']
 
     def __init__(self, bed, min_col=3):
-        ''' 
-            Opens given bed file, reads into memory. Regions are sorted 
-            and merged to provide non-overlapping intervals for 
+        '''
+            Opens given bed file, reads into memory. Regions are sorted
+            and merged to provide non-overlapping intervals for
             traversal.
         '''
         self.bed = bed
@@ -33,13 +33,13 @@ class BedParser(object):
             self.current += 1
             return self.intervals[self.current-1]
         raise StopIteration
-       
+
     def _read_bed(self):
         regions = []
         if self.bed.endswith((".gz", ".bgz")):
             bfile = gzip.open(self.bed, errors='replace', mode='rt')
         else:
-            bfile = open (self.bed, 'rt') 
+            bfile = open (self.bed, 'rt')
         for line in bfile:
             if line[0] == '#': continue
             s = line.rstrip().split("\t")
