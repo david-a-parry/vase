@@ -16,7 +16,7 @@ class GenomicInterval(object):
         self.start = int(interval[1]) #should be 0-based
         self.end = int(interval[2])
         self.regions = [interval]
-        if start >= end:
+        if self.start >= self.end:
             raise ValueError("Start of BED interval can not be equal to or " +
                              "greater than end (for interval {}:{}-{})"
                              .format(self.contig, self.start+1, self.end))
