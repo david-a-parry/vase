@@ -1,4 +1,4 @@
-
+import operator
 
 class GenomicInterval(object):
     '''
@@ -76,7 +76,7 @@ class GenomicInterval(object):
         if other.end > self.end:
             self.end = other.end
         self.regions.extend(other.regions)
-        self.regions.sort(key=operator.itemgetter(0, 1, 2, 3))
+        self.regions.sort(key=operator.itemgetter(0, 1, 2))
 
 
 class NonOverlappingIntervalError(ValueError):
