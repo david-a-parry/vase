@@ -13,10 +13,11 @@ class VarByRegion(object):
         BED file.
 
     '''
-    __slots__ = ['vcfreader', 'bedparser', 'current_region', 'current_targets',
+    __slots__ = ['vcfreader', 'region_iter', 'current_region', 'current_targets',
                  'gene_targets']
 
-    def __init__(self, vcfreader, bed, gene_targets=False):
+    def __init__(self, vcfreader, bed=None, region_iter=None, 
+                 gene_targets=False):
         '''
             Args:
                 vcfreader:
@@ -24,7 +25,12 @@ class VarByRegion(object):
 
                 bed:
                     Filename for BED file containing regions to retrieve
-                    variants from.
+                    variants from. Either this or region_iter argument
+                    is required.
+
+                region_iter:
+                    An iterator that gives GenomicInterval objects.
+                    Either this or bed argument is required.
 
                 gene_targets:
                     If True, fourth column of BED input contains gene
@@ -34,8 +40,16 @@ class VarByRegion(object):
 
         '''
         self.gene_targets = gene_targets
-        min_col = 4 if gene_targets else 3
-        self.bedparser = BedParser(bed, min_col=min_col)
+        if region_iter:
+            if bed:
+                raise ValueError("bed and region_iter arguments are mutually" +
+                                 "exclusive")
+            self.region_iter = region_iter
+        elif bed:
+            min_col = 4 if gene_targets else 3
+            self.region_iter = BedParser(bed, min_col=min_col)
+        else:
+            raise ValueError("Either bed or region_iter argument is required.")
         self.vcfreader = vcfreader
         self.current_region = None
         self.current_targets = defaultdict(list)  # keys are VEP columns,
@@ -46,7 +60,7 @@ class VarByRegion(object):
 
     def __next__(self):
         '''
-            For each region in bedparser return each overlapping variant
+            For each region in region_iter return each overlapping variant
             in vcfreader.
         '''
         if self.current_region is None:
@@ -68,7 +82,7 @@ class VarByRegion(object):
             Retrieve next GenomicInterval and if using gene_targets set
             current_targets.
         '''
-        self.current_region = next(self.bedparser)
+        self.current_region = next(self.region_iter)
         if self.gene_targets:
             self._targets_from_region()
 
