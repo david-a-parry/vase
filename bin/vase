@@ -146,6 +146,7 @@ default classes will be used:
                   regulatory_region_amplification
                   splice_acceptor_variant
                   splice_donor_variant
+                  start_lost
                   stop_gained
                   stop_lost
                   transcript_ablation
