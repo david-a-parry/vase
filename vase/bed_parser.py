@@ -58,7 +58,7 @@ class BedParser(object):
     def _merge_regions(self, regions):
         ''' Return a list of merged regions as GenomicInterval objects.'''
         regions = natsorted(regions, key=operator.itemgetter(0, 1, 2, 3))
-        genomic_invtervals = []
+        genomic_intervals = []
         prev_i = None
         for r in regions:
             gi = GenomicInterval(r)
