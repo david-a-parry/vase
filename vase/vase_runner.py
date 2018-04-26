@@ -36,6 +36,8 @@ class VaseRunner(object):
         self.gene_filter = None
         if args.gene_bed is not None:
             self.gene_filter = VarByRegion(self.input, args.gene_bed, True)
+            if args.csq is None:
+                args.csq = ['all']
             self.var_stream = self.gene_filter
         if args.csq is not None:
             if args.no_vep_freq:
