@@ -18,6 +18,7 @@ def parse_args():
         'Arguments for filtering based on variant features')
     region_args = parser.add_argument_group('Region Filtering Arguments',
         'Arguments for filtering variants on genomic regions.')
+    bed_args = region_args.add_mutually_exclusive_group()
     sample_args = parser.add_argument_group('Sample Based Filtering Arguments',
 '''Arguments for filtering variants based on presence/absence in samples and/or
 inheritance patterns''')
@@ -319,13 +320,27 @@ arguments are in effect):
 
 ''')
 
-        #args for specifying files for annotations/filtering
-    region_args.add_argument(
-'--gene_bed', metavar='BED', help=
-'''Documentation to follow.
+    #args for specifying files for annotations/filtering
+    bed_args.add_argument(
+'--bed', metavar='BED', help=
+'''Only include variants overlapping the intervals in
+the provided BED file.
 
 ''')
-        #args for specifying files for annotations/filtering
+
+    bed_args.add_argument(
+'--gene_bed', metavar='BED', help=
+'''The fourth column of the provided BED file should
+contain gene symbols and/or Ensembl
+gene/transcript/protein identifiers. Only variants
+in the regions in the given BED will be processed
+and only those with a VEP annotation matching the
+provided IDs will be written. Requires input to be
+annotated with VEP.
+
+''')
+
+    #args for specifying files for annotations/filtering
     file_args.add_argument(
 '--cadd_files', '-cadd_files', metavar='FILE', nargs='+', default=[], help=
 '''One or more tabix indexed CADD annotation files
