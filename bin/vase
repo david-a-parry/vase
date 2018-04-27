@@ -161,6 +161,10 @@ example, you want to filter on other VEP
 annotations (e.g. allele frequency or biotype)
 irrespective of consequence.
 
+Note, that using the --csq option automaticaally
+turns on biotype filtering (see the --biotype
+option below).
+
 ''' )
     filter_args.add_argument(
 '--canonical', '-canonical', action='store_true', help=
