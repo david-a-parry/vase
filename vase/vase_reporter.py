@@ -4,7 +4,7 @@ import logging
 import xlsxwriter
 from collections import namedtuple
 from .ped_file import PedFile, Family, Individual, PedError
-from parse_vcf import VcfReader, VcfHeader, VcfRecord 
+from parse_vcf import VcfReader, VcfHeader, VcfRecord
 from .ensembl_rest_queries import EnsemblRestQueries
 
 vcf_output_columns = ['CHROM', 'POS', 'ID', 'REF', 'ALT', 'QUAL', 'FILTER',]
@@ -13,7 +13,7 @@ feat_annots = { 'VASE_biallelic_families': 'VASE_biallelic_features',
                 'VASE_de_novo_families': 'VASE_de_novo_features',}
 
 class VaseReporter(object):
-    ''' Read a VASE annotated VCF and output XLSX format summary of 
+    ''' Read a VASE annotated VCF and output XLSX format summary of
         segregating variants. '''
 
     def __init__(self, vcf, ped, out, families=[], all_features=False,
@@ -48,7 +48,7 @@ class VaseReporter(object):
         self.families = set(families)
         if self.rest_lookups:
             self.ensembl_rest = EnsemblRestQueries(use_grch37_server=grch37,
-                                                   timeout=timeout, 
+                                                   timeout=timeout,
                                                    max_retries=max_retries,
                                                    log_level=self.logger.level)
         self.rest_cache = dict()
@@ -90,9 +90,9 @@ class VaseReporter(object):
             self.logger.info("Found VASE de_novo annotations.")
             seg = True
         if not seg:
-            raise RuntimeError("no vase recessive/dominant/de novo " + 
+            raise RuntimeError("no vase recessive/dominant/de novo " +
                                "annotations found in vcf - please run vase " +
-                               "with --biallelic, --dominant or --de_novo " + 
+                               "with --biallelic, --dominant or --de_novo " +
                                " options first.")
         return inheritance_fields
 
@@ -103,7 +103,7 @@ class VaseReporter(object):
         header.extend(self._get_sample_order(family))
         header.extend(x for x in self.vcf.header.csq_fields if x != 'Allele')
         if self.rest_lookups:
-            header.extend(["ENTREZ", "GO", "REACTOME", "MOUSE_TRAITS", 
+            header.extend(["ENTREZ", "GO", "REACTOME", "MOUSE_TRAITS",
                            "MIM_MORBID"])
         for i in range(len(header)):
             worksheet.write(0, i, header[i], self.bold)
@@ -148,16 +148,16 @@ class VaseReporter(object):
         mim = ''
         go_data = self.ensembl_rest.get_xref(csq['Feature'], external_db='GO')
         if go_data:
-            go = str.join("|", (x['description'] for x in go_data if 
+            go = str.join("|", (x['description'] for x in go_data if
                                 x['description'] is not None))
         if csq['Gene']:
             xref_data = self.ensembl_rest.get_xref(csq['Gene'])
-            
-            entrez = str.join("|", (x['primary_id'] for x in xref_data 
+
+            entrez = str.join("|", (x['primary_id'] for x in xref_data
                                     if x['dbname'] == 'EntrezGene'))
-            reactome = str.join("|", (x['description'] for x in xref_data 
+            reactome = str.join("|", (x['description'] for x in xref_data
                                       if x['dbname'] == 'Reactome_gene'))
-            mim = str.join("|", (x['description'] for x in xref_data 
+            mim = str.join("|", (x['description'] for x in xref_data
                                  if x['dbname'] == 'MIM_MORBID'))
             orth = self.ensembl_rest.lookup_ortholog(csq['Gene'])
             if orth is not None:
@@ -185,9 +185,9 @@ class VaseReporter(object):
             col += 1
 
     def write_records(self, record, family, inheritance, allele, features):
-        for csq in (x for x in record.CSQ if x['Feature'] in features and 
+        for csq in (x for x in record.CSQ if x['Feature'] in features and
                     x['alt_index'] == allele):
-            #column order is: Inheritance, vcf_output_columns, allele, AC, AN, 
+            #column order is: Inheritance, vcf_output_columns, allele, AC, AN,
             #                 GTS, VEP fields
             values = [inheritance]
             values.extend(getattr(record, f) for f in vcf_output_columns)
@@ -198,16 +198,16 @@ class VaseReporter(object):
                 else:
                     values.append('.')
             values.append(record.FORMAT)
-            values.extend(record.CALLS[x] for x in 
+            values.extend(record.CALLS[x] for x in
                           self._get_sample_order(family))
-            values.extend(csq[x] for x in self.vcf.header.csq_fields if 
+            values.extend(csq[x] for x in self.vcf.header.csq_fields if
                               x != 'Allele')
-            col = self.write_row(self.worksheets[family], self.rows[family], 
+            col = self.write_row(self.worksheets[family], self.rows[family],
                                  values)
             if self.rest_lookups:
-                self.write_rest_data(self.worksheets[family],  
+                self.write_rest_data(self.worksheets[family],
                                      self.rows[family],
-                                     col, 
+                                     col,
                                      csq)
             self.rows[family] += 1
 
@@ -218,22 +218,22 @@ class VaseReporter(object):
         w = 0
         for record in self.vcf.parser:
             n += 1
-            info = record.parsed_info_fields(list(self.seg_fields.keys()) + 
+            info = record.parsed_info_fields(list(self.seg_fields.keys()) +
                                              list(feat_annots.values()))
             for annot,pattern in self.seg_fields.items():
                if annot in info:
-                    for i in range(len(info[annot])): 
-                        if info[annot][i] is None: 
+                    for i in range(len(info[annot])):
+                        if info[annot][i] is None:
                             continue
                         if self.all_features:
-                            feat = list(x['Feature'] for x in record.CSQ if 
-                                        x['Feature'] != '' and 
+                            feat = list(x['Feature'] for x in record.CSQ if
+                                        x['Feature'] != '' and
                                         x['alt_index'] == i +1)
                         else:
                             feat = info[feat_annots[annot]][i].split("|")
                         for fam in info[annot][i].split("|"):
                             if fam in self.families:
-                                self.write_records(record, fam, pattern, i+1, 
+                                self.write_records(record, fam, pattern, i+1,
                                                    feat)
             if n % self.prog_interval == 0:
                 self.logger.info("Parsed {:,} records".format(n))
