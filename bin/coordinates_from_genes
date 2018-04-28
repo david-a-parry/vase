@@ -12,11 +12,12 @@ enst = re.compile(r'''^ENS\w*T\d{11}(\.\d+)?''')
 ensp = re.compile(r'''^ENS\w*P\d{11}(\.\d+)?''')
 chrm = re.compile(r'''^[1-9M]?[0-9XYTWZUV]$''')
 
-def main(genes=[], gene_list=None, grch37=False, species="human", 
-         main_chr_only=False, add_chr=False, sort_regions=False, timeout=5.0, 
-         max_retries=2, quiet=False, debug=False):
-    logger = get_logger(quiet, debug)    
-    ensembl_rest = EnsemblRestQueries(use_grch37_server=grch37, 
+def main(genes=[], gene_list=None, grch37=False, species="human",
+         main_chr_only=False, add_chr=False, sort_regions=False,
+         output_intervals=False, timeout=5.0, max_retries=2, quiet=False,
+         debug=False):
+    logger = get_logger(quiet, debug)
+    ensembl_rest = EnsemblRestQueries(use_grch37_server=grch37,
                                       timeout=timeout, max_retries=max_retries,
                                       log_level=logger.level)
     if gene_list:
@@ -34,10 +35,11 @@ def main(genes=[], gene_list=None, grch37=False, species="human",
             regions.extend(r)
     if sort_regions:
         regions = natsorted(regions, key=operator.itemgetter(0, 1, 2, 3))
-    output_regions(regions, main_chr_only, add_chr)
+    output_regions(regions, main_chr_only, add_chr, output_intervals)
 
-def output_regions(regions, main_chr_only=False, add_chr=False):
-    ''' 
+def output_regions(regions, main_chr_only=False, add_chr=False,
+                   output_intervals=False):
+    '''
         Output BED format - columns are chr, start (0-based), end, name,
         score and strand.
     '''
@@ -47,9 +49,12 @@ def output_regions(regions, main_chr_only=False, add_chr=False):
             continue
         if add_chr and chrm.match(r[0]):
             r[0] = "chr" + r[0]
-        print(str.join("\t", (str(x) for x in (r[0], r[1] -1 , r[2], 
-                                               r[4] + "/" + r[5], '0', 
-                                               strand[r[3]]))))
+        if output_intervals:
+            print("{}:{}-{}\t{}".format(r[0], r[1], r[2], r[4] + "/" + r[5]))
+        else:
+            print(str.join("\t", (str(x) for x in (r[0], r[1] -1 , r[2],
+                                                   r[4] + "/" + r[5], '0',
+                                                   strand[r[3]]))))
 
 def get_coords(x, t, species, rest, logger):
     gene_info = []
@@ -75,7 +80,7 @@ def get_coords(x, t, species, rest, logger):
     if not gene_info:
         logger.warn("REST lookup failed for {}".format(x))
         return []
-    return ([inf[x] for x in ['seq_region_name', 'start', 'end', 'strand', 
+    return ([inf[x] for x in ['seq_region_name', 'start', 'end', 'strand',
                               'id', 'display_name']] for inf in gene_info)
 
 def symbol_or_id(g):
@@ -122,24 +127,24 @@ def get_logger(quiet=False, debug=False):
 
 def parse_args():
     parser = argparse.ArgumentParser(
-           usage='''%(prog)s -l gene_list.txt [options] 
+           usage='''%(prog)s -l gene_list.txt [options]
        %(prog)s -g gene1 [gene2 ...] [options]''',
            description='''Retrieve gene coordinates from Ensembl's REST
                           server.''')
     parser.add_argument("-g", "--genes", nargs='+', help=
-                        '''One or more gene symbols/IDs to retrieve coordinates 
-                           for. Recognises Ensembl gene/transcript/protein 
-                           identifiers and otherwise does a cross-reference 
+                        '''One or more gene symbols/IDs to retrieve coordinates
+                           for. Recognises Ensembl gene/transcript/protein
+                           identifiers and otherwise does a cross-reference
                            lookup in other databases.''')
     parser.add_argument("-l", "--gene_list", help=
-                        '''File containing a list of gene symbols/IDs to 
+                        '''File containing a list of gene symbols/IDs to
                            retrieve coordinates for.''')
     parser.add_argument("--grch37", action="store_true", help=
-                        '''Use GRCh37 REST server 
-                           (http://grch37.rest.ensembl.org/) for REST 
+                        '''Use GRCh37 REST server
+                           (http://grch37.rest.ensembl.org/) for REST
                            lookups.''')
     parser.add_argument("-s", "--species", default='human', help=
-                        '''Species to look up (if using gene symbols rather 
+                        '''Species to look up (if using gene symbols rather
                            than IDs). Default=human''')
     parser.add_argument("-x", "--sort_regions", action='store_true', help=
                         '''Output regions sorted by chromosome and coordinate.
@@ -149,11 +154,13 @@ def parse_args():
                            - ignore unplaced contigs/haplotype regions.''')
     parser.add_argument("-a", "--add_chr", action='store_true', help=
                         '''Prepend 'chr' to standard chromosomes in output.''')
+    parser.add_argument("-i", "--output_intervals", action='store_true', help=
+                        '''Output interval format rather than BED.''')
     parser.add_argument("-t", "--timeout", type=float, default=5.0, help=
-                        '''Timeout (in seconds) for REST lookups. 
+                        '''Timeout (in seconds) for REST lookups.
                            Default=5.0''')
     parser.add_argument("-m", "--max_retries", type=int, default=2, help=
-                        '''Number of reattempts for REST lookups that fail. 
+                        '''Number of reattempts for REST lookups that fail.
                            Default=2''')
     parser.add_argument('-q', '--quiet', action='store_true', help=
                         '''Do not output progress information to STDERR.''')
