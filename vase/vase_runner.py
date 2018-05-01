@@ -51,6 +51,8 @@ class VaseRunner(object):
                                            gene_targets=True)
             if args.csq is None:
                 args.csq = ['all']
+            if args.biotypes is None:
+                args.biotypes = ['all']
             self.var_stream = self.gene_filter
             self.logger.info("Finished processing intervals.")
         if args.csq is not None:
