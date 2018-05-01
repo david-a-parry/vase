@@ -111,8 +111,8 @@ class VepFilter(object):
             elif b.lower() == 'default':
                 self.biotypes.update(default_biotypes)
             else:
-                if b.lower() in valid_biotypes:
-                    self.biotypes.add(b.lower())
+                if b in valid_biotypes:
+                    self.biotypes.add(b)
                 else:
                     raise RuntimeError("ERROR: Unrecognised VEP biotype " +
                                        "'{}'".format(b))
