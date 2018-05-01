@@ -64,20 +64,20 @@ class VarByRegion(object):
             in vcfreader.
         '''
         if self.current_region is None:
-            self._set_interval()
+            self._next_interval()
             self.vcfreader.set_region(self.current_region.contig,
                                       self.current_region.start,
                                       self.current_region.end)
-        try:
-            return next(self.vcfreader.parser)
-        except StopIteration:
-            self._set_interval()
+        record = next(self.vcfreader, None)
+        while record is None:
+            self._next_interval()
             self.vcfreader.set_region(self.current_region.contig,
                                       self.current_region.start,
                                       self.current_region.end)
-            return next(self)
+            record = next(self.vcfreader, None)
+        return record
 
-    def _set_interval(self):
+    def _next_interval(self):
         '''
             Retrieve next GenomicInterval and if using gene_targets set
             current_targets.
