@@ -96,7 +96,8 @@ class VepFilter(object):
             if c.lower() == 'default':
                 self.csq.update(default_csq)
             elif c.lower() == 'all':
-                self.csq.update(valid_csq)
+                self.csq = None
+                break
             else:
                 if c.lower() in valid_csq:
                     self.csq.add(c.lower())
@@ -107,7 +108,8 @@ class VepFilter(object):
             biotypes = ['default']
         for b in biotypes:
             if b.lower() == 'all':
-                self.biotypes.update(valid_biotypes)
+                self.biotypes = None
+                break
             elif b.lower() == 'default':
                 self.biotypes.update(default_biotypes)
             else:
@@ -174,7 +176,7 @@ class VepFilter(object):
                         continue
                 except KeyError:
                     pass
-            if c['BIOTYPE'] not in self.biotypes:
+            if self.biotypes is not None and c['BIOTYPE'] not in self.biotypes:
                 continue
             if self.gene_filter:
                 if not self.gene_filter.target_in_csq(c):
@@ -209,6 +211,10 @@ class VepFilter(object):
                     filter_af[alt_i] = True
                 if filter_af[alt_i]:
                     continue
+            if self.csq is None: #if only using biotypes/MAF for filtering
+                filter_alleles[alt_i] = False
+                filter_csq[i] = False
+                continue
             consequence = c['Consequence'].split('&')
             for s_csq in consequence:
                 if s_csq in self.csq:
