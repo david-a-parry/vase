@@ -6,50 +6,50 @@ from collections import defaultdict
 
 class CaddFilter(object):
     '''
-        An object that filters/annotates VCF records using CADD PHRED 
-        scores provided by at least one tabix indexed file of CADD 
+        An object that filters/annotates VCF records using CADD PHRED
+        scores provided by at least one tabix indexed file of CADD
         scores.
     '''
 
     def __init__(self, cadd_files=[], cadd_dir=[], min_phred=None,
                  min_raw_score=None, logging_level=logging.WARNING):
         '''
-            Either a directory containing at least one tabix indexed 
-            file of CADD scores or a list of such files must be 
+            Either a directory containing at least one tabix indexed
+            file of CADD scores or a list of such files must be
             provided. Optionally a minimum PHRED score for filtering
             records can be provided.
         '''
         self.logger = self._get_logger(logging_level)
         if cadd_dir:
-            cadd_files.extend([os.path.join(cadd_dir, f) for f in os.listdir(cadd_dir) if 
-                               f.endswith(('.gz', '.bgz')) and 
+            cadd_files.extend([os.path.join(cadd_dir, f) for f in os.listdir(cadd_dir) if
+                               f.endswith(('.gz', '.bgz')) and
                                os.path.isfile(os.path.join(cadd_dir, f))])
         if not cadd_files:
             if cadd_dir:
-                raise RuntimeError("No .gz or .bgz files identified in " + 
+                raise RuntimeError("No .gz or .bgz files identified in " +
                                    cadd_dir)
             else:
                 raise RuntimeError("No CADD files or directory provided.")
         self.cadd_tabix = self._get_tabix_files(cadd_files)
         self.phred = min_phred
         self.raw = min_raw_score
-        self.info_fields = {'CADD_PHRED_score': {'Number': 'A', 
+        self.info_fields = {'CADD_PHRED_score': {'Number': 'A',
                                            'Type': 'Float',
                                            'Description': 'CADD PHRED score ' +
-                                                          'added from ' + 
-                                                          'reference files ' + 
+                                                          'added from ' +
+                                                          'reference files ' +
                                                           'by VASE'},
                             'CADD_raw_score': {'Number': 'A', 'Type': 'Float',
                                               'Description': 'CADD RawScore' +
-                                                             ' added from ' + 
+                                                             ' added from ' +
                                                              'reference files'+
                                                              ' by VASE'},}
 
     def annotate_or_filter(self, record):
-        ''' 
-            Annotates record with CADD raw and PHRED scores and returns 
-            a list of booleans indicating whether each allele should be 
-            filtered (i.e. each allele has a CADD raw or PHRED score 
+        '''
+            Annotates record with CADD raw and PHRED scores and returns
+            a list of booleans indicating whether each allele should be
+            filtered (i.e. each allele has a CADD raw or PHRED score
             below threshold).
         '''
         scores = self.score_record(record)
@@ -70,12 +70,12 @@ class CaddFilter(object):
         return filter_alleles
 
     def score_record(self, record):
-        ''' 
-            Returns tuple of raw score and phred score for each allele. 
+        '''
+            Returns tuple of raw score and phred score for each allele.
             Returns the scores for the first matching record encountered
             in cadd files.
         '''
-        start = record.POS - 1 
+        start = record.POS - 1
         end = record.SPAN
         hits = self.search_coordinates(record.CHROM, start, end)
         scores = []
@@ -83,8 +83,8 @@ class CaddFilter(object):
             s = (None, None)
             for h in hits:
                 (pos, ref, alt, raw, phred) = h
-                if (record.DECOMPOSED_ALLELES[i].POS == pos and 
-                    record.DECOMPOSED_ALLELES[i].REF == ref and 
+                if (record.DECOMPOSED_ALLELES[i].POS == pos and
+                    record.DECOMPOSED_ALLELES[i].REF == ref and
                     record.DECOMPOSED_ALLELES[i].ALT == alt):
                     s = (raw, phred)
                     break #bail on first matching variant
@@ -114,7 +114,7 @@ class CaddFilter(object):
             else:
                 break
         return (pos, ref, alt, cols[4], cols[5])
- 
+
 
     def search_coordinates(self, chrom, start, end):
         hits = []
