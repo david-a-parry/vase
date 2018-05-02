@@ -15,7 +15,7 @@ setup(
     license='MIT',
     install_requires=[
           'pysam',
-          'parse_vcf>=0.2.2',
+          'parse_vcf>=0.2.3',
           'natsort',
       ],
     scripts = ["bin/vase", "bin/burden_test_vase", "bin/vase_reporter"],
