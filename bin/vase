@@ -16,6 +16,7 @@ def parse_args():
     file_args = parser.add_argument_group('Annotation File Arguments')
     filter_args = parser.add_argument_group('Variant Filtering Arguments',
         'Arguments for filtering based on variant features')
+    filter_field_args = filter_args.add_mutually_exclusive_group()
     region_args = parser.add_argument_group('Region Filtering Arguments',
         'Arguments for filtering variants on genomic regions. These arguments'+
                                            ' are mutually exclusive.')
@@ -83,10 +84,31 @@ Variants with a QUAL score below this value will be
 filtered/ignored.
 
 ''')
-    filter_args.add_argument(
+    filter_field_args.add_argument(
 '-p', '--pass_filters', action='store_true', default=False, help=
 '''Only keep variants that have passed filters
 (i.e. FILTER field must be "PASS")
+
+''' )
+    filter_field_args.add_argument(
+'--keep_filters', nargs='+', help=
+'''Only keep variants that have these FILTER Fields.
+Can not be used with --pass_filters but you can
+use 'pass' as one of your arguments here to retain
+variants that pass filters in addition to variants
+with a FILTER Field matching the values specified.
+If multiple filter annotations are given for a
+variant all must match one of these fields or it
+will be filtered.
+
+''' )
+
+    filter_args.add_argument(
+'--exclude_filters', nargs='+', help=
+'''Filter variants that have these FILTER Fields.
+If multiple filter annotations are given for a
+variant it will be excluded if any match one of
+the given fields.
 
 ''' )
 

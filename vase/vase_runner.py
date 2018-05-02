@@ -24,6 +24,12 @@ class VaseRunner(object):
         self._set_logger()
         self.input = VcfReader(self.args.input)
         self.var_stream = self.input.parser
+        self.keep_filters = None
+        self.exclude_filters = None
+        if args.keep_filters:
+            self.keep_filters = set(args.keep_filters)
+        if args.exclude_filters:
+            self.exclude_filters = set(args.exclude_filters)
         self.prev_cadd_phred = False
         self.prev_cadd_raw = False
         self._get_prev_annotations()
@@ -511,6 +517,14 @@ class VaseRunner(object):
         ''' Return True if record fails any global variant filters.'''
         if self.args.pass_filters:
             if record.FILTER != 'PASS':
+                return True
+        elif self.keep_filters: #--pass and --keep_filters are mutually excl.
+            fs = record.FILTER.split(';')
+            if not self.keep_filters.issuperset(fs):
+                return True
+        if self.exclude_filters:
+            fs = record.FILTER.split(';')
+            if self.exclude_filters.intersection(fs):
                 return True
         if self.args.variant_quality is not None:
             if record.QUAL < self.args.variant_quality:
