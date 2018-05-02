@@ -81,7 +81,7 @@ class CaddFilter(object):
         scores = []
         for i in range(len(record.DECOMPOSED_ALLELES)):
             s = (None, None)
-            for h in hits:
+            for h in (x for x in hits if x is not None):
                 (pos, ref, alt, raw, phred) = h
                 if (record.DECOMPOSED_ALLELES[i].POS == pos and
                     record.DECOMPOSED_ALLELES[i].REF == ref and
@@ -97,6 +97,10 @@ class CaddFilter(object):
             after reducing alleles to their most simple representation.
         '''
         cols = cadd.split("\t")
+        if len(cols) < 6:
+            self.logger.warn("Not enought columns for CADD record: {}"
+                             .format(cadd))
+            return None
         ref = cols[2]
         alt = cols[3]
         pos = int(cols[1])
