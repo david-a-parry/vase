@@ -12,7 +12,7 @@ class BedParser(object):
         property of the GenomicInterval object.
     '''
 
-    __slots__ = ['bed', 'min_col', 'intervals', 'current']
+    __slots__ = ['bed', 'min_col', 'intervals', '__current_index']
 
     def __init__(self, bed, min_col=3):
         '''
@@ -23,16 +23,39 @@ class BedParser(object):
         self.bed = bed
         self.min_col = min_col if min_col > 3 else 3
         self.intervals = self._read_bed()
-        self.current = 0
+        self.__current_index = 0
 
     def __iter__(self):
         return self
 
     def __next__(self):
-        if self.current < len(self.intervals):
-            self.current += 1
-            return self.intervals[self.current-1]
+        if self.__current_index < len(self.intervals):
+            self.__current_index += 1
+            return self.intervals[self.current_index]
         raise StopIteration
+
+    @property
+    def previous_interval(self):
+        '''
+            Get the interval preceding the current interval or None
+            if there is no previous interval.
+        '''
+        if self.current_index > 0:
+            return self.intervals[self.current_index-1]
+        return None
+
+    @property
+    def current_index(self):
+        '''
+            __current_index is always incremented before returning the
+            next region to make the iteration work. We return the index
+            of the current region here, not the value of __current_index.
+        '''
+        return self.__current_index - 1
+
+    @current_index.setter
+    def current_index(self, value):
+        self.__current_index = value + 1
 
     def _read_bed(self):
         regions = []

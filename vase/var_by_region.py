@@ -68,14 +68,36 @@ class VarByRegion(object):
             self.vcfreader.set_region(self.current_region.contig,
                                       self.current_region.start,
                                       self.current_region.end)
-        record = next(self.vcfreader, None)
+        record = self._get_record_if_no_overlap()
         while record is None:
             self._next_interval()
             self.vcfreader.set_region(self.current_region.contig,
                                       self.current_region.start,
                                       self.current_region.end)
-            record = next(self.vcfreader, None)
+            record = self._get_record_if_no_overlap()
         return record
+
+    def _get_record_if_no_overlap(self):
+        '''
+            Ensure we don't return the same record twice by getting the
+            next record if the current record overlaps the previous
+            interval.
+        '''
+        record = next(self.vcfreader, None)
+        if record is None:
+            return None
+        if self.region_iter.previous_interval is not None:
+            while (self._record_overlaps(record,
+                                         self.region_iter.previous_interval)):
+                record = next(self.vcfreader, None)
+                if record is None:
+                    break
+        return record
+
+    def _record_overlaps(self, record, interval):
+        ''' Return True if record overlaps interval.'''
+        return (record.CHROM == interval.contig and record.POS <= interval.end
+                and record.SPAN > interval.start)
 
     def _next_interval(self):
         '''
