@@ -1,9 +1,9 @@
 import operator
 from natsort import natsorted
 from .genomic_interval import GenomicInterval
-from .bed_parser import BedParser
+from .interval_iter import IntervalIter
 
-class RegionIter(BedParser):
+class RegionIter(IntervalIter):
     '''
         For a list of intervals in format 'chr1:1000-2000' sort and
         merge overlapping intervals. Merged intervals are iterable as
@@ -11,19 +11,16 @@ class RegionIter(BedParser):
         the 'regions' property of the GenomicInterval object.
     '''
 
-    __slots__ = ['intervals', 'current']
-
     def __init__(self, regions):
         '''
             Parses each region provided into a GenomicInterval object,
             merging overlapping intervals.
         '''
-        self.intervals = self._parse_regions(regions)
-        self.current = 0
+        intervals = self._parse_regions(regions)
+        super().__init__(intervals)
 
     def _parse_regions(self, regions):
-        intervals = (self._interval_from_string(x) for x in regions)
-        return self._merge_regions(intervals)
+        return (self._interval_from_string(x) for x in regions)
 
     def _interval_from_string(self, interval):
         try:

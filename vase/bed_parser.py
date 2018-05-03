@@ -3,8 +3,9 @@ import gzip
 import operator
 from natsort import natsorted
 from .genomic_interval import GenomicInterval
+from .interval_iter import IntervalIter
 
-class BedParser(object):
+class BedParser(IntervalIter):
     '''
         For a given BED file, read into memory and merge overlapping
         intervals. Merged intervals are iterable as GenomicInterval
@@ -12,7 +13,7 @@ class BedParser(object):
         property of the GenomicInterval object.
     '''
 
-    __slots__ = ['bed', 'min_col', 'intervals', '__current_index']
+    __slots__ = ['bed', 'min_col', 'intervals']
 
     def __init__(self, bed, min_col=3):
         '''
@@ -22,40 +23,8 @@ class BedParser(object):
         '''
         self.bed = bed
         self.min_col = min_col if min_col > 3 else 3
-        self.intervals = self._read_bed()
-        self.__current_index = 0
-
-    def __iter__(self):
-        return self
-
-    def __next__(self):
-        if self.__current_index < len(self.intervals):
-            self.__current_index += 1
-            return self.intervals[self.current_index]
-        raise StopIteration
-
-    @property
-    def previous_interval(self):
-        '''
-            Get the interval preceding the current interval or None
-            if there is no previous interval.
-        '''
-        if self.current_index > 0:
-            return self.intervals[self.current_index-1]
-        return None
-
-    @property
-    def current_index(self):
-        '''
-            __current_index is always incremented before returning the
-            next region to make the iteration work. We return the index
-            of the current region here, not the value of __current_index.
-        '''
-        return self.__current_index - 1
-
-    @current_index.setter
-    def current_index(self, value):
-        self.__current_index = value + 1
+        intervals = self._read_bed()
+        super().__init__(intervals)
 
     def _read_bed(self):
         regions = []
@@ -76,25 +45,7 @@ class BedParser(object):
                                      "line: "+ line + ")")
             regions.append(s)
         bfile.close()
-        return self._merge_regions(regions)
-
-    def _merge_regions(self, regions):
-        ''' Return a list of merged regions as GenomicInterval objects.'''
-        regions = natsorted(regions, key=operator.itemgetter(0, 1, 2))
-        genomic_intervals = []
-        prev_i = None
-        for r in regions:
-            gi = GenomicInterval(r)
-            if prev_i is None:
-                prev_i = gi
-            elif prev_i.overlaps(gi):
-                prev_i.merge_interval(gi)
-            else:
-                genomic_intervals.append(prev_i)
-                prev_i = gi
-        if prev_i is not None:
-            genomic_intervals.append(prev_i)
-        return genomic_intervals
+        return regions
 
 
 class BedFormatError(ValueError):
