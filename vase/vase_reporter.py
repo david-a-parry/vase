@@ -2,6 +2,7 @@ import sys
 import re
 import logging
 import xlsxwriter
+import os
 from collections import namedtuple
 from .ped_file import PedFile, Family, Individual, PedError
 from parse_vcf import VcfReader, VcfHeader, VcfRecord
@@ -18,7 +19,8 @@ class VaseReporter(object):
 
     def __init__(self, vcf, ped, out, families=[], all_features=False,
                  rest_lookups=False, grch37=False, prog_interval=None,
-                 timeout=2.0, max_retries=2, quiet=False, debug=False):
+                 timeout=2.0, max_retries=2, quiet=False, debug=False,
+                 force=False):
         self._set_logger(quiet, debug)
         self.vcf = VcfReader(vcf)
         self.ped = PedFile(ped)
@@ -27,6 +29,9 @@ class VaseReporter(object):
         self.seg_fields = self._check_header()
         if not out.endswith(".xlsx"):
             out = out + ".xlsx"
+        if os.path.exists(out) and not force:
+            sys.exit("Output file '{}' already exists - ".format(out) +
+                     "choose another name or use --force to overwrite.")
         self.out = out
         self.sample_orders = dict() #key is fam id, value is list of samples
         self.workbook = xlsxwriter.Workbook(out)

@@ -38,6 +38,8 @@ def parse_args():
                         '''Do not output progress information to STDERR.''')
     parser.add_argument('--debug', action='store_true', help=
                         '''Output debugging information to STDERR.''')
+    parser.add_argument('--force', action='store_true', help=
+                        '''Force overwrite of existing output files.''')
     return parser
 
 if __name__ == '__main__':
