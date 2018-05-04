@@ -545,7 +545,6 @@ class RecessiveFilter(InheritanceFilter):
             if not final and feat in self._last_added:
                 continue
             feat_segregating = [] #list of tuples of values for creating SegregatingBiallelic
-            fam_count = 0 #no. families with biallelic combination
             un_hets = defaultdict(list)  #store het alleles carried by each unaffected
             aff_hets = defaultdict(list) #store het alleles carried by each affected
             biallelics = defaultdict(list)  #store biallelic combinations for affecteds
@@ -608,7 +607,8 @@ class RecessiveFilter(InheritanceFilter):
                                                          model, [feat],
                                                          de_novo[bi_pr.alt_id],
                                                          self.prefix))
-                            fam_count += 1
+            fam_count = len(set([fam for tup in feat_segregating for fam in
+                                 tup[2]]))
             if fam_count >= self.min_families:
                 for tp in feat_segregating:
                     if tp[0] in segregating:
@@ -949,10 +949,10 @@ class DominantFilter(InheritanceFilter):
         var_to_segregants = OrderedDict()
         for sv in sds.values():
             sv.annotate_record(self.report_file, self.annot_fields)
-            if sv.var_id in var_to_segregants:
-                var_to_segregants[sv.var_id].append(sv.segregant)
+            if sv.segregant.var_id in var_to_segregants:
+                var_to_segregants[sv.segregant.var_id].append(sv.segregant)
             else:
-                var_to_segregants[sv.var_id] = [sv.segregant]
+                var_to_segregants[sv.segregant.var_id] = [sv.segregant]
         #clear the cache of processed features
         for feat in feat_processed:
             del self._potential_dominants[feat]
@@ -1222,7 +1222,6 @@ class DeNovoFilter(InheritanceFilter):
                 feat_fams.update(p.families)
             if len(feat_fams) >= self.min_families:
                 for p in pds.values():
-                    d_ids.add(p.var_id)
                     samps = (x for x in self.affected
                              if self.ped.fid_from_iid(x) in p.families)
                     if p.alt_id in sds:
@@ -1236,10 +1235,10 @@ class DeNovoFilter(InheritanceFilter):
         var_to_segregants = OrderedDict()
         for sv in sds.values():
             sv.annotate_record(self.report_file, self.annot_fields)
-            if sv.var_id in var_to_segregants:
-                var_to_segregants[sv.var_id].append(sv.segregant)
+            if sv.segregant.var_id in var_to_segregants:
+                var_to_segregants[sv.segregant.var_id].append(sv.segregant)
             else:
-                var_to_segregants[sv.var_id] = [sv.segregant]
+                var_to_segregants[sv.segregant.var_id] = [sv.segregant]
         #clear the cache of processed features
         for feat in feat_processed:
             del self._potential_denovos[feat]
