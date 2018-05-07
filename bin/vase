@@ -188,6 +188,7 @@ turns on biotype filtering (see the --biotype
 option below).
 
 ''' )
+
     filter_args.add_argument(
 '--canonical', '-canonical', action='store_true', help=
 '''When used in conjunction with --csq argument,
@@ -203,6 +204,7 @@ transcripts/features (i.e. with a non-empty
 'FLAGS' CSQ field).
 
 ''')
+
     filter_args.add_argument(
 '--biotypes', '-biotypes', nargs='+', default=[], metavar='BIOTYPE', help=
 '''When used in conjunction with --csq argument,
@@ -251,11 +253,21 @@ Alternatively you may use the value 'all' to
 disable filtering on biotypes.
 
 ''')
+
+    filter_args.add_argument(
+'--feature_blacklist', '--blacklist', help=
+'''A file containing a list of Features (e.g. Ensembl
+transcript IDs) to ignore. These must correspond
+to the IDs in the 'Feature' field annotated by
+VEP.
+
+''')
+
     filter_args.add_argument(
 '-m', '--missense_filters', default=[], nargs='+', help=
 '''A list of in silico prediction programs to use
-use for filtering missense variants (must be used
-in conjunction with --csq argument). The programs
+for filtering missense variants (must be used in
+conjunction with --csq argument). The programs
 provided her must have been annotated on the
 input VCF file either directly by VEP or via the
 dbNSFP VEP plugin. Recognised program names and
@@ -282,8 +294,10 @@ behaviour can be changed using the
 flags.
 
 ''')
+
     filter_args.add_argument(
-'--filter_unpredicted', '-filter_unpredicted', action='store_true', default=False, help=
+'--filter_unpredicted', '-filter_unpredicted', action='store_true',
+default=False, help=
 '''For use in conjunction with --missense_filters.
 The default behaviour when using
 --missense_filters is to ignore a program if

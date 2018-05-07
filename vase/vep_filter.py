@@ -10,7 +10,7 @@ class VepFilter(object):
     def __init__(self, vcf, csq=[], canonical=False, biotypes=[], in_silico=[],
                  filter_unpredicted=False, keep_any_damaging=False,
                  filter_flagged_features=False, freq=None, min_freq=None,
-                 afs=[], gene_filter=None, filter_known=False, 
+                 afs=[], gene_filter=None, blacklist=None,filter_known=False,
                  filter_novel=False, logging_level=logging.WARNING):
         '''
             Args:
@@ -81,6 +81,9 @@ class VepFilter(object):
                         do not alter the features specified in the
                         VarByRegion object for the current region.
 
+                blacklist:
+                        File containing a list of Feature IDs to ignore.
+
                 logging_level:
                         Logging level to use. Default=logging.WARNING.
 
@@ -146,6 +149,8 @@ class VepFilter(object):
             in_silico = set(in_silico)
             self.in_silico = InSilicoFilter(in_silico, filter_unpredicted,
                                             keep_any_damaging)
+        self.blacklist = self._read_blacklist(blacklist)
+
 
     def filter(self, record):
         filter_alleles = [True] * (len(record.ALLELES) -1)
@@ -181,6 +186,8 @@ class VepFilter(object):
             if self.gene_filter:
                 if not self.gene_filter.target_in_csq(c):
                     continue
+            if self.blacklist and c['Feature'] in self.blacklist:
+                continue
             if (self.freq or self.min_freq or self.filter_known or
                     self.filter_novel):
                 known = False
@@ -291,6 +298,16 @@ class VepFilter(object):
             self.logger.warn("No compatible (>= v90) allele frequency fields" +
                              " in VEP annotations.")
 
+    def _read_blacklist(self, blacklist):
+        if blacklist is None:
+            return None
+        features = set()
+        with open (blacklist, 'rt') as bfile:
+            for line in bfile:
+                f = line.rstrip().split()[0]
+                if f:
+                    features.add(f)
+        return features
 
     def _get_logger(self, logging_level):
         logger = logging.getLogger(__name__)
