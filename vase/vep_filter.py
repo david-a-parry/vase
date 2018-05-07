@@ -299,14 +299,16 @@ class VepFilter(object):
                              " in VEP annotations.")
 
     def _read_blacklist(self, blacklist):
+        '''
+            Reads a file of feature IDs to ignore. Only reads first
+            non-whitespace text from each line.
+        '''
         if blacklist is None:
             return None
-        features = set()
         with open (blacklist, 'rt') as bfile:
-            for line in bfile:
-                f = line.rstrip().split()[0]
-                if f:
-                    features.add(f)
+            features = set(line.split()[0] for line in bfile)
+        self.logger.info("{:,} unique feature IDs blacklisted from {}.".format(
+                         len(features), blacklist))
         return features
 
     def _get_logger(self, logging_level):
