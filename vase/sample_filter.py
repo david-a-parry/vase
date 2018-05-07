@@ -3,18 +3,18 @@
 class SampleFilter(object):
     ''' A class for filtering VCF records on sample calls'''
 
-    def __init__(self, vcf, cases=[], controls=[], n_cases=0, n_controls=0, 
-                 confirm_missing=False, gq=0, dp=0, het_ab=0., hom_ab=0., 
-                 min_control_gq=None, min_control_dp=None, control_het_ab=None, 
+    def __init__(self, vcf, cases=[], controls=[], n_cases=0, n_controls=0,
+                 confirm_missing=False, gq=0, dp=0, het_ab=0., hom_ab=0.,
+                 min_control_gq=None, min_control_dp=None, control_het_ab=None,
                  control_hom_ab=None, con_ref_ab=None):
         '''
-            Initialize filtering options. 
+            Initialize filtering options.
 
             Args:
-                vcf:    VcfReader object for input. Sample IDs will be 
+                vcf:    VcfReader object for input. Sample IDs will be
                         checked against header information.
 
-                cases:  IDs of samples that you want to check for the 
+                cases:  IDs of samples that you want to check for the
                         presence of an ALT allele.
 
                 controls:
@@ -27,26 +27,26 @@ class SampleFilter(object):
                         by this number of cases or more. Default=0.
 
                 n_controls:
-                        Minimum number of controls required to carry an 
-                        ALT allele for it to be filtered. Alleles will 
-                        only be filtered if carried by this number of 
+                        Minimum number of controls required to carry an
+                        ALT allele for it to be filtered. Alleles will
+                        only be filtered if carried by this number of
                         controls or more. Default=0.
 
-                gq:     Minimum genotype quality score (GQ). Genotype 
+                gq:     Minimum genotype quality score (GQ). Genotype
                         calls with a GQ lower than this value will be
                         treated as no-calls. Default=0.
 
                 dp:     Minimum genotype depth (DP). Genotype calls with
-                        a GQ lower than this value will be treated as 
+                        a GQ lower than this value will be treated as
                         no-calls. Default=0.
 
                 ab:     Minimum genotype allele balance. Genotype calls
-                        an allele balance lower than this value will be 
-                        treated as no-calls. The allele balance is 
-                        calculated using 'AD' fields if present, 
-                        otherwise 'AO' and 'RO' fields (e.g. from 
+                        an allele balance lower than this value will be
+                        treated as no-calls. The allele balance is
+                        calculated using 'AD' fields if present,
+                        otherwise 'AO' and 'RO' fields (e.g. from
                         freebayes). If none of these fields are present
-                        in the VCF header and ab is not 0.0 a 
+                        in the VCF header and ab is not 0.0 a
                         RuntimeError will be thrown. Default=0.0.
 
                 confirm_missing:
@@ -55,21 +55,21 @@ class SampleFilter(object):
                         by the 'gq' option. Default=False.
 
         '''
-                        
+
         self.vcf = vcf
         self.confirm_missing = confirm_missing
-        self._parse_sample_args(cases=cases, controls=controls, 
+        self._parse_sample_args(cases=cases, controls=controls,
                                 n_cases=n_cases, n_controls=n_controls, gq=gq,
-                                het_ab=het_ab, hom_ab=hom_ab, dp=dp, 
-                                con_gq=min_control_gq, 
+                                het_ab=het_ab, hom_ab=hom_ab, dp=dp,
+                                con_gq=min_control_gq,
                                 con_dp=min_control_dp,
-                                con_het_ab=control_het_ab, 
-                                con_hom_ab=control_hom_ab, 
+                                con_het_ab=control_het_ab,
+                                con_hom_ab=control_hom_ab,
                                 con_ref_ab=con_ref_ab)
 
     def filter(self, record, allele):
         '''
-            For a given VcfRecord and ALT allele, return True if that 
+            For a given VcfRecord and ALT allele, return True if that
             allele should be filtered based on presence/absence in cases
             and controls.
         '''
@@ -80,7 +80,7 @@ class SampleFilter(object):
         for s in self.controls:
             if not self.con_gt_filter.gt_is_ok(gts, s, allele):
                 if self.confirm_missing:
-                    return True 
+                    return True
                 continue
             sgt =  gts['GT'][s]
             if allele in sgt: #checks for presence, not whether het/hom
@@ -88,8 +88,8 @@ class SampleFilter(object):
                     control_matches += 1
                 else:
                     return True
-            elif (sgt == (0, 0) and 
-                  self.con_gt_filter.ad_over_threshold is not None): 
+            elif (sgt == (0, 0) and
+                  self.con_gt_filter.ad_over_threshold is not None):
                 #check hom ref for ALT allele counts
                 if self.con_gt_filter.ad_over_threshold(gts, s, allele):
                     if self.n_controls:
@@ -108,7 +108,7 @@ class SampleFilter(object):
                 if self.n_cases:
                     continue
                 else:
-                    return True 
+                    return True
             if allele in sgt:
                 case_matches += 1
             elif not self.n_cases:
@@ -117,10 +117,10 @@ class SampleFilter(object):
             if case_matches < self.n_cases:
                 return True
         return False
-            
 
-    def _parse_sample_args(self, cases, controls, n_cases=0, n_controls=0, 
-                           gq=0, dp=0, het_ab=0., hom_ab=0., con_gq=None, 
+
+    def _parse_sample_args(self, cases, controls, n_cases=0, n_controls=0,
+                           gq=0, dp=0, het_ab=0., hom_ab=0., con_gq=None,
                            con_dp=None, con_het_ab=None, con_hom_ab=None,
                            con_ref_ab=None):
         not_found = set()
@@ -131,8 +131,8 @@ class SampleFilter(object):
                 case_set.add(c)
             elif c.lower() == 'all':
                 if len(cases) > 1:
-                    raise RuntimeError("'all' can not be used in --cases " + 
-                                       "argument in conjunction with sample " + 
+                    raise RuntimeError("'all' can not be used in --cases " +
+                                       "argument in conjunction with sample " +
                                        "names - please specify either 'all' " +
                                        "or a list of sample IDs, not both.")
                 case_set.update(self.vcf.header.samples)
@@ -142,15 +142,15 @@ class SampleFilter(object):
             s = list(not_found)
             s.sort()
             raise RuntimeError("The following samples specified by --cases " +
-                               "were not found in the input VCF: " 
+                               "were not found in the input VCF: "
                                + str.join(", ",s))
         for c in controls:
             if c in self.vcf.header.samples:
                 control_set.add(c)
             elif c.lower() == 'all':
                 if len(controls) > 1:
-                    raise RuntimeError("'all' can not be used in --controls " + 
-                                       "argument in conjunction with sample " + 
+                    raise RuntimeError("'all' can not be used in --controls " +
+                                       "argument in conjunction with sample " +
                                        "names - please specify either 'all' " +
                                        "or a list of sample IDs, not both.")
                 for samp in self.vcf.header.samples:
@@ -162,22 +162,22 @@ class SampleFilter(object):
             s = list(not_found)
             s.sort()
             raise RuntimeError("The following samples specified by --controls"+
-                               " were not found in the input VCF: " + 
+                               " were not found in the input VCF: " +
                                str.join(", ", s))
         self.cases = list(case_set)
         self.controls = list(control_set)
         self.n_cases = None
         self.n_controls = None
         if n_cases and len(self.cases) < n_cases:
-            raise RuntimeError("Number of cases specified by --n_cases is " + 
+            raise RuntimeError("Number of cases specified by --n_cases is " +
                                "greater than the number of cases specified by " +
                                "--cases")
         if n_controls and len(self.controls) < n_controls:
-            raise RuntimeError("Number of controls specified by --n_controls" + 
+            raise RuntimeError("Number of controls specified by --n_controls" +
                                "is greater than the number of controls " +
                                "specified by --controls")
         self.samples = self.cases + self.controls
-        self.gt_filter = GtFilter(self.vcf, gq=gq, dp=dp, het_ab=het_ab, 
+        self.gt_filter = GtFilter(self.vcf, gq=gq, dp=dp, het_ab=het_ab,
                                   hom_ab=hom_ab)
         self.gt_fields = set(self.gt_filter.fields)
         if con_gq is None:
@@ -188,34 +188,34 @@ class SampleFilter(object):
             con_het_ab = het_ab
         if con_hom_ab is None:
             con_hom_ab = hom_ab
-        self.con_gt_filter = GtFilter(self.vcf, gq=con_gq, dp=con_dp, 
+        self.con_gt_filter = GtFilter(self.vcf, gq=con_gq, dp=con_dp,
                                       het_ab=con_het_ab, hom_ab=hom_ab,
                                       ref_ab_filter=con_ref_ab)
         self.gt_fields.update(self.con_gt_filter.fields)
         if n_cases:
-            self.n_cases = n_cases    
+            self.n_cases = n_cases
         if n_controls:
-            self.n_controls = n_controls    
-        
+            self.n_controls = n_controls
+
 
 class GtFilter(object):
     '''
         Given a dict of GT information from the 'parsed_gts' function of
-        VcfRecord from parse_vcf.py, this provides a function 'filter' 
-        which returns True if the call meets the criteria (e.g. GQ, AD 
+        VcfRecord from parse_vcf.py, this provides a function 'filter'
+        which returns True if the call meets the criteria (e.g. GQ, AD
         etc.) established on initialisation.
     '''
 
-    __slots__ = ['gq', 'dp', 'het_ab', 'hom_ab', 'gt_is_ok', 'ab_filter', 
+    __slots__ = ['gq', 'dp', 'het_ab', 'hom_ab', 'gt_is_ok', 'ab_filter',
                  'ref_ab_filter', 'ad_over_threshold', 'fields']
-    
-    def __init__(self, vcf, gq=0, dp=0, het_ab=0., hom_ab=0., 
-                 ref_ab_filter=None): 
+
+    def __init__(self, vcf, gq=0, dp=0, het_ab=0., hom_ab=0.,
+                 ref_ab_filter=None):
         '''
             Args:
                 vcf:    Input VCF, which will be checked to ensure any
-                        specified filters can be used by ensuring 
-                        appropriate FORMAT fields are defined in the 
+                        specified filters can be used by ensuring
+                        appropriate FORMAT fields are defined in the
                         VCF header.
 
                 gq:     Minimum genotype quality (GQ) for a genotype.
@@ -223,23 +223,23 @@ class GtFilter(object):
 
                 dp:     Minimum depth (DP) for a genotype. Default=0.
 
-                het_ab: Minimum allele balance for a heterozygous 
-                        genotype. This is calculated using AD FORMAT 
+                het_ab: Minimum allele balance for a heterozygous
+                        genotype. This is calculated using AD FORMAT
                         field if present. If AD is not present, AO and
-                        RO will be used instead if present, otherwise 
+                        RO will be used instead if present, otherwise
                         throws a RuntimeError. Default=0.
 
-                hom_ab: Minimum allele balance for a homozygous 
-                        genotype. This is calculated using AD FORMAT 
+                hom_ab: Minimum allele balance for a homozygous
+                        genotype. This is calculated using AD FORMAT
                         field if present. If AD is not present, AO and
-                        RO will be used instead if present, otherwise 
+                        RO will be used instead if present, otherwise
                         throws a RuntimeError. Default=0.
 
                 ref_ab_filter:
-                        Maximum ALT allele balance of homozygous 
-                        reference calls. If a 0/0 genotype call has 
-                        this fraction of ALT alleles it will be 
-                        filtered (i.e. self.gt_is_ok will return 
+                        Maximum ALT allele balance of homozygous
+                        reference calls. If a 0/0 genotype call has
+                        this fraction of ALT alleles it will be
+                        filtered (i.e. self.gt_is_ok will return
                         False). Default=None (not used).
 
         '''
@@ -252,7 +252,7 @@ class GtFilter(object):
         self.ab_filter = None
         self.ad_over_threshold = None
         ab_field = None
-        if not gq and not dp and not het_ab and not hom_ab: 
+        if not gq and not dp and not het_ab and not hom_ab:
             #if no parameters are set then every genotype passes
             self.gt_is_ok = lambda gt, smp, al: True
         else:
@@ -280,7 +280,7 @@ class GtFilter(object):
         if dp > 0 and al_dp is not None:
             ab = float(al_dp)/dp
             if ab > self.ref_ab_filter:
-                #ALT/REF read counts > threshold 
+                #ALT/REF read counts > threshold
                 return True#filter
         return False
 
@@ -295,7 +295,7 @@ class GtFilter(object):
                 if ab > self.ref_ab_filter:
                     return True
         return False
-        
+
     def _ab_filter_ad(self, gts, sample, allele):
         ad = gts['AD'][sample]
         if ad == (None,): #no AD values - assume OK?
@@ -343,7 +343,7 @@ class GtFilter(object):
 
     def _gt_is_ok(self, gts, sample, allele):
         '''
-            Returns True if genotype (from parse_vcf.py parsed_gts 
+            Returns True if genotype (from parse_vcf.py parsed_gts
             function) passes all parameters set on initialisation.
         '''
         if self.dp:
@@ -356,7 +356,7 @@ class GtFilter(object):
         if self.ab_filter is not None:
             if not self.ab_filter(gts, sample, allele):
                 return False
-        return True #passes all filters 
+        return True #passes all filters
 
     def _check_header_fields(self, vcf):
         ''' Ensure the required annotations are present in VCF header. '''
@@ -369,7 +369,7 @@ class GtFilter(object):
             if 'AD' in vcf.header.metadata['FORMAT']:
                 self.fields.append('AD')
                 return 'AD'
-            elif ('AO' in vcf.header.metadata['FORMAT'] and 
+            elif ('AO' in vcf.header.metadata['FORMAT'] and
                   'RO' in vcf.header.metadata['FORMAT']):
                 self.fields.append('AO')
                 self.fields.append('RO')
@@ -377,7 +377,7 @@ class GtFilter(object):
             else:
                 raise RuntimeError("Genotype filtering on allele balance is " +
                                    "set but neither 'AD' nor 'RO' plus 'AO' " +
-                                   "FORMAT fields are defined in your VCF " + 
+                                   "FORMAT fields are defined in your VCF " +
                                    "header.")
         return None
 
