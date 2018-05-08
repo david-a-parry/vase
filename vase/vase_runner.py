@@ -128,13 +128,15 @@ class VaseRunner(object):
         self.prog_interval = args.prog_interval
         self.log_progress = args.log_progress
         self.report_fhs = self.get_report_filehandles()
+        seg_info = list()
         if args.de_novo:
-            self._get_de_novo_filter()
+            seg_info.extend(self._get_de_novo_filter())
         if args.biallelic or args.singleton_recessive:
-            self._get_recessive_filter()
+            seg_info.extend(self._get_recessive_filter())
         if args.dominant or args.singleton_dominant:
-            self._get_dominant_filter()
+            seg_info.extend(self._get_dominant_filter())
         self._check_got_inherit_filter()
+        self._set_seg_annot_cleanup(seg_info)
         self.var_written = 0
         self.var_filtered = 0
 
@@ -209,6 +211,7 @@ class VaseRunner(object):
                 r = self.control_filter.filter(record, i)
                 if r:
                     dom_filter_alleles[i-1] = True
+        self.remove_previous_inheritance_filters(record)
         denovo_hit = False
         dom_hit = False
         recessive_hit = False
@@ -882,6 +885,23 @@ class VaseRunner(object):
                                    " ped/sample inputs or run without "+
                                    "--biallelic/--dominant/--de_novo options.")
 
+    def _set_seg_annot_cleanup(self, seg_info):
+        for_removal = [x for x in seg_info if x in self.prev_annots]
+        if for_removal:
+            self.info_to_remove = for_removal
+            self.remove_previous_inheritance_filters = self._clean_info
+            self.logger.warn("Removing {:,} previous ".format(len(for_removal))
+                             + "segregation INFO fields")
+            for f in for_removal:
+                self.logger.warn("Previous {} annotations will be removed" 
+                                 .format(f))
+        else:
+            self.remove_previous_inheritance_filters = lambda *args: None
+
+    def _clean_info(self, record):
+        ''' Remove predefined INFO fields from records. '''
+        record.remove_info_fields(self.info_to_remove)
+
     def _get_dominant_filter(self):
         self._get_family_filter()
         self._get_control_filter()
@@ -897,6 +917,7 @@ class VaseRunner(object):
                                        control_hom_ab=self.args.control_hom_ab,
                                        con_ref_ab=self.args.control_max_ref_ab,
                                        report_file=self.report_fhs['dominant'])
+        added_info = list(self.dominant_filter.get_header_fields().keys())
         if not self.dominant_filter.affected:
             msg = ("No samples fit a dominant model - can not use dominant " +
                    "filtering")
@@ -913,6 +934,7 @@ class VaseRunner(object):
                                                    field_type='INFO')
                 if self.args.min_families > 1:
                     self.use_cache = True
+        return added_info #so we know which fields to remove if necessary
 
     def _get_de_novo_filter(self):
         self._get_family_filter()
@@ -929,6 +951,7 @@ class VaseRunner(object):
                                     con_ref_ab=self.args.control_max_ref_ab,
                                     min_families=self.args.min_families,
                                     report_file=self.report_fhs['de_novo'])
+        added_info = list(self.de_novo_filter.get_header_fields().keys())
         if not self.de_novo_filter.affected:
             msg = ("No samples fit a de novo model - can not use de novo " +
                    "filtering")
@@ -945,6 +968,7 @@ class VaseRunner(object):
                                                    field_type='INFO')
                 if self.args.min_families > 1:
                     self.use_cache = True
+        return added_info #so we know which fields to remove if necessary
 
     def _get_recessive_filter(self):
         self._get_family_filter()
@@ -960,6 +984,7 @@ class VaseRunner(object):
                                       control_hom_ab=self.args.control_hom_ab,
                                       con_ref_ab=self.args.control_max_ref_ab,
                                       report_file=self.report_fhs['recessive'])
+        added_info = list(self.de_novo_filter.get_header_fields().keys())
         if not self.recessive_filter.affected:
             msg = ("No samples fit a recessive model - can not use biallelic" +
                   " filtering")
@@ -975,6 +1000,7 @@ class VaseRunner(object):
                                   .format(f))
                 self.input.header.add_header_field(name=f, dictionary=d,
                                                    field_type='INFO')
+        return added_info #so we know which fields to remove if necessary
 
     def _get_control_filter(self):
         if self.control_filter:
