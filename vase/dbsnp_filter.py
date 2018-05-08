@@ -1,47 +1,47 @@
 import sys
-from .vcf_filter import * 
+from .vcf_filter import *
 
 
 class dbSnpFilter(VcfFilter):
-    ''' 
-        An object that filters VCF records based on variant data in a 
+    '''
+        An object that filters VCF records based on variant data in a
         dbSNP VCF file.
     '''
-    
-    def __init__(self, vcf, prefix='VASE_dbSNP', freq=None, min_freq=None, 
+
+    def __init__(self, vcf, prefix='VASE_dbSNP', freq=None, min_freq=None,
                 build=None, max_build=None, clinvar_path=False):
-        ''' 
-            Initialize object with a dbSNP VCF file and optional filtering 
+        '''
+            Initialize object with a dbSNP VCF file and optional filtering
             arguments.
 
             Args:
-                vcf:          VCF containing variants to use to filter 
+                vcf:          VCF containing variants to use to filter
                               or annotate records.
-                    
-                prefix:       Prefix to prepend to added INFO field 
+
+                prefix:       Prefix to prepend to added INFO field
                               annotations. Default = VASE_dbSNP.
 
-                freq:         Filter alleles if dbSNP allele frequency 
+                freq:         Filter alleles if dbSNP allele frequency
                               is greater than this value. Optional.
 
-                min_freq:     Filter alleles if dbSNP allele frequency 
+                min_freq:     Filter alleles if dbSNP allele frequency
                               is less than this value. Optional.
 
-                build:        Filter alleles if dbSNP allele build is 
+                build:        Filter alleles if dbSNP allele build is
                               lower (earlier) than this value. Optional.
 
-                max_build:    Filter alleles if dbSNP allele build is 
+                max_build:    Filter alleles if dbSNP allele build is
                               higher (later) than this value. Optional.
 
-                clinvar_path: Keep alleles (overriding any filtering 
-                              based on freq/min_freq, build/min_build 
+                clinvar_path: Keep alleles (overriding any filtering
+                              based on freq/min_freq, build/min_build
                               values) if matching allele has a CLNSIG
-                              value of 4 or 5 (corresponding to 'likely 
-                              pathogenic' or 'pathogenic' ClinVar 
+                              value of 4 or 5 (corresponding to 'likely
+                              pathogenic' or 'pathogenic' ClinVar
                               annotations).
 
         '''
-        
+
         self.build_fields = {}
         self.clinvar_fields = {}
         self.build = build
@@ -89,14 +89,14 @@ class dbSnpFilter(VcfFilter):
 
     def _compare_snp_values(self, alt_allele, snp_list):
         do_filter = False #only flag indicating should be filtered
-        do_keep = False #flag to indicate that should be kept, for overriding 
-                        #do_filter in downstream applications 
+        do_keep = False #flag to indicate that should be kept, for overriding
+                        #do_filter in downstream applications
         annot = {}
         matched = False
         for snp in snp_list:
             for i in range(len(snp.DECOMPOSED_ALLELES)):
                 if alt_allele == snp.DECOMPOSED_ALLELES[i]:
-                    #no point attempting to use snp.parsed_info_fields() for 
+                    #no point attempting to use snp.parsed_info_fields() for
                     #these fields as they are not set to appropriate types
                     matched = True
                     annot['RSID'] = snp.ID
@@ -109,26 +109,26 @@ class dbSnpFilter(VcfFilter):
                                 try:
                                     if float(val) >= self.freq:
                                         do_filter = True
-                                except ValueError: 
-                                    pass 
+                                except ValueError:
+                                    pass
                             if self.min_freq is not None:
                                 try:
                                     if float(val) < self.min_freq:
                                         do_filter = True
-                                except ValueError: 
+                                except ValueError:
                                     pass
-                        elif (f == 'COMMON' and 
+                        elif (f == 'COMMON' and
                               len(snp.DECOMPOSED_ALLELES) == 1):
-                            #COMMON=1 indicates > 1% in 1000 genomes but does 
+                            #COMMON=1 indicates > 1% in 1000 genomes but does
                             #not indicate which allele(s) if multiple ALTs
                             annot[f] = snp.INFO_FIELDS[f]
                             if self.freq is not None and self.freq <= 0.01:
-                                if snp.INFO_FIELDS[f] == '1': 
+                                if snp.INFO_FIELDS[f] == '1':
                                     do_filter = True
-                            if (self.min_freq is not None 
+                            if (self.min_freq is not None
                                 and self.min_freq <= 0.01
                             ):
-                                if snp.INFO_FIELDS[f] == '0': 
+                                if snp.INFO_FIELDS[f] == '0':
                                     do_filter = True
                         elif (f == 'G5A' or f == 'G5' and
                               len(snp.DECOMPOSED_ALLELES) == 1):
@@ -136,23 +136,23 @@ class dbSnpFilter(VcfFilter):
                             annot[f] = 1
                             if self.freq is not None and self.freq <= 0.05:
                                 if snp.INFO_FIELDS[f]: do_filter = True
-                            if (self.min_freq is not None 
+                            if (self.min_freq is not None
                              and self.min_freq <= 0.05):
                                 if snp.INFO_FIELDS[f]: do_filter = False
-                                
+
                     for f in self.build_fields:
                         if f not in snp.INFO_FIELDS: continue
                         annot[f] = snp.INFO_FIELDS[f]
-                        if (self.build is not None and 
+                        if (self.build is not None and
                             int(snp.INFO_FIELDS[f]) < self.build):
                             do_filter = True
-                        if (self.max_build is not None and 
+                        if (self.max_build is not None and
                             int(snp.INFO_FIELDS[f]) > self.max_build):
                             do_filter = True
-                        
+
                     if 'CLNALLE' in snp.INFO_FIELDS:
-                        #the clinvar annotations are done in a non-standard 
-                        #way, giving indexes of relevant alleles in CLNALLE 
+                        #the clinvar annotations are done in a non-standard
+                        #way, giving indexes of relevant alleles in CLNALLE
                         #and keeping other annotations in the same order
                         cln_idx = str(i + 1)
                         cln_alle = snp.INFO_FIELDS['CLNALLE'].split(",")
@@ -166,10 +166,10 @@ class dbSnpFilter(VcfFilter):
                                     if f == 'GENEINFO':
                                         sig = snp.INFO_FIELDS[f]
                                     else:
-                                        raise 
-                                annot[f] = sig 
+                                        raise
+                                annot[f] = sig
                                 if self.clinvar_path and f == 'CLNSIG':
-                                    if ([i for i in ['4', '5'] if i 
+                                    if ([i for i in ['4', '5'] if i
                                                            in sig.split('|')]):
                                         #keep anything with path or likely labl
                                         do_filter = False
@@ -181,10 +181,10 @@ class dbSnpFilter(VcfFilter):
 
     def get_annot_fields(self):
         '''
-            Creates dicts of INFO field names to dicts of 'Type', 
-            'Number'and 'Description' as found in the VCF metadata for 
-            known dbSNP INFO field names for frequency (freq_fields), 
-            dbSNP build versions (build_fields) and ClinVar 
+            Creates dicts of INFO field names to dicts of 'Type',
+            'Number'and 'Description' as found in the VCF metadata for
+            known dbSNP INFO field names for frequency (freq_fields),
+            dbSNP build versions (build_fields) and ClinVar
             (clinvar_fields).
         '''
 
@@ -201,28 +201,28 @@ class dbSnpFilter(VcfFilter):
         for f in build:
             if f in self.vcf.metadata['INFO']:
                 self.build_fields[f] = self.vcf.metadata['INFO'][f][-1]
-        # raise a RuntimeError if no freq fields if filtering on frequency or 
-        # if no build fields if filtering on build, but let lack of ClinVar 
-        # fields slide as clinvar filtering may be occuring with a separate 
+        # raise a RuntimeError if no freq fields if filtering on frequency or
+        # if no build fields if filtering on build, but let lack of ClinVar
+        # fields slide as clinvar filtering may be occuring with a separate
         # ClinVar file
-        if not self.freq_fields and (self.freq is not None or 
+        if not self.freq_fields and (self.freq is not None or
                                      self.min_freq is not None):
-            raise RuntimeError("ERROR: no frequency fields identified in " +  
+            raise RuntimeError("ERROR: no frequency fields identified in " +
                                "dbSNP VCF header for file '{}'." .format(
-                               self.vcf.filename) + " Unable to use freq/" + 
+                               self.vcf.filename) + " Unable to use freq/" +
                                "min_freq arguments for variant filtering.")
 
-        if not self.build_fields and (self.build is not None or 
+        if not self.build_fields and (self.build is not None or
                                      self.max_build is not None):
-            raise RuntimeError("ERROR: no dbSNPBuildID field identified in " + 
-                               "dbSNP VCF header for file '{}'. " 
+            raise RuntimeError("ERROR: no dbSNPBuildID field identified in " +
+                               "dbSNP VCF header for file '{}'. "
                                .format(self.vcf.filename) +
-                               "Unable to use build/max_build arguments for " + 
+                               "Unable to use build/max_build arguments for " +
                                "variant filtering.")
-        
+
     def create_header_fields(self):
         '''
-            Create dict entries for all INFO fields added by this 
+            Create dict entries for all INFO fields added by this
             instance, suitable for adding to a VcfHeader object.
         '''
 
@@ -234,6 +234,6 @@ class dbSnpFilter(VcfFilter):
             self._make_metadata(f, v)
         for f,v in self.clinvar_fields.items():
             self._make_metadata(f, v)
-        self._make_metadata('RSID', {'Type': 'String', 
+        self._make_metadata('RSID', {'Type': 'String',
                                      'Description': 'dbSNP ID'})
 
