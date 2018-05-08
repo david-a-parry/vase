@@ -159,22 +159,41 @@ class VaseReporter(object):
         reactome = ''
         traits = ''
         mim = ''
-        go_data = self.ensembl_rest.get_xref(csq['Feature'], external_db='GO')
-        if go_data:
-            go = str.join("|", (x['description'] for x in go_data if
-                                x['description'] is not None))
+        try:
+            go_data = self.ensembl_rest.get_xref(csq['Feature'],
+                                                 external_db='GO')
+            if go_data:
+                go = str.join("|", (x['description'] for x in go_data if
+                                    x['description'] is not None))
+        except Exception as err:
+            self.logger.warn(err)
+            self.logger.warn("GO lookup for {} failed".format(csq['Feature']))
+            go = 'LOOKUP FAILED'
         if csq['Gene']:
-            xref_data = self.ensembl_rest.get_xref(csq['Gene'])
-
-            entrez = str.join("|", (x['primary_id'] for x in xref_data
-                                    if x['dbname'] == 'EntrezGene'))
-            reactome = str.join("|", (x['description'] for x in xref_data
-                                      if x['dbname'] == 'Reactome_gene'))
-            mim = str.join("|", (x['description'] for x in xref_data
-                                 if x['dbname'] == 'MIM_MORBID'))
-            orth = self.ensembl_rest.lookup_ortholog(csq['Gene'])
-            if orth is not None:
-                traits = str.join("|", self.ensembl_rest.get_traits(orth))
+            try:
+                xref_data = self.ensembl_rest.get_xref(csq['Gene'])
+                entrez = str.join("|", (x['primary_id'] for x in xref_data
+                                        if x['dbname'] == 'EntrezGene'))
+                reactome = str.join("|", (x['description'] for x in xref_data
+                                          if x['dbname'] == 'Reactome_gene'))
+                mim = str.join("|", (x['description'] for x in xref_data
+                                     if x['dbname'] == 'MIM_MORBID'))
+            except Exception as err:
+                self.logger.warn(err)
+                self.logger.warn("XREF lookups for {} failed".format(
+                                                               csq['Feature']))
+                entrez = 'LOOKUP FAILED'
+                reactome = 'LOOKUP FAILED'
+                mim = 'LOOKUP FAILED'
+            try:
+                orth = self.ensembl_rest.lookup_ortholog(csq['Gene'])
+                if orth is not None:
+                    traits = str.join("|", self.ensembl_rest.get_traits(orth))
+            except Exception as err:
+                self.logger.warn(err)
+                self.logger.warn("Orthology lookup for {} failed".format(
+                                                               csq['Feature']))
+                traits = 'LOOKUP FAILED'
         return [entrez, go, reactome, traits, mim]
 
     def write_row(self, worksheet, row, values):
