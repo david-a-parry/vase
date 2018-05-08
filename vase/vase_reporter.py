@@ -8,6 +8,7 @@ from .ped_file import PedFile, Family, Individual, PedError
 from parse_vcf import VcfReader, VcfHeader, VcfRecord
 from .ensembl_rest_queries import EnsemblRestQueries
 
+ENST = re.compile(r'''^ENS\w*T\d{11}(\.\d+)?''')
 vcf_output_columns = ['CHROM', 'POS', 'ID', 'REF', 'ALT', 'QUAL', 'FILTER',]
 feat_annots = { 'VASE_biallelic_families': 'VASE_biallelic_features',
                 'VASE_dominant_families': 'VASE_dominant_features',
@@ -135,14 +136,21 @@ class VaseReporter(object):
         return samples
 
     def get_ensembl_rest_data(self, csq):
+        if not csq['Feature']:
+            return [''] * 5
         if csq['Feature'] not in self.rest_cache:
-            try:
-                self.rest_cache[csq['Feature']] = self._get_rest_data(csq)
-            except Exception as err:
-                self.logger.warn(err)
-                self.logger.warn("REST lookups for {} failed".format(
-                                                               csq['Feature']))
+            if not ENST.match(csq['Feature']):
+                self.logger.warn("Skipping non-Ensembl transcript " +
+                               "feature '{}'".format(csq['Feature']))
                 self.rest_cache[csq['Feature']] = [''] * 5
+            else:
+                try:
+                    self.rest_cache[csq['Feature']] = self._get_rest_data(csq)
+                except Exception as err:
+                    self.logger.warn(err)
+                    self.logger.warn("REST lookups for {} failed".format(
+                                                               csq['Feature']))
+                    self.rest_cache[csq['Feature']] = [''] * 5
         return self.rest_cache[csq['Feature']]
 
     def _get_rest_data(self, csq):
