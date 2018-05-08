@@ -890,10 +890,10 @@ class VaseRunner(object):
         if for_removal:
             self.info_to_remove = for_removal
             self.remove_previous_inheritance_filters = self._clean_info
-            self.logger.warn("Removing {:,} previous ".format(len(for_removal))
-                             + "segregation INFO fields")
+            self.logger.warn("Replacing {:,} previous".format(len(for_removal))
+                             + " segregation INFO fields.")
             for f in for_removal:
-                self.logger.warn("Previous {} annotations will be removed" 
+                self.logger.warn("Previous {} annotations will be removed"
                                  .format(f))
         else:
             self.remove_previous_inheritance_filters = lambda *args: None
