@@ -9,23 +9,43 @@ class VcfFilter(object):
     '''
 
     def __init__(self, vcf, prefix, freq=None, min_freq=None,
-                 freq_fields=("AF",), ac_fields=("AC",), an_fields=("AN",) ):
+                 freq_fields=("AF",), ac_fields=("AC",), an_fields=("AN",),
+                 annotations=None):
         '''
             Initialize object with a VCF file and optional filtering
             arguments.
 
             Args:
-                vcf:      VCF containing variants to use to filter or
-                          annotate records.
+                vcf:    VCF containing variants to use to filter or
+                        annotate records.
 
-                prefix:   Prefix to prepend to added INFO field
-                          annotations. Required.
+                prefix: Prefix to prepend to added INFO field
+                        annotations. Required.
 
-                freq:     Filter alleles if allele frequency is greater
-                          than this value. Optional.
+                freq:   Filter alleles if allele frequency is greater
+                        than this value. Optional.
 
-                min_freq: Filter alleles if allele frequency is less
-                          than this value. Optional.
+                min_freq:
+                        Filter alleles if allele frequency is less
+                        than this value. Optional.
+
+                freq_fields:
+                         INFO fields to use for allele frequency
+                         filtering. Default = ("AF",)
+
+                ac_fields:
+                         Allele count INFO fields to use for allele
+                         frequency filtering if no 'freq_fields' are
+                         available. Default=("AC",)
+
+                an_fields:
+                        Allele number INFO fields to use for allele
+                        frequency filtering if no 'freq_fields' are
+                        available. Default=("AN",)
+
+                annotations:
+                        Additional INFO field annotations to add to
+                        matching records.
 
         '''
 
