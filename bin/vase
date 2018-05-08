@@ -113,6 +113,23 @@ the given fields.
 ''' )
 
     filter_args.add_argument(
+'-t', '--var_types', nargs='+', metavar='TYPE', help=
+'''Keep variants of the following type(s). Valid
+types are 'SNV' (single nucleotide variants),
+'MNV' (multi-nucleotide variants excluding
+indels), 'INSERTION' (insertions or duplications
+relative to the reference), 'DELETION' (deletions
+relative to the reference), 'INDEL' (shorthand for
+both insertions and deletions) and 'SV'
+(structural variants). If a site is multiallelic
+it will be retained if any ALT allele matches one
+of these types, but per-allele filtering for
+segregation filtering will only consider ALT
+alleles of the appropriate types.
+
+''')
+
+    filter_args.add_argument(
 '-max_alts', '--max_alt_alleles', type=int, help=
 '''Filter variants at sites with more than this
 many ALT alleles. For example, using

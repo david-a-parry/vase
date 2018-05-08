@@ -30,6 +30,7 @@ class VaseRunner(object):
             self.keep_filters = set(args.keep_filters)
         if args.exclude_filters:
             self.exclude_filters = set(args.exclude_filters)
+        self.var_types = self._parse_var_type_arg()
         self.prev_cadd_phred = False
         self.prev_cadd_raw = False
         self._get_prev_annotations()
@@ -177,7 +178,16 @@ class VaseRunner(object):
         if self.filter_global(record):
             self.var_filtered += 1
             return
-        filter_alleles, filter_csq = self.filter_alleles_external(record)
+        filter_alleles = None
+        if self.var_types:
+            filter_alleles = [x.var_type not in self.var_types for x in
+                              record.DECOMPOSED_ALLELES]
+            if sum(filter_alleles) == len(filter_alleles):
+                #no ALT matches any variant type asked for
+                self.var_filtered += 1
+                return
+        filter_alleles, filter_csq = self.filter_alleles_external(record,
+                                                                filter_alleles)
         if sum(filter_alleles) == len(filter_alleles):
             #all alleles should be filtered
             self.var_filtered += 1
@@ -319,7 +329,7 @@ class VaseRunner(object):
             if fh is not None:
                 fh.close()
 
-    def filter_alleles_external(self, record):
+    def filter_alleles_external(self, record, remove_alleles=None):
         '''
             Return True or False for each allele indicating whether an
             allele should be filtered based on information from VEP,
@@ -331,7 +341,8 @@ class VaseRunner(object):
         # ClinVar)
         # remove_csq indicates for each VEP CSQ whether that CSQ should be
         # ignored
-        remove_alleles = [False] * (len(record.ALLELES) -1)
+        if not remove_alleles:
+            remove_alleles = [False] * (len(record.ALLELES) -1)
         keep_alleles = [False] * (len(record.ALLELES) -1)
         matched_alleles = [False] * (len(record.ALLELES) -1)
         remove_csq = None
@@ -823,6 +834,20 @@ class VaseRunner(object):
             self.family_filter.inheritance_patterns[s].append('dominant')
         for s in set(self.args.singleton_recessive):
             self.family_filter.inheritance_patterns[s].append('recessive')
+
+    def _parse_var_type_arg(self):
+        if not self.args.var_types:
+            return None
+        valid = {'SNV', 'INSERTION', 'DELETION', 'MNV', 'SV'}
+        v_types = []
+        for vt in self.args.var_types:
+            if vt == 'INDEL':
+                v_types.extend(['INSERTION', 'DELETION'])
+            elif vt.upper() in valid:
+                v_types.append(vt.upper())
+            else:
+                raise ValueError("Invalid --var_type provided: {}".format(vt))
+        return v_types
 
 
     def _make_ped_io(self):
