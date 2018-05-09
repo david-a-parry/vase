@@ -10,7 +10,7 @@ class VcfFilter(object):
 
     def __init__(self, vcf, prefix, freq=None, min_freq=None,
                  freq_fields=("AF",), ac_fields=("AC",), an_fields=("AN",),
-                 annotations=None):
+                 annotations=[]):
         '''
             Initialize object with a VCF file and optional filtering
             arguments.
@@ -56,6 +56,7 @@ class VcfFilter(object):
         self.freq_info = freq_fields
         self.ac_info = ac_fields
         self.an_info = an_fields
+        self.extra = annotations
         if self.freq is not None and self.min_freq is not None:
             if self.freq <= self.min_freq:
                 raise RuntimeError("freq argument must be greater than " +
@@ -73,7 +74,6 @@ class VcfFilter(object):
             For a given record, returns a list of overlapping records
             in the class's VCF.
         '''
-
         start = record.POS
         end = record.SPAN
         self.vcf.set_region(record.CHROM, start - 1, end)
@@ -92,7 +92,6 @@ class VcfFilter(object):
             classes.
 
         '''
-
         filter_alleles = []
         keep_alleles = []
         matched_alleles = []
@@ -216,7 +215,6 @@ class VcfFilter(object):
         for f in annot_info:
             if f in self.vcf.metadata['INFO']:
                 self.annot_fields[f] = self.vcf.metadata['INFO'][f][-1]
-
         if not self.freq_fields and (self.freq is not None or
                                      self.min_freq is not None):
             self._get_an_and_ac(self.an_info, self.ac_info)
@@ -226,6 +224,13 @@ class VcfFilter(object):
                                    .format(self.vcf.filename) + " Unable to use" +
                                    "freq/min_freq arguments for variant " +
                                    "filtering.")
+        for f in self.extra:
+            if f in self.vcf.metadata['INFO']:
+                self.annot_fields[f] = self.vcf.metadata['INFO'][f][-1]
+            else:
+                raise RuntimeError("Requested annotation '{}' ".format(f) +
+                                   "does not exist in VCF header for file " +
+                                   "{}".format(self.vcf.filename))
 
     def create_header_fields(self):
         '''
@@ -275,6 +280,3 @@ class VcfFilter(object):
                 #ANs and ACs should be in same order
                 self.an_fields[an] = self.vcf.metadata['INFO'][an][-1]
                 self.ac_fields[ac] = self.vcf.metadata['INFO'][ac][-1]
-
-
-
