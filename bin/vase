@@ -477,8 +477,8 @@ using population allele frequencies
 ''')
 
     file_args.add_argument(
-'--vcf_filter', '-vcf_filter', metavar='VCF,ID', nargs='+', default=[],
-help=
+'--vcf_filter', '-vcf_filter', metavar='VCF,ID[,INFO_FIELD ...]', nargs='+',
+default=[], help=
 '''VCF file(s) and name(s) to use in INFO fields
 for frequency annotation and/or filtering. Each
 file and its associated annotation ID should be
@@ -488,6 +488,11 @@ fields with the field names of VASE_<ID>_AN and
 VASE_<ID>_AF. If --freq or --min_freq arguments
 are set then matching variants in your input will
 be filtered using AF values found in these files.
+
+You may also add additonal INFO fields to extract
+and annotate your matching variants with by
+including additional comma-separated fields after
+the ID.
 
 ''')
 

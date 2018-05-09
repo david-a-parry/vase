@@ -614,12 +614,13 @@ class VaseRunner(object):
         #get other VCF filters
         for var_filter in self.args.vcf_filter:
             vcf_and_id = var_filter.split(',')
-            if len(vcf_and_id) != 2:
-                raise RuntimeError("Expected two comma separated values for " +
-                                   "--vcf_filter argument '{}'"
+            if len(vcf_and_id) < 2:
+                raise RuntimeError("Expected two or more comma separated " +
+                                   "values for --vcf_filter argument '{}'"
                                    .format(var_filter))
             prefix = self.check_info_prefix('VASE_' + vcf_and_id[1])
-            kwargs = {"vcf" : vcf_and_id[0], "prefix" : prefix}
+            kwargs = {"vcf" : vcf_and_id[0], "prefix" : prefix, 
+                      "annotations" : vcf_and_id[2:]}
             kwargs.update(uni_args)
             vcf_filter = VcfFilter(**kwargs)
             filters.append(vcf_filter)
