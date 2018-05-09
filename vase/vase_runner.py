@@ -15,6 +15,7 @@ from .family_filter import RecessiveFilter, DominantFilter, DeNovoFilter
 from .burden_counter import BurdenCounter
 from .var_by_region import VarByRegion
 from .region_iter import RegionIter
+from .gt_annotator import GtAnnotator
 
 class VaseRunner(object):
 
@@ -37,6 +38,7 @@ class VaseRunner(object):
         self.out = self.get_output()
         self.vcf_filters = self.get_vcf_filter_classes()
         self.cadd_filter = self.get_cadd_filter()
+        self.gt_annotators = self.get_gt_annotators()
         self.ped = None
         if args.ped:
             self.ped = PedFile(args.ped)
@@ -239,8 +241,7 @@ class VaseRunner(object):
                 self.output_cache()
         elif self.de_novo_filter or self.dominant_filter:
             if denovo_hit or dom_hit:
-                self.out.write(str(record) + '\n')
-                self.var_written += 1
+                self.output_record(record)
                 if self.burden_counter:
                     #getting relevant alleles and feats is a bit of a fudge using
                     #annotations added by dom/denovo filter
@@ -271,10 +272,15 @@ class VaseRunner(object):
             if sum(filter_alleles) == len(filter_alleles):
                 self.var_filtered += 1
                 return
-            self.var_written += 1
             if self.burden_counter:
                 self.burden_counter.count(record, filter_alleles, filter_csq)
-            self.out.write(str(record) + '\n')
+            self.output_record(record)
+
+    def output_record(self, record):
+        for gt_anno in self.gt_annotators:
+            gt_anno.annotate(record)
+        self.out.write(str(record) + '\n')
+        self.var_written += 1
 
     def output_cache(self, final=False):
         keep_ids = set()
@@ -299,8 +305,7 @@ class VaseRunner(object):
             self.variant_cache.add_cache_to_output_ready()
         for var in self.variant_cache.output_ready:
             if var.can_output or var.var_id in keep_ids:
-                self.out.write(str(var.record) + '\n')
-                self.var_written += 1
+                self.output_record(var.record)
             else:
                 self.var_filtered += 1
         if self.burden_counter:
@@ -630,6 +635,17 @@ class VaseRunner(object):
                 self.input.header.add_header_field(name=f, dictionary=d,
                                           field_type='INFO')
         return filters
+
+    def get_gt_annotators(self):
+        gt_annos = []
+        if self.args.dng_vcf:
+            for vcf in self.args.dng_vcf:
+                g = (GtAnnotator(vcf, ['PP_DNM', 'PP_NULL']))
+                for f,d in g.header_fields.items():
+                    self.input.header.add_header_field(name=f, dictionary=d,
+                                                       field_type='FORMAT')
+                gt_annos.append(g)
+        return gt_annos
 
     def _seg_alleles_from_record(self, record, prefix, filter_al, filter_csq):
         ps = prefix + '_samples'
@@ -985,7 +1001,7 @@ class VaseRunner(object):
                                       control_hom_ab=self.args.control_hom_ab,
                                       con_ref_ab=self.args.control_max_ref_ab,
                                       report_file=self.report_fhs['recessive'])
-        added_info = list(self.de_novo_filter.get_header_fields().keys())
+        added_info = list(self.recessive_filter.get_header_fields().keys())
         if not self.recessive_filter.affected:
             msg = ("No samples fit a recessive model - can not use biallelic" +
                   " filtering")
