@@ -50,7 +50,8 @@ class IntervalIter(object):
 
     def _merge_regions(self, regions):
         ''' Return a list of merged regions as GenomicInterval objects.'''
-        regions = natsorted(regions, key=operator.itemgetter(0, 1, 2))
+        if self._sort_needed(regions):
+            regions = natsorted(regions, key=operator.itemgetter(0, 1, 2))
         genomic_intervals = []
         prev_i = None
         for r in regions:
@@ -66,3 +67,18 @@ class IntervalIter(object):
             genomic_intervals.append(prev_i)
         return genomic_intervals
 
+    def _sort_needed(self, regions):
+        if not isinstance(regions, list):
+            return True
+        prev = None
+        seen_chroms = set()
+        for r in regions:
+            if prev is not None:
+                if r[0] != prev[0]:
+                    if r[0] in seen_chroms:
+                        return True
+                    seen_chroms.add(prev[0])
+                elif r[1] < prev[1] or r[2] < prev[2]:
+                    return True
+            prev = r
+        return False
