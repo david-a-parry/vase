@@ -3,7 +3,8 @@ import operator
 class GenomicInterval(object):
     '''
         Simple class for representing a genomic interval, potentially
-        merged from several overlapping BED regions. '''
+        merged from several overlapping BED regions.
+    '''
 
     __slots__ = ['contig', 'start', 'end', 'regions']
 
@@ -65,7 +66,7 @@ class GenomicInterval(object):
             Merge an overlapping interval.
 
             Args:
-                interval:   Another GenomicInterval object
+                other:   Another GenomicInterval object
 
         '''
         if not self.overlaps(other):
