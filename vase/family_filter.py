@@ -1,6 +1,7 @@
 from parse_vcf import *
 from .ped_file import *
 from .sample_filter import SampleFilter, GtFilter
+from .sv_gt_filter import SvGtFilter
 import logging
 from collections import OrderedDict, defaultdict
 
@@ -228,7 +229,10 @@ class InheritanceFilter(object):
 
     def __init__(self, family_filter, gq=0, dp=0, het_ab=0., hom_ab=0.,
                  min_control_dp=None, min_control_gq=None, control_het_ab=None,
-                 control_hom_ab=None, con_ref_ab=None, min_families=1,
+                 control_hom_ab=None, con_ref_ab=None, sv_gq=0, sv_dp=0,
+                 sv_het_ab=0., sv_hom_ab=0., sv_min_control_dp=None,
+                 sv_min_control_gq=None, sv_control_het_ab=None,
+                 sv_control_hom_ab=None, sv_con_ref_ab=None, min_families=1,
                  report_file=None):
         self.family_filter = family_filter
         self.min_families = min_families
@@ -251,6 +255,32 @@ class InheritanceFilter(object):
                                       hom_ab=control_hom_ab,
                                       ref_ab_filter=con_ref_ab)
         self._gt_fields.update(self.con_gt_filter.fields)
+        if sv_gq is None:
+            sv_gq = gq
+        if sv_dp is None:
+            sv_dp = dp
+        if sv_het_ab is None:
+            sv_het_ab = het_ab
+        if sv_hom_ab is None:
+            sv_hom_ab = hom_ab
+        if sv_min_control_gq is None:
+            sv_min_control_gq = sv_gq
+        if sv_min_control_dp is None:
+            sv_min_control_dp = sv_dp
+        if sv_control_het_ab is None:
+            sv_control_het_ab = sv_het_ab
+        if sv_control_hom_ab is None:
+            sv_control_hom_ab = sv_hom_ab
+        self.sv_gt_filter = SvGtFilter(family_filter.vcf, gq=sv_gq, dp=sv_dp,
+                                       het_ab=sv_het_ab, hom_ab=sv_hom_ab)
+        self._sv_gt_fields = set(self.sv_gt_filter.fields)
+        self.sv_con_gt_filter = SvGtFilter(family_filter.vcf,
+                                           gq=sv_min_control_gq,
+                                           dp=sv_min_control_dp,
+                                           het_ab=sv_control_het_ab,
+                                           hom_ab=sv_control_hom_ab,
+                                           ref_ab_filter=sv_con_ref_ab)
+        self._sv_gt_fields.update(self.sv_con_gt_filter.fields)
         self._prev_coordinate = (None, None)  # to ensure records are processed
         self._processed_contigs = set()       # in coordinate order
         if self.report_file:
@@ -280,19 +310,25 @@ class InheritanceFilter(object):
                 return False
         return True
 
-    def _get_allele_counts(self, allele, gts):
+    def _get_allele_counts(self, allele, gts, is_sv=False):
         a_counts = dict()
+        if is_sv:
+            gt_filter = self.sv_gt_filter
+            control_filter = self.sv_con_gt_filter
+        else:
+            gt_filter = self.gt_filter
+            control_filter = self.con_gt_filter
         for samp in self.unaffected:
-            if self.con_gt_filter.gt_is_ok(gts, samp, allele):
+            if control_filter.gt_is_ok(gts, samp, allele):
                 a_counts[samp] = gts['GT'][samp].count(allele)
             else:
                 a_counts[samp] = None
             if (gts['GT'][samp] == (0, 0) and
-                  self.con_gt_filter.ad_over_threshold is not None):
-                if self.con_gt_filter.ad_over_threshold(gts, samp, allele):
+                  control_filter.ad_over_threshold is not None):
+                if control_filter.ad_over_threshold(gts, samp, allele):
                     a_counts[samp] = 1
         for samp in self.affected:
-            if self.gt_filter.gt_is_ok(gts, samp, allele):
+            if gt_filter.gt_is_ok(gts, samp, allele):
                 a_counts[samp] = gts['GT'][samp].count(allele)
             else:
                 a_counts[samp] = None
@@ -339,7 +375,10 @@ class RecessiveFilter(InheritanceFilter):
     '''
     def __init__(self, family_filter, gq=0, dp=0, het_ab=0., hom_ab=0.,
                  min_control_dp=None, min_control_gq=None, control_het_ab=None,
-                 control_hom_ab=None, con_ref_ab=None, min_families=1,
+                 control_hom_ab=None, con_ref_ab=None, sv_gq=0, sv_dp=0,
+                 sv_het_ab=0., sv_hom_ab=0., sv_min_control_dp=None,
+                 sv_min_control_gq=None, sv_control_het_ab=None,
+                 sv_control_hom_ab=None, sv_con_ref_ab=None, min_families=1,
                  strict=False, exclude_denovo=False, report_file=None):
         '''
             Args:
@@ -409,6 +448,13 @@ class RecessiveFilter(InheritanceFilter):
                          min_control_gq=min_control_gq,
                          control_het_ab=control_het_ab,
                          control_hom_ab=control_hom_ab, con_ref_ab=con_ref_ab,
+                         sv_gq=sv_gq, sv_dp=sv_dp, sv_het_ab=sv_het_ab,
+                         sv_hom_ab=sv_hom_ab,
+                         sv_min_control_dp=sv_min_control_dp,
+                         sv_min_control_gq=sv_min_control_gq,
+                         sv_control_het_ab=sv_control_het_ab,
+                         sv_control_hom_ab=sv_control_hom_ab,
+                         sv_con_ref_ab=sv_con_ref_ab,
                          report_file=report_file,)
         self.families = tuple(x for x in self.family_filter.inheritance_patterns
                              if 'recessive' in
@@ -462,7 +508,16 @@ class RecessiveFilter(InheritanceFilter):
         '''
         stored = False
         self._check_sorted(record)
-        gts = record.parsed_gts(fields=self._gt_fields, samples=self.samples)
+        if record.IS_SV:
+            gts = record.parsed_gts(fields=self._sv_gt_fields,
+                                    samples=self.samples)
+            gt_filter = self.sv_gt_filter
+            control_filter = self.sv_con_gt_filter
+        else:
+            gts = record.parsed_gts(fields=self._gt_fields,
+                                    samples=self.samples)
+            gt_filter = self.gt_filter
+            control_filter = self.con_gt_filter
         skip_fam = set()
         added_prs = OrderedDict()
         for i in range(len(record.ALLELES) -1):
@@ -473,7 +528,7 @@ class RecessiveFilter(InheritanceFilter):
             fams_with_allele = []
             for un in self.unaffected:
                 if gts['GT'][un] == (alt, alt):
-                    if self.con_gt_filter.gt_is_ok(gts, un, alt):
+                    if control_filter.gt_is_ok(gts, un, alt):
                         #hom in a control - skip allele
                         skip_allele = True
                         break
@@ -486,7 +541,7 @@ class RecessiveFilter(InheritanceFilter):
                 for aff in self._fam_to_aff[fid]:
                     #check all affecteds carry this allele
                     if (alt in gts['GT'][aff] and
-                        self.gt_filter.gt_is_ok(gts, aff, alt)):
+                        gt_filter.gt_is_ok(gts, aff, alt)):
                         have_allele.add(aff)
                     else:
                         break
@@ -505,7 +560,8 @@ class RecessiveFilter(InheritanceFilter):
                             csqs.append(record.CSQ[j])
                     if csqs:
                         stored = True
-                        alt_counts = self._get_allele_counts(alt, gts)
+                        alt_counts = self._get_allele_counts(alt, gts,
+                                                             record.IS_SV)
                         pr = PotentialSegregant(record=record, allele=alt,
                                                 csqs=csqs,
                                                 allele_counts=alt_counts,
@@ -687,7 +743,10 @@ class DominantFilter(InheritanceFilter):
 
     def __init__(self, family_filter, gq=0, dp=0, het_ab=0., hom_ab=0.,
                  min_control_dp=None, min_control_gq=None, control_het_ab=None,
-                 control_hom_ab=None, min_families=1, con_ref_ab=None,
+                 control_hom_ab=None, con_ref_ab=None, sv_gq=0, sv_dp=0,
+                 sv_het_ab=0., sv_hom_ab=0., sv_min_control_dp=None,
+                 sv_min_control_gq=None, sv_control_het_ab=None,
+                 sv_control_hom_ab=None, sv_con_ref_ab=None, min_families=1,
                  report_file=None):
         '''
             Initialize with parent IDs, children IDs and VcfReader
@@ -777,6 +836,13 @@ class DominantFilter(InheritanceFilter):
                          min_control_gq=min_control_gq,
                          control_het_ab=control_het_ab,
                          control_hom_ab=control_hom_ab, con_ref_ab=con_ref_ab,
+                         sv_gq=sv_gq, sv_dp=sv_dp, sv_het_ab=sv_het_ab,
+                         sv_hom_ab=sv_hom_ab,
+                         sv_min_control_dp=sv_min_control_dp,
+                         sv_min_control_gq=sv_min_control_gq,
+                         sv_control_het_ab=sv_control_het_ab,
+                         sv_control_hom_ab=sv_control_hom_ab,
+                         sv_con_ref_ab=sv_con_ref_ab,
                          report_file=report_file,)
         self.families = tuple(x for x in self.family_filter.inheritance_patterns
                              if 'dominant' in
@@ -806,6 +872,14 @@ class DominantFilter(InheritanceFilter):
                                       control_het_ab=control_het_ab,
                                       control_hom_ab=control_hom_ab,
                                       con_ref_ab=con_ref_ab,
+                                      sv_gq=sv_gq, sv_dp=sv_dp,
+                                      sv_het_ab=sv_het_ab,
+                                      sv_hom_ab=sv_hom_ab,
+                                      sv_min_control_dp=sv_min_control_dp,
+                                      sv_min_control_gq=sv_min_control_gq,
+                                      sv_control_het_ab=sv_control_het_ab,
+                                      sv_control_hom_ab=sv_control_hom_ab,
+                                      sv_con_ref_ab=sv_con_ref_ab,
                                       confirm_missing=True)
             self.filters[fam] = dom_filter
             self.family_filter.logger.info("Analysing family {} ".format(fam) +
@@ -869,9 +943,13 @@ class DominantFilter(InheritanceFilter):
                                     "input is annotated with Ensembl's VEP " +
                                     "to perform dominant filtering.")
             if self.min_families <= 1 or csqs:
-                gts = record.parsed_gts(fields=self._gt_fields,
-                                        samples=self.samples)
-                a_counts = self._get_allele_counts(allele, gts)
+                if record.IS_SV:
+                    gts = record.parsed_gts(fields=self._sv_gt_fields,
+                                            samples=self.samples)
+                else:
+                    gts = record.parsed_gts(fields=self._gt_fields,
+                                            samples=self.samples)
+                a_counts = self._get_allele_counts(allele, gts, record.IS_SV)
                 pd = PotentialSegregant(record=record, allele=allele,
                                         csqs=csqs, allele_counts=a_counts,
                                         families=fam_alleles[i])
@@ -967,8 +1045,11 @@ class DeNovoFilter(InheritanceFilter):
 
     def __init__(self, family_filter, gq=0, dp=0, het_ab=0., hom_ab=0.,
                  min_control_dp=None, min_control_gq=None, control_het_ab=None,
-                 control_hom_ab=None, min_families=1, confirm_het=False,
-                 con_ref_ab=None, report_file=None):
+                 control_hom_ab=None, con_ref_ab=None, sv_gq=0, sv_dp=0,
+                 sv_het_ab=0., sv_hom_ab=0., sv_min_control_dp=None,
+                 sv_min_control_gq=None, sv_control_het_ab=None,
+                 sv_control_hom_ab=None, sv_con_ref_ab=None, min_families=1,
+                 confirm_het=False, report_file=None):
         '''
             Initialize with parent IDs, children IDs and VcfReader
             object.
@@ -1060,6 +1141,13 @@ class DeNovoFilter(InheritanceFilter):
                          min_control_gq=min_control_gq,
                          control_het_ab=control_het_ab,
                          control_hom_ab=control_hom_ab, con_ref_ab=con_ref_ab,
+                         sv_gq=sv_gq, sv_dp=sv_dp, sv_het_ab=sv_het_ab,
+                         sv_hom_ab=sv_hom_ab,
+                         sv_min_control_dp=sv_min_control_dp,
+                         sv_min_control_gq=sv_min_control_gq,
+                         sv_control_het_ab=sv_control_het_ab,
+                         sv_control_hom_ab=sv_control_hom_ab,
+                         sv_con_ref_ab=sv_con_ref_ab,
                          report_file=report_file,)
         self.families = tuple(x for x in self.family_filter.inheritance_patterns
                              if 'de_novo' in
@@ -1090,6 +1178,14 @@ class DeNovoFilter(InheritanceFilter):
                                           control_het_ab=control_het_ab,
                                           control_hom_ab=control_hom_ab,
                                           con_ref_ab=con_ref_ab,
+                                          sv_gq=sv_gq, sv_dp=sv_dp,
+                                          sv_het_ab=sv_het_ab,
+                                          sv_hom_ab=sv_hom_ab,
+                                          sv_min_control_dp=sv_min_control_dp,
+                                          sv_min_control_gq=sv_min_control_gq,
+                                          sv_control_het_ab=sv_control_het_ab,
+                                          sv_control_hom_ab=sv_control_hom_ab,
+                                          sv_con_ref_ab=sv_con_ref_ab,
                                           confirm_missing=True)
                 self.filters[fam].append(par_filter)
                 self.family_filter.logger.info(
@@ -1161,9 +1257,13 @@ class DeNovoFilter(InheritanceFilter):
                                        "input is annotated with Ensembl's " +
                                        "VEP to perform de novo filtering.")
             if self.min_families <= 1 or csqs:
-                gts = record.parsed_gts(fields=self._gt_fields,
-                                        samples=self.samples)
-                a_counts = self._get_allele_counts(allele, gts)
+                if record.IS_SV:
+                    gts = record.parsed_gts(fields=self._sv_gt_fields,
+                                            samples=self.samples)
+                else:
+                    gts = record.parsed_gts(fields=self._gt_fields,
+                                            samples=self.samples)
+                a_counts = self._get_allele_counts(allele, gts, record.IS_SV)
                 pd = PotentialSegregant(record=record, allele=allele,
                                         csqs=csqs, allele_counts=a_counts,
                                         families=fam_alleles[i])
@@ -1250,7 +1350,10 @@ class ControlFilter(SampleFilter):
 
     def __init__(self, vcf, family_filter, gq=0, dp=0, het_ab=0., hom_ab=0.,
                  min_control_dp=None, min_control_gq=None, control_het_ab=None,
-                 control_hom_ab=None, min_families=1, con_ref_ab=None,
+                 control_hom_ab=None, con_ref_ab=None, sv_gq=0, sv_dp=0,
+                 sv_het_ab=0., sv_hom_ab=0., sv_min_control_dp=None,
+                 sv_min_control_gq=None, sv_control_het_ab=None,
+                 sv_control_hom_ab=None, sv_con_ref_ab=None, min_families=1,
                  n_controls=0):
         '''
             Args:
@@ -1281,7 +1384,13 @@ class ControlFilter(SampleFilter):
                          min_control_gq=min_control_gq,
                          control_het_ab=control_het_ab,
                          control_hom_ab=control_hom_ab, con_ref_ab=con_ref_ab,
-                         n_controls=n_controls, confirm_missing=False)
+                         sv_gq=sv_gq, sv_het_ab=sv_het_ab, sv_hom_ab=sv_hom_ab,
+                         sv_dp=sv_dp, sv_min_control_dp=sv_min_control_dp,
+                         sv_min_control_gq=sv_min_control_gq,
+                         sv_control_het_ab=sv_control_het_ab,
+                         sv_control_hom_ab=sv_control_hom_ab,
+                         sv_con_ref_ab=sv_con_ref_ab, n_controls=n_controls,
+                         confirm_missing=False)
 
 
 class SegregatingVariant(object):

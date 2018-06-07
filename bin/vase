@@ -23,7 +23,16 @@ def parse_args():
     bed_args = region_args.add_mutually_exclusive_group()
     sample_args = parser.add_argument_group('Sample Based Filtering Arguments',
 '''Arguments for filtering variants based on presence/absence in samples and/or
-inheritance patterns''')
+inheritance patterns.''')
+    gt_args = parser.add_argument_group('Genotype Filtering Arguments',
+'''Arguments for filtering genotypes when using 'Sample Based Filtering
+Arguments' to filter on presence/absence in samples and/or inheritance
+patterns.''')
+    sv_gt_args = parser.add_argument_group(
+        'Structural Variant Genotype Filtering Arguments',
+'''Arguments for filtering genotypes for Structural Variant calls when using
+'Sample Based Filtering Arguments' to filter on presence/absence in samples
+and/or inheritance patterns. Only output from Manta currently supported.''')
     help_args = parser.add_argument_group('Help/Logging Arguments')
 
     #required arguments
@@ -149,6 +158,18 @@ AF > than this value will be filtered.
 '-min_af', '--min_af', type=float, help=
 '''Minimum AF value in input VCF. Any allele with an
 AF < than this value will be filtered.
+
+''')
+
+    filter_args.add_argument(
+'-an', '--an', type=int, default=0, help=
+'''Require at least this number of allele calls
+before filtering with --af or --min_af options.
+Useful to avoid filtering at sites with many
+uncalled genotpyes. If AN field is missing from a
+record and this value is > 0, --af/--min_af
+filtering will not occur for that record.
+Default=0.
 
 ''')
 
@@ -634,7 +655,7 @@ recessive/de novo inheritance models can be
 inferred.
 
 ''')
-    sample_args.add_argument(
+    gt_args.add_argument(
 '-gq', '--gq', type=int, default=20, help=
 '''Minimum genotype quality score threshold. Sample
 genotype calls with a score lower than this
@@ -643,7 +664,7 @@ Default = 20.
 
 ''')
 
-    sample_args.add_argument(
+    gt_args.add_argument(
 '-dp', '--dp', type=int, default=0, help=
 '''Minimum genotype depth threshold. Sample genotype
 calls with a read depth lower than this threshold
@@ -651,7 +672,7 @@ will be treated as no-calls. Default = 0.
 
 ''')
 
-    sample_args.add_argument(
+    gt_args.add_argument(
 '-het_ab', '--het_ab', type=float, default=0., metavar='AB', help=
 '''Minimum genotype allele balance for heterozygous
 genotypes. Heterozygous sample genotype calls
@@ -661,7 +682,7 @@ no-calls. Default = 0.
 
 ''')
 
-    sample_args.add_argument(
+    gt_args.add_argument(
 '-hom_ab', '--hom_ab', type=float, default=0., metavar='AB', help=
 '''Minimum genotype allele balance for homozygous
 genotypes. Homozygous sample genotype calls
@@ -671,7 +692,7 @@ no-calls. Default = 0.
 
 ''')
 
-    sample_args.add_argument(
+    gt_args.add_argument(
 '-con_gq', '--control_gq', type=int, help=
 '''Minimum genotype quality score threshold for
 parents/unaffecteds/controls when filtering
@@ -684,7 +705,7 @@ a potential de novo variant.
 
 ''')
 
-    sample_args.add_argument(
+    gt_args.add_argument(
 '-con_dp', '--control_dp', type=int, help=
 '''Minimum depth threshold for
 parents/unaffecteds/controls when filtering
@@ -697,7 +718,7 @@ a potential de novo variant.
 
 ''')
 
-    sample_args.add_argument(
+    gt_args.add_argument(
 '-con_het_ab', '--control_het_ab', type=float, metavar='AB', help=
 '''Minimum genotype allele balance for heterozygous
 genotypes. Heterozygous sample genotype calls
@@ -710,7 +731,7 @@ controls/unaffected in order to filter a variant.
 
 ''')
 
-    sample_args.add_argument(
+    gt_args.add_argument(
 '-con_hom_ab', '--control_hom_ab', type=float, metavar='AB', help=
 '''Minimum genotype allele balance for homozygous
 genotypes. Homozygous sample genotype calls
@@ -723,7 +744,7 @@ controls/unaffected in order to filter a variant.
 
 ''')
 
-    sample_args.add_argument(
+    gt_args.add_argument(
 '-con_ref_ab', '--control_max_ref_ab', type=float, metavar='AB', help=
 '''Maximum genotype allele balance for
 parents/unaffecteds/controls with reference (0/0)
@@ -732,6 +753,114 @@ count/exclude variants where controls/unaffecteds
 are called as homozygous reference but still have a
 low proportion of ALT alleles specify a suitable
 cutoff here.
+
+''')
+
+    sv_gt_args.add_argument(
+'-sv_gq', '--sv_gq', type=int, default=20, help=
+'''Minimum genotype quality score threshold for
+structural variants. Sample genotype calls with a
+score lower than this threshold will be treated as
+no-calls. Default = 20.
+
+''')
+
+    sv_gt_args.add_argument(
+'-sv_dp', '--sv_dp', type=int, default=0, help=
+'''Minimum genotype 'depth' threshold for structural
+variants. Sample genotype calls with fewer than
+this nunmber of supporting reads will be treated
+as no-calls. Default = 0.
+
+''')
+
+    sv_gt_args.add_argument(
+'-sv_het_ab', '--sv_het_ab', type=float, default=0., metavar='AB', help=
+'''Minimum genotype allele balance for heterozygous
+genotypes for structural variants. Heterozygous
+sample genotype calls with a ratio of reads
+supporting the alternate allele vs total
+supporting reads lower than this threshold will
+be treated as no-calls. Default = 0.
+
+''')
+
+    sv_gt_args.add_argument(
+'-sv_hom_ab', '--sv_hom_ab', type=float, default=0., metavar='AB', help=
+'''Minimum genotype allele balance for homozygous
+genotypes for structural variants. Homozygous
+sample genotype calls with a ratio of reads
+supporting the alternate allele vs total
+supporting reads lower than this threshold will be
+treated as no-calls. Default = 0.
+
+''')
+
+    sv_gt_args.add_argument(
+'-sv_con_gq', '--sv_control_gq', type=int, help=
+'''Minimum genotype quality score threshold for
+parents/unaffecteds/controls when filtering
+structural variants. Defaults to the same value as
+--sv_gq but you may wish to set this to a lower
+value if, for example, you require less evidence
+from controls/unaffected in order to filter a
+variant or from parental genotype calls when
+confirming a potential de novo variant.
+
+''')
+
+    sv_gt_args.add_argument(
+'-sv_con_dp', '--sv_control_dp', type=int, help=
+'''Minimum supporting read threshold for
+parents/unaffecteds/controls when filtering
+structural variants. Defaults to the same value as
+--sv_dp but you may wish to set this to a lower
+value if, for example, you require less evidence
+from controls/unaffected in order to filter a
+variant or from parental genotype calls when
+confirming a potential de novo variant.
+
+''')
+
+    sv_gt_args.add_argument(
+'-sv_con_het_ab', '--sv_control_het_ab', type=float, metavar='AB', help=
+'''Minimum genotype allele balance for heterozygous
+genotypes for structural variants. Heterozygous
+sample genotype calls with a ratio of the
+reads supporting the alternate allele vs total
+supporting reads depth lower than this threshold
+will be treated as no-calls. Defaults to the same
+as --sv_het_ab but you may wish to set this to a
+lower value if, for example, you require less
+evidence from controls/unaffected in order to
+filter a variant.
+
+''')
+
+    sv_gt_args.add_argument(
+'-sv_con_hom_ab', '--sv_control_hom_ab', type=float, metavar='AB', help=
+'''Minimum genotype allele balance for homozygous
+genotypes for structural variants. Homozygous
+sample genotype calls with a ratio of the
+reads supporting the alternate allele vs total
+supporting reads depth lower than this threshold
+will be treated as no-calls. Defaults to the same
+as --sv_hom_ab but you may wish to set this to a
+lower value if, for example, you require less
+evidence from controls/unaffected in order to
+filter a variant.
+
+''')
+
+    sv_gt_args.add_argument(
+'-sv_con_ref_ab', '--sv_control_max_ref_ab', type=float, metavar='AB', help=
+'''Maximum genotype allele balance for
+parents/unaffecteds/controls with reference (0/0)
+genotypes when filtering structural variants. If
+you wish to count/exclude variants where
+controls/unaffecteds are called as homozygous
+reference but still have a low proportion of ALT
+alleles specify a suitable cutoff here.
 
 ''')
 
@@ -833,17 +962,35 @@ Default=1000.
 progress line after each update.
 
 ''')
-
     help_args.add_argument(
-'--quiet', action='store_true', help=
+'--no_progress', action='store_true', help=
 '''Do not output progress information to STDERR.
 
 ''')
     help_args.add_argument(
-'--debug', action='store_true', help=
-'''Output debugging information to STDERR.
+'--quiet', action='store_true', help=
+'''Do not output INFO messages to STDERR. Warnings
+will still be shown.
 
 ''')
+    help_args.add_argument(
+'--debug', action='store_true', help=
+'''Output debugging level information to STDERR.
+
+''')
+    help_args.add_argument(
+'--no_warnings', action='store_true', help=
+'''Do not output INFO or WARN messages to
+STDERR. Only program ending errors will appear.
+
+''')
+    help_args.add_argument(
+'--silent', action='store_true', help=
+'''Equivalent to specifying both '--no_progress' and
+'--no_warnings' options.
+
+''')
+
     help_args.add_argument(
 '-h', '--help', action='help', help=
 '''Show this help message and exit

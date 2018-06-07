@@ -1,4 +1,5 @@
-
+from .sv_gt_filter import SvGtFilter
+import warnings
 
 class SampleFilter(object):
     ''' A class for filtering VCF records on sample calls'''
@@ -6,7 +7,10 @@ class SampleFilter(object):
     def __init__(self, vcf, cases=[], controls=[], n_cases=0, n_controls=0,
                  confirm_missing=False, gq=0, dp=0, het_ab=0., hom_ab=0.,
                  min_control_gq=None, min_control_dp=None, control_het_ab=None,
-                 control_hom_ab=None, con_ref_ab=None):
+                 control_hom_ab=None, con_ref_ab=None, sv_gq=0, sv_dp=0,
+                 sv_het_ab=0., sv_hom_ab=0., sv_min_control_gq=None,
+                 sv_min_control_dp=None, sv_control_het_ab=None,
+                 sv_control_hom_ab=None, sv_con_ref_ab=None):
         '''
             Initialize filtering options.
 
@@ -65,7 +69,13 @@ class SampleFilter(object):
                                 con_dp=min_control_dp,
                                 con_het_ab=control_het_ab,
                                 con_hom_ab=control_hom_ab,
-                                con_ref_ab=con_ref_ab)
+                                con_ref_ab=con_ref_ab, sv_gq=sv_gq,
+                                sv_het_ab=sv_het_ab, sv_hom_ab=sv_hom_ab,
+                                sv_dp=sv_dp, sv_con_gq=sv_min_control_gq,
+                                sv_con_dp=sv_min_control_dp,
+                                sv_con_het_ab=sv_control_het_ab,
+                                sv_con_hom_ab=sv_control_hom_ab,
+                                sv_con_ref_ab=sv_con_ref_ab)
 
     def filter(self, record, allele):
         '''
@@ -75,10 +85,18 @@ class SampleFilter(object):
         '''
         case_matches = 0
         control_matches = 0
-        gts = record.parsed_gts(fields=self.gt_fields, samples=self.samples)
+        if record.IS_SV:
+            gts = record.parsed_gts(fields=self.sv_gt_fields,
+                                    samples=self.samples)
+            gt_filter = self.sv_gt_filter
+            control_filter = self.sv_con_gt_filter
+        else:
+            gts = record.parsed_gts(fields=self.gt_fields, samples=self.samples)
+            gt_filter = self.gt_filter
+            control_filter = self.con_gt_filter
         #check controls first
         for s in self.controls:
-            if not self.con_gt_filter.gt_is_ok(gts, s, allele):
+            if not control_filter.gt_is_ok(gts, s, allele):
                 if self.confirm_missing:
                     return True
                 continue
@@ -89,9 +107,9 @@ class SampleFilter(object):
                 else:
                     return True
             elif (sgt == (0, 0) and
-                  self.con_gt_filter.ad_over_threshold is not None):
+                  control_filter.ad_over_threshold is not None):
                 #check hom ref for ALT allele counts
-                if self.con_gt_filter.ad_over_threshold(gts, s, allele):
+                if control_filter.ad_over_threshold(gts, s, allele):
                     if self.n_controls:
                         control_matches += 1
                     else:
@@ -100,7 +118,7 @@ class SampleFilter(object):
             return True
         #check for presence in cases
         for s in self.cases:
-            if not self.gt_filter.gt_is_ok(gts, s, allele):
+            if not gt_filter.gt_is_ok(gts, s, allele):
                 sgt = None
             else:
                 sgt =  gts['GT'][s]
@@ -122,7 +140,10 @@ class SampleFilter(object):
     def _parse_sample_args(self, cases, controls, n_cases=0, n_controls=0,
                            gq=0, dp=0, het_ab=0., hom_ab=0., con_gq=None,
                            con_dp=None, con_het_ab=None, con_hom_ab=None,
-                           con_ref_ab=None):
+                           con_ref_ab=None, sv_gq=0, sv_dp=0, sv_het_ab=0.,
+                           sv_hom_ab=0., sv_con_gq=None, sv_con_dp=None,
+                           sv_con_het_ab=None, sv_con_hom_ab=None,
+                           sv_con_ref_ab=None):
         not_found = set()
         case_set = set()
         control_set = set()
@@ -192,6 +213,30 @@ class SampleFilter(object):
                                       het_ab=con_het_ab, hom_ab=hom_ab,
                                       ref_ab_filter=con_ref_ab)
         self.gt_fields.update(self.con_gt_filter.fields)
+        if sv_gq is None:
+            sv_gq = gq
+        if sv_dp is None:
+            sv_dp = dp
+        if sv_het_ab is None:
+            sv_het_ab = het_ab
+        if sv_hom_ab is None:
+            sv_hom_ab = hom_ab
+        if sv_con_gq is None:
+            sv_con_gq = sv_gq
+        if sv_con_dp is None:
+            sv_con_dp = sv_dp
+        if sv_con_het_ab is None:
+            sv_con_het_ab = sv_het_ab
+        if sv_con_hom_ab is None:
+            sv_con_hom_ab = sv_hom_ab
+        self.sv_gt_filter = SvGtFilter(self.vcf, gq=sv_gq, dp=sv_dp,
+                                       het_ab=sv_het_ab, hom_ab=sv_hom_ab)
+        self.sv_gt_fields = set(self.sv_gt_filter.fields)
+        self.sv_con_gt_filter = SvGtFilter(self.vcf, gq=sv_con_gq,
+                                           dp=sv_con_dp, het_ab=sv_con_het_ab,
+                                           hom_ab=sv_hom_ab,
+                                           ref_ab_filter=sv_con_ref_ab)
+        self.sv_gt_fields.update(self.sv_con_gt_filter.fields)
         if n_cases:
             self.n_cases = n_cases
         if n_controls:
@@ -375,9 +420,9 @@ class GtFilter(object):
                 self.fields.append('RO')
                 return 'RO'
             else:
-                raise RuntimeError("Genotype filtering on allele balance is " +
-                                   "set but neither 'AD' nor 'RO' plus 'AO' " +
-                                   "FORMAT fields are defined in your VCF " +
-                                   "header.")
+                warnings.warn("Genotype filtering on allele balance is " +
+                              "set but neither 'AD' nor 'RO' plus 'AO' " +
+                              "FORMAT fields are defined in your VCF " +
+                              "header.")
         return None
 

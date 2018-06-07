@@ -44,14 +44,17 @@ class VaseRunner(object):
             self.ped = PedFile(args.ped)
         self.csq_filter = None
         self.gene_filter = None
+        self.retrieving_by_region = False
         #region, bed and gene_bed args are mutually exclusive (handled by parser)
         if args.region is not None:
             self.var_stream = VarByRegion(self.input,
                                           region_iter=RegionIter(args.region))
+            self.retrieving_by_region = True
         if args.bed is not None:
             self.logger.info("Reading, sorting and merging intervals in " +
                              "{}".format(args.bed))
             self.var_stream = VarByRegion(self.input, bed=args.bed)
+            self.retrieving_by_region = True
             self.logger.info("Finished processing intervals.")
         if args.gene_bed is not None:
             self.logger.info("Reading, sorting and merging intervals in " +
@@ -63,6 +66,7 @@ class VaseRunner(object):
             if args.biotypes is None:
                 args.biotypes = ['all']
             self.var_stream = self.gene_filter
+            self.retrieving_by_region = True
             self.logger.info("Finished processing intervals.")
         if args.csq is not None:
             if args.no_vep_freq:
@@ -115,11 +119,19 @@ class VaseRunner(object):
                                     gq=args.gq, dp=args.dp,
                                     het_ab=args.het_ab,
                                     hom_ab=args.hom_ab,
-                                    min_control_dp=self.args.control_dp,
-                                    min_control_gq=self.args.control_gq,
-                                    control_het_ab=self.args.control_het_ab,
-                                    control_hom_ab=self.args.control_hom_ab,
-                                    con_ref_ab=self.args.control_max_ref_ab,)
+                                    min_control_dp=args.control_dp,
+                                    min_control_gq=args.control_gq,
+                                    control_het_ab=args.control_het_ab,
+                                    control_hom_ab=args.control_hom_ab,
+                                    con_ref_ab=args.control_max_ref_ab,
+                                    sv_gq=args.sv_gq, sv_dp=args.sv_dp,
+                                    sv_het_ab=args.sv_het_ab,
+                                    sv_hom_ab=args.sv_hom_ab,
+                                    sv_min_control_dp=args.sv_control_dp,
+                                    sv_min_control_gq=args.sv_control_gq,
+                                    sv_control_het_ab=args.sv_control_het_ab,
+                                    sv_control_hom_ab=args.sv_control_hom_ab,
+                                    sv_con_ref_ab=args.sv_control_max_ref_ab,)
         self.de_novo_filter = None
         self.dominant_filter = None
         self.recessive_filter = None
@@ -151,11 +163,16 @@ class VaseRunner(object):
         for record in self.var_stream:
             self.process_record(record)
             var_count += 1
-            if not self.args.quiet and var_count % self.prog_interval == 0:
+            if (not self.args.no_progress and 
+                    var_count % self.prog_interval == 0):
                 n_prog_string = ('{:,} variants processed, '.format(var_count) +
                                '{:,} filtered, {:,} written... at pos {}:{}'
                                .format(self.var_filtered, self.var_written,
                                        record.CHROM, record.POS))
+                if self.retrieving_by_region:
+                    n_prog_string += " (processing region {}/{})".format(
+                        self.var_stream.region_iter.current_index,
+                        len(self.var_stream.region_iter.intervals))
                 if self.log_progress:
                     self.logger.info(n_prog_string)
                 else:
@@ -439,26 +456,75 @@ class VaseRunner(object):
 
     def filter_on_af(self, record):
         remove  = [False] * (len(record.ALLELES) -1)
-        af = record.parsed_info_fields(fields=['AF'])['AF']
-        for i in range(len(remove)):
-            if self.args.af:
-                if af[i] is not None and af[i] > self.args.af:
-                    remove[i] = True
-            if self.args.min_af:
-                if af[i] is None or af[i] < self.args.min_af:
-                    remove[i] = True
+        if self.args.an and self.an_below_threshold(record):
+            return remove
+        try:
+            af = record.parsed_info_fields(fields=['AF'])['AF']
+            for i in range(len(remove)):
+                if self.args.af:
+                    if af[i] is not None and af[i] > self.args.af:
+                        remove[i] = True
+                if self.args.min_af:
+                    if af[i] is None or af[i] < self.args.min_af:
+                        remove[i] = True
+        except KeyError:
+            self.logger.debug("No 'AF' in INFO at {}:{}".format(record.CHROM,
+                                                               record.POS))
+            if 'AN' not in record.parsed_info_fields(fields=['AN']):
+                self.logger.warn("No 'AF' or 'AN' in INFO at {}:{}".format(
+                        record.CHROM, record.POS) + " - will not filter on AF")
+            elif 'AC' not in record.parsed_info_fields(fields=['AC']):
+                self.logger.warn("No 'AF' or 'AC' in INFO at {}:{}".format(
+                        record.CHROM, record.POS) + " - will not filter on AF")
+            else:
+                self.logger.debug("Trying AC/AN instead")
+                return self.filter_on_ac_over_an(record)
+        return remove
+
+    def an_below_threshold(self, record):
+        try:
+            return (record.parsed_info_fields(fields=['AN'])['AN'] <
+                    self.args.an)
+        except KeyError:
+            self.logger.warn("No 'AN' in INFO at {}:{}".format(record.CHROM,
+                                                               record.POS))
+            return True
+
+
+    def filter_on_ac_over_an(self, record):
+        remove  = [False] * (len(record.ALLELES) -1)
+        try:
+            info = record.parsed_info_fields(fields=['AC', 'AN'])
+            ac = info['AC']
+            an = info['AN']
+            af = [ac[i]/an if an > 0 else 0 for i in range(len(ac))]
+            for i in range(len(remove)):
+                if self.args.af:
+                    if af[i] is not None and af[i] > self.args.af:
+                        remove[i] = True
+                if self.args.min_af:
+                    if af[i] is None or af[i] < self.args.min_af:
+                        remove[i] = True
+        except KeyError:
+            self.logger.warn("Missing 'AN' or 'AC' field in INFO at {}:{}"
+                             .format(record.CHROM, record.POS) + " - will not"
+                             " filter on AF")
         return remove
 
     def filter_on_ac(self, record):
         remove  = [False] * (len(record.ALLELES) -1)
-        ac = record.parsed_info_fields(fields=['AC'])['AC']
-        for i in range(len(remove)):
-            if self.args.ac:
-                if ac[i] is not None and ac[i] > self.args.ac:
-                    remove[i] = True
-            if self.args.min_ac:
-                if ac[i] is None or ac[i] < self.args.min_ac:
-                    remove[i] = True
+        try:
+            ac = record.parsed_info_fields(fields=['AC'])['AC']
+            for i in range(len(remove)):
+                if self.args.ac:
+                    if ac[i] is not None and ac[i] > self.args.ac:
+                        remove[i] = True
+                if self.args.min_ac:
+                    if ac[i] is None or ac[i] < self.args.min_ac:
+                        remove[i] = True
+        except KeyError:
+            self.logger.warn("No 'AC' in INFO at {}:{}".format(record.CHROM,
+                                                               record.POS))
         return remove
 
     def filter_on_existing_cadd_phred(self, record):
@@ -880,8 +946,13 @@ class VaseRunner(object):
 
     def _set_logger(self):
         self.logger = logging.getLogger("VASE")
+        if self.args.silent:
+            self.args.no_warnings = True
+            self.args.no_progress = True
         if self.args.debug:
             self.logger.setLevel(logging.DEBUG)
+        elif self.args.no_warnings:
+            self.logger.setLevel(logging.ERROR)
         elif self.args.quiet:
             self.logger.setLevel(logging.WARNING)
         else:
@@ -923,17 +994,26 @@ class VaseRunner(object):
         self._get_family_filter()
         self._get_control_filter()
         self.dominant_filter = DominantFilter(
-                                       self.family_filter, gq=self.args.gq,
-                                       dp=self.args.dp,
-                                       het_ab=self.args.het_ab,
-                                       hom_ab=self.args.hom_ab,
-                                       min_families=self.args.min_families,
-                                       min_control_dp=self.args.control_dp,
-                                       min_control_gq=self.args.control_gq,
-                                       control_het_ab=self.args.control_het_ab,
-                                       control_hom_ab=self.args.control_hom_ab,
-                                       con_ref_ab=self.args.control_max_ref_ab,
-                                       report_file=self.report_fhs['dominant'])
+                              self.family_filter, gq=self.args.gq,
+                              dp=self.args.dp,
+                              het_ab=self.args.het_ab,
+                              hom_ab=self.args.hom_ab,
+                              min_families=self.args.min_families,
+                              min_control_dp=self.args.control_dp,
+                              min_control_gq=self.args.control_gq,
+                              control_het_ab=self.args.control_het_ab,
+                              control_hom_ab=self.args.control_hom_ab,
+                              con_ref_ab=self.args.control_max_ref_ab,
+                              sv_gq=self.args.sv_gq,
+                              sv_dp=self.args.sv_dp,
+                              sv_het_ab=self.args.sv_het_ab,
+                              sv_hom_ab=self.args.sv_hom_ab,
+                              sv_min_control_dp=self.args.sv_control_dp,
+                              sv_min_control_gq=self.args.sv_control_gq,
+                              sv_control_het_ab=self.args.sv_control_het_ab,
+                              sv_control_hom_ab=self.args.sv_control_hom_ab,
+                              sv_con_ref_ab=self.args.sv_control_max_ref_ab,
+                              report_file=self.report_fhs['dominant'])
         added_info = list(self.dominant_filter.get_header_fields().keys())
         if not self.dominant_filter.affected:
             msg = ("No samples fit a dominant model - can not use dominant " +
@@ -957,17 +1037,26 @@ class VaseRunner(object):
         self._get_family_filter()
         self._get_control_filter()
         self.de_novo_filter = DeNovoFilter(
-                                    self.family_filter, gq=self.args.gq,
-                                    dp=self.args.dp,
-                                    het_ab=self.args.het_ab,
-                                    hom_ab=self.args.hom_ab,
-                                    min_control_dp=self.args.control_dp,
-                                    min_control_gq=self.args.control_gq,
-                                    control_het_ab=self.args.control_het_ab,
-                                    control_hom_ab=self.args.control_hom_ab,
-                                    con_ref_ab=self.args.control_max_ref_ab,
-                                    min_families=self.args.min_families,
-                                    report_file=self.report_fhs['de_novo'])
+                              self.family_filter, gq=self.args.gq,
+                              dp=self.args.dp,
+                              het_ab=self.args.het_ab,
+                              hom_ab=self.args.hom_ab,
+                              min_control_dp=self.args.control_dp,
+                              min_control_gq=self.args.control_gq,
+                              control_het_ab=self.args.control_het_ab,
+                              control_hom_ab=self.args.control_hom_ab,
+                              con_ref_ab=self.args.control_max_ref_ab,
+                              min_families=self.args.min_families,
+                              sv_gq=self.args.sv_gq,
+                              sv_dp=self.args.sv_dp,
+                              sv_het_ab=self.args.sv_het_ab,
+                              sv_hom_ab=self.args.sv_hom_ab,
+                              sv_min_control_dp=self.args.sv_control_dp,
+                              sv_min_control_gq=self.args.sv_control_gq,
+                              sv_control_het_ab=self.args.sv_control_het_ab,
+                              sv_control_hom_ab=self.args.sv_control_hom_ab,
+                              sv_con_ref_ab=self.args.sv_control_max_ref_ab,
+                              report_file=self.report_fhs['de_novo'])
         added_info = list(self.de_novo_filter.get_header_fields().keys())
         if not self.de_novo_filter.affected:
             msg = ("No samples fit a de novo model - can not use de novo " +
@@ -990,17 +1079,26 @@ class VaseRunner(object):
     def _get_recessive_filter(self):
         self._get_family_filter()
         self.recessive_filter = RecessiveFilter(
-                                      self.family_filter, gq=self.args.gq,
-                                      dp=self.args.dp,
-                                      het_ab=self.args.het_ab,
-                                      hom_ab=self.args.hom_ab,
-                                      min_families=self.args.min_families,
-                                      min_control_dp=self.args.control_dp,
-                                      min_control_gq=self.args.control_gq,
-                                      control_het_ab=self.args.control_het_ab,
-                                      control_hom_ab=self.args.control_hom_ab,
-                                      con_ref_ab=self.args.control_max_ref_ab,
-                                      report_file=self.report_fhs['recessive'])
+                              self.family_filter, gq=self.args.gq,
+                              dp=self.args.dp,
+                              het_ab=self.args.het_ab,
+                              hom_ab=self.args.hom_ab,
+                              min_families=self.args.min_families,
+                              min_control_dp=self.args.control_dp,
+                              min_control_gq=self.args.control_gq,
+                              control_het_ab=self.args.control_het_ab,
+                              control_hom_ab=self.args.control_hom_ab,
+                              con_ref_ab=self.args.control_max_ref_ab,
+                              sv_gq=self.args.sv_gq,
+                              sv_dp=self.args.sv_dp,
+                              sv_het_ab=self.args.sv_het_ab,
+                              sv_hom_ab=self.args.sv_hom_ab,
+                              sv_min_control_dp=self.args.sv_control_dp,
+                              sv_min_control_gq=self.args.sv_control_gq,
+                              sv_control_het_ab=self.args.sv_control_het_ab,
+                              sv_control_hom_ab=self.args.sv_control_hom_ab,
+                              sv_con_ref_ab=self.args.sv_control_max_ref_ab,
+                              report_file=self.report_fhs['recessive'])
         added_info = list(self.recessive_filter.get_header_fields().keys())
         if not self.recessive_filter.affected:
             msg = ("No samples fit a recessive model - can not use biallelic" +
@@ -1023,17 +1121,25 @@ class VaseRunner(object):
         if self.control_filter:
             return
         self.control_filter = ControlFilter(
-                                    vcf=self.input,
-                                    family_filter=self.family_filter,
-                                    gq=self.args.gq, dp=self.args.dp,
-                                    het_ab=self.args.het_ab,
-                                    hom_ab=self.args.hom_ab,
-                                    min_control_dp=self.args.control_dp,
-                                    min_control_gq=self.args.control_gq,
-                                    control_het_ab=self.args.control_het_ab,
-                                    control_hom_ab=self.args.control_hom_ab,
-                                    con_ref_ab=self.args.control_max_ref_ab,
-                                    n_controls=self.args.n_controls,)
+                                vcf=self.input,
+                                family_filter=self.family_filter,
+                                gq=self.args.gq, dp=self.args.dp,
+                                het_ab=self.args.het_ab,
+                                hom_ab=self.args.hom_ab,
+                                min_control_dp=self.args.control_dp,
+                                min_control_gq=self.args.control_gq,
+                                control_het_ab=self.args.control_het_ab,
+                                control_hom_ab=self.args.control_hom_ab,
+                                con_ref_ab=self.args.control_max_ref_ab,
+                                sv_gq=self.args.sv_gq, sv_dp=self.args.sv_dp,
+                                sv_het_ab=self.args.sv_het_ab,
+                                sv_hom_ab=self.args.sv_hom_ab,
+                                sv_min_control_dp=self.args.sv_control_dp,
+                                sv_min_control_gq=self.args.sv_control_gq,
+                                sv_control_het_ab=self.args.sv_control_het_ab,
+                                sv_control_hom_ab=self.args.sv_control_hom_ab,
+                                sv_con_ref_ab=self.args.sv_control_max_ref_ab,
+                                n_controls=self.args.n_controls,)
 
     def _var_or_vars(self, n):
         if n == 1:
