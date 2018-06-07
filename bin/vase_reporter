@@ -5,34 +5,34 @@ from vase.vase_reporter import VaseReporter
 
 def parse_args():
     parser = argparse.ArgumentParser(
-                   description='''Write per family reports from a VASE 
+                   description='''Write per family reports from a VASE
                                   annotated VCF after running annotating for
                                   recessive, dominant or de novo variants.''',)
     parser.add_argument("vcf", help='''VASE annotated VCF file.''')
-    parser.add_argument("ped", help='''PED file (same as used with VASE 
+    parser.add_argument("ped", help='''PED file (same as used with VASE
                                        segregation analysis).''')
     parser.add_argument("out", help='''Name for output XLSX file.''')
-    parser.add_argument("-f", "--families", nargs='+', 
-                        help='''One or more families to report variants 
+    parser.add_argument("-f", "--families", nargs='+',
+                        help='''One or more families to report variants
                                 for.''')
     parser.add_argument("-r", "--rest_lookups", action="store_true", help=
                         '''Add additional fields by connecting to Ensembl's
-                           REST server. Not recommended for large numbers of 
-                           variants as this will cause significant 
+                           REST server. Not recommended for large numbers of
+                           variants as this will cause significant
                            slowdown.''')
     parser.add_argument("-g", "--grch37", action="store_true", help=
-                        '''Use GRCh37 REST server 
-                           (http://grch37.rest.ensembl.org/) for REST 
+                        '''Use GRCh37 REST server
+                           (http://grch37.rest.ensembl.org/) for REST
                            lookups.''')
     parser.add_argument("-t", "--timeout", type=float, default=2.0, help=
-                        '''Timeout (in seconds) for REST lookups. 
+                        '''Timeout (in seconds) for REST lookups.
                            Default=2.0''')
     parser.add_argument("-m", "--max_retries", type=int, default=2, help=
-                        '''Number of reattempts for REST lookups that fail. 
+                        '''Number of reattempts for REST lookups that fail.
                            Default=2''')
     parser.add_argument("-p", "--prog_interval", type=int, metavar="N", help=
                         '''Report progress every N variants. Defaults to 1000
-                           unless using --rest_lookups in which case it 
+                           unless using --rest_lookups in which case it
                            defaults to 100.''')
     parser.add_argument('--quiet', action='store_true', help=
                         '''Do not output progress information to STDERR.''')
