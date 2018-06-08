@@ -58,18 +58,23 @@ or:
 
 ## USAGE/OPTIONS
 
-
     usage: vase -i VCF [-o OUTPUT] [-r REPORT_PREFIX]
-                [-burden_counts BURDEN_COUNTS] [-gnomad_burden] [-v QUAL] [-p]
-                [-max_alts MAX_ALT_ALLELES] [-af AF] [-min_af MIN_AF] [-ac AC]
-                [-min_ac MIN_AC] [-c [CSQ [CSQ ...]]] [--canonical]
-                [--flagged_features] [--biotypes BIOTYPE [BIOTYPE ...]]
+                [-burden_counts BURDEN_COUNTS] [-gnomad_burden] [-v QUAL]
+                [-p | --keep_filters KEEP_FILTERS [KEEP_FILTERS ...]]
+                [--exclude_filters EXCLUDE_FILTERS [EXCLUDE_FILTERS ...]]
+                [-t TYPE [TYPE ...]] [-max_alts MAX_ALT_ALLELES] [-af AF]
+                [-min_af MIN_AF] [-ac AC] [-min_ac MIN_AC] [-c [CSQ [CSQ ...]]]
+                [--canonical] [--flagged_features]
+                [--biotypes BIOTYPE [BIOTYPE ...]]
+                [--feature_blacklist FEATURE_BLACKLIST]
                 [-m MISSENSE_FILTERS [MISSENSE_FILTERS ...]]
                 [--filter_unpredicted] [--keep_if_any_damaging] [--no_vep_freq]
-                [--vep_af VEP_AF [VEP_AF ...]] [--bed BED | --gene_bed BED]
-                [--cadd_files FILE [FILE ...]] [-cadd_dir DIR]
-                [--cadd_phred FLOAT] [--cadd_raw FLOAT] [-d VCF [VCF ...]]
-                [-g VCF [VCF ...]] [--vcf_filter VCF,ID [VCF,ID ...]] [-f FREQ]
+                [--vep_af VEP_AF [VEP_AF ...]] [--region REGION [REGION ...] |
+                --bed BED | --gene_bed BED] [--cadd_files FILE [FILE ...]]
+                [-cadd_dir DIR] [--cadd_phred FLOAT] [--cadd_raw FLOAT]
+                [-d VCF [VCF ...]] [-g VCF [VCF ...]]
+                [--vcf_filter VCF,ID[,INFO_FIELD ...] [VCF,ID[,INFO_FIELD ...]
+                ...]] [--dng_vcf DNG_VCF [DNG_VCF ...]] [-f FREQ]
                 [--min_freq MIN_FREQ] [-b dbSNP_build] [--max_build dbSNP_build]
                 [--filter_known] [--filter_novel] [--clinvar_path]
                 [-ignore_existing] [--cases SAMPLE_ID [SAMPLE_ID ...]]
@@ -166,7 +171,7 @@ or:
                             gnomAD/ExAC file for variant annotating/filtering
                             using population allele frequencies
                             
-      --vcf_filter VCF,ID [VCF,ID ...], -vcf_filter VCF,ID [VCF,ID ...]
+      --vcf_filter VCF,ID[,INFO_FIELD ...] [VCF,ID[,INFO_FIELD ...] ...], -vcf_filter VCF,ID[,INFO_FIELD ...] [VCF,ID[,INFO_FIELD ...] ...]
                             VCF file(s) and name(s) to use in INFO fields
                             for frequency annotation and/or filtering. Each
                             file and its associated annotation ID should be
@@ -176,6 +181,15 @@ or:
                             VASE_<ID>_AF. If --freq or --min_freq arguments
                             are set then matching variants in your input will
                             be filtered using AF values found in these files.
+                            
+                            You may also add additonal INFO fields to extract
+                            and annotate your matching variants with by
+                            including additional comma-separated fields after
+                            the ID.
+                            
+      --dng_vcf DNG_VCF [DNG_VCF ...]
+                            One or more VCFs created by DeNovoGear for adding
+                            PP_DNM and PP_NULL fields to sample calls.
                             
       -f FREQ, --freq FREQ, --max_freq FREQ
                             Allele frequency cutoff (between 0 and 1). Used
@@ -250,6 +264,36 @@ or:
       -p, --pass_filters    Only keep variants that have passed filters
                             (i.e. FILTER field must be "PASS")
                             
+      --keep_filters KEEP_FILTERS [KEEP_FILTERS ...]
+                            Only keep variants that have these FILTER Fields.
+                            Can not be used with --pass_filters but you can
+                            use 'pass' as one of your arguments here to retain
+                            variants that pass filters in addition to variants
+                            with a FILTER Field matching the values specified.
+                            If multiple filter annotations are given for a
+                            variant all must match one of these fields or it
+                            will be filtered.
+                            
+      --exclude_filters EXCLUDE_FILTERS [EXCLUDE_FILTERS ...]
+                            Filter variants that have these FILTER Fields.
+                            If multiple filter annotations are given for a
+                            variant it will be excluded if any match one of
+                            the given fields.
+                            
+      -t TYPE [TYPE ...], --var_types TYPE [TYPE ...]
+                            Keep variants of the following type(s). Valid
+                            types are 'SNV' (single nucleotide variants),
+                            'MNV' (multi-nucleotide variants excluding
+                            indels), 'INSERTION' (insertions or duplications
+                            relative to the reference), 'DELETION' (deletions
+                            relative to the reference), 'INDEL' (shorthand for
+                            both insertions and deletions) and 'SV'
+                            (structural variants). If a site is multiallelic
+                            it will be retained if any ALT allele matches one
+                            of these types, but per-allele filtering for
+                            segregation filtering will only consider ALT
+                            alleles of the appropriate types.
+                            
       -max_alts MAX_ALT_ALLELES, --max_alt_alleles MAX_ALT_ALLELES
                             Filter variants at sites with more than this
                             many ALT alleles. For example, using
@@ -302,6 +346,10 @@ or:
                             example, you want to filter on other VEP
                             annotations (e.g. allele frequency or biotype)
                             irrespective of consequence.
+                            
+                            Note, that using the --csq option automaticaally
+                            turns on biotype filtering (see the --biotype
+                            option below).
                             
       --canonical, -canonical
                             When used in conjunction with --csq argument,
@@ -359,10 +407,16 @@ or:
                             Alternatively you may use the value 'all' to
                             disable filtering on biotypes.
                             
+      --feature_blacklist FEATURE_BLACKLIST, --blacklist FEATURE_BLACKLIST
+                            A file containing a list of Features (e.g. Ensembl
+                            transcript IDs) to ignore. These must correspond
+                            to the IDs in the 'Feature' field annotated by
+                            VEP.
+                            
       -m MISSENSE_FILTERS [MISSENSE_FILTERS ...], --missense_filters MISSENSE_FILTERS [MISSENSE_FILTERS ...]
                             A list of in silico prediction programs to use
-                            use for filtering missense variants (must be used
-                            in conjunction with --csq argument). The programs
+                            for filtering missense variants (must be used in
+                            conjunction with --csq argument). The programs
                             provided her must have been annotated on the
                             input VCF file either directly by VEP or via the
                             dbNSFP VEP plugin. Recognised program names and
@@ -452,8 +506,12 @@ or:
                             
 
     Region Filtering Arguments:
-      Arguments for filtering variants on genomic regions.
+      Arguments for filtering variants on genomic regions. These arguments are mutually exclusive.
 
+      --region REGION [REGION ...]
+                            Only include variants overlapping these intervals
+                            (in the format chr1:1000-2000).
+                            
       --bed BED             Only include variants overlapping the intervals in
                             the provided BED file.
                             
@@ -665,7 +723,8 @@ or:
       --debug               Output debugging information to STDERR.
                             
       -h, --help            Show this help message and exit
-                        
+                            
+
 
 ## AUTHOR
 
