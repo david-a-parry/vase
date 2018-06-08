@@ -15,6 +15,11 @@ def parse_args():
     parser.add_argument("-f", "--families", nargs='+',
                         help='''One or more families to report variants
                                 for.''')
+    parser.add_argument("-d", "--ddg2p", help='''DDG2P CSV file - if provided
+                        additional fields will be added for DDG2P genes.''')
+    parser.add_argument("--filter_non_ddg2p", action='store_true', help=
+                        '''If using a DDG2P file, only output records for genes
+                        present in DDG2P.''')
     parser.add_argument("-r", "--rest_lookups", action="store_true", help=
                         '''Add additional fields by connecting to Ensembl's
                            REST server. Not recommended for large numbers of

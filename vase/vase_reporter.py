@@ -3,6 +3,8 @@ import re
 import logging
 import xlsxwriter
 import os
+import gzip
+import csv
 from collections import namedtuple
 from .ped_file import PedFile, Family, Individual, PedError
 from parse_vcf import VcfReader, VcfHeader, VcfRecord
@@ -19,9 +21,9 @@ class VaseReporter(object):
         segregating variants. '''
 
     def __init__(self, vcf, ped, out, families=[], all_features=False,
-                 rest_lookups=False, grch37=False, prog_interval=None,
-                 timeout=2.0, max_retries=2, quiet=False, debug=False,
-                 force=False):
+                 rest_lookups=False, grch37=False, ddg2p=None,
+                 filter_non_ddg2p=False, prog_interval=None, timeout=2.0,
+                 max_retries=2, quiet=False, debug=False, force=False):
         self._set_logger(quiet, debug)
         self.vcf = VcfReader(vcf)
         self.ped = PedFile(ped)
@@ -40,6 +42,13 @@ class VaseReporter(object):
         self.worksheets = dict()
         self.rows = dict()
         self.rest_lookups = rest_lookups
+        self.require_ddg2p = filter_non_ddg2p
+        self.ddg2p_targets = None
+        if ddg2p:
+            self.ddg2p = self._read_ddg2p_csv(ddg2p)
+        elif self.require_ddg2p:
+            raise RuntimeError("--filter_non_ddg2p option requires a DDG2P " +
+                               "CSV to be supplied with the --ddg2p argument")
         if not families:
             families = sorted(self.ped.families.keys())
         for f in families:#respect the order of families provided before converting to set
@@ -111,6 +120,10 @@ class VaseReporter(object):
         if self.rest_lookups:
             header.extend(["ENTREZ", "GO", "REACTOME", "MOUSE_TRAITS",
                            "MIM_MORBID"])
+        if self.ddg2p:
+            header.extend(["DDG2P_disease", "DDG2P_Category",
+                           "DDG2P_Allelic_Requirement", "DDG2P_consequences",
+                           "DDG2P_organs"])
         for i in range(len(header)):
             worksheet.write(0, i, header[i], self.bold)
         return worksheet
@@ -134,6 +147,28 @@ class VaseReporter(object):
                 samples.append(indv)
         self.sample_orders[family] = samples
         return samples
+
+    def _read_ddg2p_csv(self, ddg2p):
+        g2p = dict()
+        method = open
+        if ddg2p.endswith(".gz"):
+            method = gzip.open
+        with method(ddg2p, 'rt', newline='') as csvfile:
+            reader = csv.DictReader(csvfile)
+            required_fields = ['gene symbol', 'disease name', 'DDD category',
+                               'allelic requirement', 'mutation consequence',
+                               'organ specificity list', 'prev symbols']
+            for f in required_fields:
+                if f not in reader.fieldnames:
+                    raise RuntimeError("Missing '{}' ".format(f) + "field in" +
+                                       "DDG2P file '{}'".format(f, ddg2p))
+                for row in reader:
+                    g2p[row['gene symbol']] = row
+                    if row['prev symbols']:
+                        for prev in row['prev symbols'].split(';'):
+                            g2p[prev] = row
+        return g2p
+
 
     def get_ensembl_rest_data(self, csq):
         if not csq['Feature']:
@@ -204,6 +239,17 @@ class VaseReporter(object):
             col += 1
         return col
 
+    def write_ddg2p_data(self, worksheet, row, col, csq):
+        d = [''] * 5
+        if csq['SYMBOL'] in self.ddg2p:
+            d = [self.ddg2p[csq['SYMBOL']][f] for f in
+                 ['disease name', 'DDD category', 'allelic requirement',
+                  'mutation consequence', 'organ specificity list']]
+        for x in d:
+            worksheet.write(row, col, x)
+            col += 1
+        return col
+
     def write_rest_data(self, worksheet, row, col, csq):
         entrez, *rest = (self.get_ensembl_rest_data(csq))
         if entrez:
@@ -215,12 +261,16 @@ class VaseReporter(object):
         for x in rest:
             worksheet.write(row, col, x)
             col += 1
+        return col
 
     def write_records(self, record, family, inheritance, allele, features):
         for csq in (x for x in record.CSQ if x['Feature'] in features and
                     x['alt_index'] == allele):
             #column order is: Inheritance, vcf_output_columns, allele, AC, AN,
             #                 GTS, VEP fields
+            if self.require_ddg2p:
+                if csq['SYMBOL'] not in self.ddg2p:
+                    continue
             values = [inheritance]
             values.extend(getattr(record, f) for f in vcf_output_columns)
             values.append(allele)
@@ -237,10 +287,15 @@ class VaseReporter(object):
             col = self.write_row(self.worksheets[family], self.rows[family],
                                  values)
             if self.rest_lookups:
-                self.write_rest_data(self.worksheets[family],
-                                     self.rows[family],
-                                     col,
-                                     csq)
+                col = self.write_rest_data(self.worksheets[family],
+                                           self.rows[family],
+                                           col,
+                                           csq)
+            if self.ddg2p:
+                col = self.write_ddg2p_data(self.worksheets[family],
+                                            self.rows[family],
+                                            col,
+                                            csq)
             self.rows[family] += 1
 
     def write_report(self):
