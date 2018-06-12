@@ -58,6 +58,7 @@ or:
 
 ## USAGE/OPTIONS
 
+    
     usage: vase -i VCF [-o OUTPUT] [-r REPORT_PREFIX]
                 [-burden_counts BURDEN_COUNTS] [-gnomad_burden] [-v QUAL]
                 [-p | --keep_filters KEEP_FILTERS [KEEP_FILTERS ...]]
@@ -517,13 +518,12 @@ or:
                             
       --gene_bed BED        Only include variants overlapping the intervals in
                             the provided BED file and with a VEP annotation
-                            for the provided gene/transcript/protien
+                            for the provided gene/transcript/protein
                             identifiers. The fourth column of the provided BED
                             file should contain gene symbols and/or Ensembl
                             gene/transcript/protein identifiers (multiple IDs
                             should be separated with '/' characters.
-                            nly variant. Requires input to be annotated with
-                            VEP.
+                            Requires input to be annotated with VEP.
                             
 
     Sample Based Filtering Arguments:
@@ -723,8 +723,7 @@ or:
       --debug               Output debugging information to STDERR.
                             
       -h, --help            Show this help message and exit
-                            
-
+                        
 
 ## AUTHOR
 

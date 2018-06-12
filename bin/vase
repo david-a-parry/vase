@@ -426,13 +426,12 @@ the provided BED file.
 '--gene_bed', metavar='BED', help=
 '''Only include variants overlapping the intervals in
 the provided BED file and with a VEP annotation
-for the provided gene/transcript/protien
+for the provided gene/transcript/protein
 identifiers. The fourth column of the provided BED
 file should contain gene symbols and/or Ensembl
 gene/transcript/protein identifiers (multiple IDs
 should be separated with '/' characters.
-nly variant. Requires input to be annotated with
-VEP.
+Requires input to be annotated with VEP.
 
 ''')
 
