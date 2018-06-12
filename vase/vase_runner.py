@@ -48,19 +48,22 @@ class VaseRunner(object):
         #region, bed and gene_bed args are mutually exclusive (handled by parser)
         if args.region is not None:
             self.var_stream = VarByRegion(self.input,
-                                          region_iter=RegionIter(args.region))
+                                          region_iter=RegionIter(args.region),
+                                          stream=args.stream)
             self.retrieving_by_region = True
         if args.bed is not None:
             self.logger.info("Reading, sorting and merging intervals in " +
                              "{}".format(args.bed))
-            self.var_stream = VarByRegion(self.input, bed=args.bed)
+            self.var_stream = VarByRegion(self.input, bed=args.bed,
+                                          stream=args.stream)
             self.retrieving_by_region = True
             self.logger.info("Finished processing intervals.")
         if args.gene_bed is not None:
             self.logger.info("Reading, sorting and merging intervals in " +
                              "{}".format(args.gene_bed))
             self.gene_filter = VarByRegion(self.input, bed=args.gene_bed,
-                                           gene_targets=True)
+                                           gene_targets=True,
+                                           stream=args.stream)
             if args.csq is None:
                 args.csq = ['all']
             if args.biotypes is None:
@@ -169,7 +172,7 @@ class VaseRunner(object):
                                '{:,} filtered, {:,} written... at pos {}:{}'
                                .format(self.var_filtered, self.var_written,
                                        record.CHROM, record.POS))
-                if self.retrieving_by_region:
+                if self.retrieving_by_region and self.var_stream.region_iter:
                     n_prog_string += " (processing region {}/{})".format(
                         self.var_stream.region_iter.current_index,
                         len(self.var_stream.region_iter.intervals))

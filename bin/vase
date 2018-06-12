@@ -436,6 +436,18 @@ VEP.
 
 ''')
 
+    region_args.add_argument(
+'--stream', action='store_true', help=
+'''When using region filtering arguments, read all
+variants in your VCF and filter out all that do
+overlap your regions of interest instead of
+index-jumping. This allows processing of unindexed
+VCFs and potentially speeds up processing of VCFs
+with large structural variants that otherwise
+severely slow-down tabix-style variant retrieval.
+
+''')
+
     #args for specifying files for annotations/filtering
     file_args.add_argument(
 '--cadd_files', '-cadd_files', metavar='FILE', nargs='+', default=[], help=
