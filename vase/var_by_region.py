@@ -80,11 +80,11 @@ class VarByRegion(object):
         BED file.
 
     '''
-    __slots__ = ['vcfreader', 'region_iter', 'current_region',
+    __slots__ = ['vcfreader', 'region_iter', 'current_region', 'exclude',
                  'current_targets', 'gene_targets', 'region_finder']
 
     def __init__(self, vcfreader, bed=None, region_iter=None,
-                 gene_targets=False, stream=False):
+                 gene_targets=False, stream=False, exclude=False):
         '''
             Args:
                 vcfreader:
@@ -113,6 +113,11 @@ class VarByRegion(object):
                     provides a speedup for VCFs with large structural
                     variants.
 
+                exclude:
+                    If True, variants that DO NOT overlap with regions
+                    will be returned instead. This forces streaming of
+                    variants.
+
         '''
         self.gene_targets = gene_targets
         if region_iter:
@@ -126,10 +131,13 @@ class VarByRegion(object):
         else:
             raise ValueError("Either bed or region_iter argument is required.")
         self.vcfreader = vcfreader
+        self.exclude = exclude
         self.current_region = None
         self.current_targets = defaultdict(list)  # keys are VEP columns,
                                                   # values are lists of IDs
         self.region_finder = None
+        if self.exclude:
+            stream = True
         if stream:
             self.region_finder = RegionFinder(self.region_iter)
             self.region_iter = None
@@ -166,13 +174,16 @@ class VarByRegion(object):
         for record in self.vcfreader:
             regions = self.region_finder.fetch(record.CHROM, record.POS,
                                                record.SPAN)
-            if not regions:
+            if not regions and not self.exclude:
                 continue
-            self.current_region = regions[0]
-            if self.gene_targets:
-                self.current_targets.clear()
-                for reg in [x for r in regions for x in r.regions]:
-                    self._append_targets_from_region(reg)
+            elif regions and self.exclude:
+                continue
+            if regions: #i.e. not using exclude option
+                self.current_region = regions[0]
+                if self.gene_targets:
+                    self.current_targets.clear()
+                    for reg in [x for r in regions for x in r.regions]:
+                        self._append_targets_from_region(reg)
             return record
         raise StopIteration
 

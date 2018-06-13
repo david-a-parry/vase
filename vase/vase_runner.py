@@ -49,13 +49,15 @@ class VaseRunner(object):
         if args.region is not None:
             self.var_stream = VarByRegion(self.input,
                                           region_iter=RegionIter(args.region),
-                                          stream=args.stream)
+                                          stream=args.stream,
+                                          exclude=args.exclude_regions)
             self.retrieving_by_region = True
         if args.bed is not None:
             self.logger.info("Reading, sorting and merging intervals in " +
                              "{}".format(args.bed))
             self.var_stream = VarByRegion(self.input, bed=args.bed,
-                                          stream=args.stream)
+                                          stream=args.stream,
+                                          exclude=args.exclude_regions)
             self.retrieving_by_region = True
             self.logger.info("Finished processing intervals.")
         if args.gene_bed is not None:
@@ -63,7 +65,8 @@ class VaseRunner(object):
                              "{}".format(args.gene_bed))
             self.gene_filter = VarByRegion(self.input, bed=args.gene_bed,
                                            gene_targets=True,
-                                           stream=args.stream)
+                                           stream=args.stream,
+                                           exclude=args.exclude_regions)
             if args.csq is None:
                 args.csq = ['all']
             if args.biotypes is None:

@@ -447,6 +447,14 @@ severely slow-down tabix-style variant retrieval.
 
 ''')
 
+    region_args.add_argument(
+'--exclude_regions', action='store_true', help=
+'''When using region filtering arguments, output
+variants that do NOT overlap regions instead of
+those that do. This forces streaming rather than
+index-jumping retrieval.
+
+''')
     #args for specifying files for annotations/filtering
     file_args.add_argument(
 '--cadd_files', '-cadd_files', metavar='FILE', nargs='+', default=[], help=
