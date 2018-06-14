@@ -134,7 +134,8 @@ alleles of the appropriate types.
 '''Filter variants at sites with more than this
 many ALT alleles. For example, using
 '--max_alt_alleles 1' would retain biallelic sites
-only.
+only ('*' alleles are not counted for this
+purpose).
 
 ''')
 

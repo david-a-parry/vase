@@ -549,9 +549,9 @@ class VaseRunner(object):
         if self.args.variant_quality is not None:
             if record.QUAL < self.args.variant_quality:
                 return True
-        if self.args.max_alt_alleles is not None:
-            if len(record.ALLELES) > self.args.max_alt_alleles + 1:
-                return True
+        if (len([x for x in record.ALLELES if x != '*']) >
+            self.args.max_alt_alleles + 1):
+            return True
         return False
 
     def get_cadd_filter(self):
