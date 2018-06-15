@@ -622,7 +622,8 @@ class VaseRunner(object):
             if record.QUAL < self.args.variant_quality:
                 return True
         if self.args.max_alt_alleles is not None:
-            if len(record.ALLELES) > self.args.max_alt_alleles + 1:
+            if (len([x for x in record.ALLELES if x != '*']) >
+                self.args.max_alt_alleles + 1):
                 return True
         return False
 

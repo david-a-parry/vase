@@ -188,6 +188,8 @@ class VcfFilter(object):
             a_offset = 1
         if a_offset is not None:
             val = variant.INFO_FIELDS[field_name].split(',')[index + a_offset]
+        elif field_properties['Number'] == '1':
+            val = variant.INFO_FIELDS[field_name]
         elif len(variant.DECOMPOSED_ALLELES) == 1:
             # if not a value per allele, only process if
             # var only has one ALT allele because we don't
