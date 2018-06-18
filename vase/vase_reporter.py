@@ -47,7 +47,7 @@ class VaseReporter(object):
         self.rows = dict()
         self.rest_lookups = rest_lookups
         self.require_ddg2p = filter_non_ddg2p
-        self.ddg2p_targets = None
+        self.ddg2p = None
         if ddg2p:
             self.ddg2p = self._read_ddg2p_csv(ddg2p)
         elif self.require_ddg2p:
