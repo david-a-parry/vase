@@ -177,7 +177,7 @@ class VaseRunner(object):
                                        record.CHROM, record.POS))
                 if self.retrieving_by_region and self.var_stream.region_iter:
                     n_prog_string += " (processing region {}/{})".format(
-                        self.var_stream.region_iter.current_index,
+                        self.var_stream.region_iter.current_index + 1,
                         len(self.var_stream.region_iter.intervals))
                 if self.log_progress:
                     self.logger.info(n_prog_string)
