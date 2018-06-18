@@ -44,10 +44,6 @@ class FamilyFilter(object):
                         True, these patterns will be tested in addition
                         to inferred patterns.
 
-                gq:     Minimum genotype quality score. Genotype calls
-                        with a GQ lower than this value will be treated
-                        as no-calls. Default = 0.
-
                 logging_level:
                         The level at which logging messages are
                         displayed. Defaults to logging.WARNING
@@ -395,11 +391,85 @@ class RecessiveFilter(InheritanceFilter):
                         will be treated as no-calls. Input without DP
                         data can be used if dp=0. Default=0.
 
-                ab:     Minimum sample ALT allele balance for genotype.
-                        Genotype calls with an allele balance lower than
-                        this value will be treated as no-calls. Requires
-                        either AD or both AO and RO FORMAT fields in
-                        VCF. Default=0.0.
+                het_ab: Minimum genotype allele balance for heterozygous
+                        calls. Genotype calls with an allele balance
+                        lower than this value will be treated as
+                        no-calls. The allele balance is calculated using
+                        'AD' fields if present, otherwise 'AO' and 'RO'
+                        fields (e.g. from freebayes). If none of these
+                        fields are present in the VCF header and ab is
+                        not 0.0 a RuntimeError will be thrown.
+                        Default=0.0.
+
+                hom_ab: As above but for homozygous genotype calls.
+
+                min_control_gq:
+                        Same as 'gq' but specific to control samples.
+                        Defaults to the same as 'gq'.
+
+                min_control_dp:
+                        Same as 'dp' but specific to control samples.
+                        Defaults to the same as 'dp'.
+
+                control_het_ab:
+                        Same as 'het_ab' but specific to control samples.
+                        Defaults to the same as 'het_ab'.
+
+                control_hom_ab:
+                        Same as 'hom_ab' but specific to control samples.
+                        Defaults to the same as 'hom_ab'.
+
+                con_ref_ab:
+                        If a control sample has an ALT allele balance
+                        equal to or greater than this value, consider
+                        this control sample as carrying this allele
+                        despite being called as 0/0.
+
+                sv_gq:  Minimum genotype quality score (GQ) for
+                        structural variants only. Defaults to the same
+                        value as 'gq'.
+
+                sv_dp:  Minimum number of supporting reads (SR + PR) for
+                        structural variant calls. Genotype calls with
+                        a fewer supporting reads than this value will be
+                        treated as no-calls. Defaults to same as 'dp'.
+
+                sv_het_ab:
+                        Minimum allele balance for heterozygous
+                        genotypefor structural variants. This is
+                        calculated using SR + PR FORMAT fields, such as
+                        provided by Manta. Defaults to the same as
+                        het_ab.
+
+                sv_hom_ab:
+                        Minimum allele balance for homozygous
+                        genotypes for structural variants. This is
+                        calculated using SR + PR FORMAT fields, such as
+                        provided by Manta. Defaults to the same as
+                        hom_ab.
+
+                sv_min_control_gq:
+                        Same as 'sv_gq' but specific to control samples.
+                        Defaults to the same as 'sv_gq'.
+
+                sv_min_control_dp:
+                        Same as 'sv_dp' but specific to control samples.
+                        Defaults to the same as 'sv_dp'.
+
+                sv_control_het_ab:
+                        Same as 'sv_het_ab' but specific to control
+                        samples. Defaults to the same as 'sv_het_ab'.
+
+                sv_control_hom_ab:
+                        Same as 'sv_hom_ab' but specific to control
+                        samples. Defaults to the same as 'sv_hom_ab'.
+
+                sv_con_ref_ab:
+                        If a control sample has an ALT allele balance
+                        equal to or greater than this value (as
+                        calculated using SR + PR FORMAT fields),
+                        consider this control sample as carrying this
+                        allele despite being called as 0/0.
 
                 strict: If True, for any affected sample with
                         parents, require confirmation of parental
@@ -807,6 +877,52 @@ class DominantFilter(InheritanceFilter):
                         have an ALT allele fraction over this value.
                         Default=None (i.e. not used).
 
+                sv_gq:  Minimum genotype quality score (GQ) for
+                        structural variants only. Defaults to the same
+                        value as 'gq'.
+
+                sv_dp:  Minimum number of supporting reads (SR + PR) for
+                        structural variant calls. Genotype calls with
+                        a fewer supporting reads than this value will be
+                        treated as no-calls. Defaults to same as 'dp'.
+
+                sv_het_ab:
+                        Minimum allele balance for heterozygous
+                        genotypefor structural variants. This is
+                        calculated using SR + PR FORMAT fields, such as
+                        provided by Manta. Defaults to the same as
+                        het_ab.
+
+                sv_hom_ab:
+                        Minimum allele balance for homozygous
+                        genotypes for structural variants. This is
+                        calculated using SR + PR FORMAT fields, such as
+                        provided by Manta. Defaults to the same as
+                        hom_ab.
+
+                sv_min_control_gq:
+                        Same as 'sv_gq' but specific to control samples.
+                        Defaults to the same as 'sv_gq'.
+
+                sv_min_control_dp:
+                        Same as 'sv_dp' but specific to control samples.
+                        Defaults to the same as 'sv_dp'.
+
+                sv_control_het_ab:
+                        Same as 'sv_het_ab' but specific to control
+                        samples. Defaults to the same as 'sv_het_ab'.
+
+                sv_control_hom_ab:
+                        Same as 'sv_hom_ab' but specific to control
+                        samples. Defaults to the same as 'sv_hom_ab'.
+
+                sv_con_ref_ab:
+                        If a control sample has an ALT allele balance
+                        equal to or greater than this value (as
+                        calculated using SR + PR FORMAT fields),
+                        consider this control sample as carrying this
+                        allele despite being called as 0/0.
+
                 min_families:
                         Require at least this many families to have a
                         qualifying variant in a feature before
@@ -1112,6 +1228,52 @@ class DeNovoFilter(InheritanceFilter):
                         filtered if any unaffected reference calls
                         have an ALT allele fraction over this value.
                         Default=None (i.e. not used).
+
+                sv_gq:  Minimum genotype quality score (GQ) for
+                        structural variants only. Defaults to the same
+                        value as 'gq'.
+
+                sv_dp:  Minimum number of supporting reads (SR + PR) for
+                        structural variant calls. Genotype calls with
+                        a fewer supporting reads than this value will be
+                        treated as no-calls. Defaults to same as 'dp'.
+
+                sv_het_ab:
+                        Minimum allele balance for heterozygous
+                        genotypefor structural variants. This is
+                        calculated using SR + PR FORMAT fields, such as
+                        provided by Manta. Defaults to the same as
+                        het_ab.
+
+                sv_hom_ab:
+                        Minimum allele balance for homozygous
+                        genotypes for structural variants. This is
+                        calculated using SR + PR FORMAT fields, such as
+                        provided by Manta. Defaults to the same as
+                        hom_ab.
+
+                sv_min_control_gq:
+                        Same as 'sv_gq' but specific to control samples.
+                        Defaults to the same as 'sv_gq'.
+
+                sv_min_control_dp:
+                        Same as 'sv_dp' but specific to control samples.
+                        Defaults to the same as 'sv_dp'.
+
+                sv_control_het_ab:
+                        Same as 'sv_het_ab' but specific to control
+                        samples. Defaults to the same as 'sv_het_ab'.
+
+                sv_control_hom_ab:
+                        Same as 'sv_hom_ab' but specific to control
+                        samples. Defaults to the same as 'sv_hom_ab'.
+
+                sv_con_ref_ab:
+                        If a control sample has an ALT allele balance
+                        equal to or greater than this value (as
+                        calculated using SR + PR FORMAT fields),
+                        consider this control sample as carrying this
+                        allele despite being called as 0/0.
 
                 min_families:
                         Require at least this many families to have a
