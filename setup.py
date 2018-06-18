@@ -6,18 +6,21 @@ except ImportError:
 setup(
     name = "vase",
     packages = ["vase"],
-    version = "0.2.3-a",
+    version = "0.2.4",
     description = "Variant Annotation, Segregation and Exclusion",
     author = "David A. Parry",
     author_email = "david.parry@igmm.ed.ac.uk",
     url = "https://github.com/gantzgraf/vase",
-    download_url = 'https://github.com/gantzgraf/vase/archive/0.2.3-a.tar.gz',
+    download_url = 'https://github.com/gantzgraf/vase/archive/0.2.4.tar.gz',
     license='MIT',
     install_requires=[
           'pysam',
-          'parse_vcf>=0.2.5',
+          'parse_vcf>=0.2.6',
           'natsort',
-      ],
+    ],
+    extras_require={
+        'BGZIP': ['biopython'],
+    },
     scripts = ["bin/vase", "bin/burden_test_vase", "bin/vase_reporter"],
     include_package_data=True,
     classifiers = [
