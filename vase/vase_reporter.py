@@ -22,6 +22,7 @@ class VaseReporter(object):
 
     def __init__(self, vcf, ped, out, families=[], all_features=False,
                  rest_lookups=False, grch37=False, ddg2p=None,
+                 recessive_only=False, dominant_only=False, de_novo_only=False,
                  filter_non_ddg2p=False, prog_interval=None, timeout=2.0,
                  max_retries=2, quiet=False, debug=False, force=False):
         self._set_logger(quiet, debug)
@@ -29,7 +30,10 @@ class VaseReporter(object):
         self.ped = PedFile(ped)
         self.families = families
         self.all_features = all_features
-        self.seg_fields = self._check_header()
+        self.recessive_only = recessive_only
+        self.dominant_only = dominant_only
+        self.de_novo_only = de_novo_only
+        self.seg_fields = self._get_seg_fields()
         if not out.endswith(".xlsx"):
             out = out + ".xlsx"
         if os.path.exists(out) and not force:
@@ -90,8 +94,9 @@ class VaseReporter(object):
         self.logger.addHandler(ch)
 
 
-    def _check_header(self):
+    def _get_seg_fields(self):
         inheritance_fields = dict()
+        selected_fields = dict()
         if 'VASE_biallelic_families' in self.vcf.metadata['INFO']:
             inheritance_fields['VASE_biallelic_families'] = 'recessive'
             self.logger.info("Found VASE biallelic annotations.")
@@ -102,14 +107,45 @@ class VaseReporter(object):
             seg = True
         if 'VASE_de_novo_families' in self.vcf.metadata['INFO']:
             inheritance_fields['VASE_de_novo_families'] = 'de novo'
-            self.logger.info("Found VASE de_novo annotations.")
+            self.logger.info("Found VASE de novo annotations.")
             seg = True
         if not seg:
             raise RuntimeError("no vase recessive/dominant/de novo " +
                                "annotations found in vcf - please run vase " +
                                "with --biallelic, --dominant or --de_novo " +
                                " options first.")
-        return inheritance_fields
+        return self._select_seg_fields(inheritance_fields)
+
+    def _select_seg_fields(self, seg_fields):
+        if (not self.recessive_only and not self.dominant_only and not
+            self.de_novo_only):
+            return seg_fields
+        selected = dict()
+        if self.dominant_only:
+            self.logger.info("Selecting dominant annotations")
+            if 'VASE_dominant_families' in seg_fields:
+                selected['VASE_dominant_families'] = 'dominant'
+            else:
+                raise RuntimeError("no vase dominant annotations found in " +
+                                   "vcf - please run vase with --dominant " +
+                                   "option first.")
+        if self.de_novo_only:
+            self.logger.info("Selecting de novo annotations")
+            if 'VASE_de_novo_families' in seg_fields:
+                selected['VASE_de_novo_families'] = 'de_novo'
+            else:
+                raise RuntimeError("no vase de_novo annotations found in " +
+                                   "vcf - please run vase with --de_novo " +
+                                   "option first.")
+        if self.recessive_only:
+            self.logger.info("Selecting recessive annotations")
+            if 'VASE_biallelic_families' in seg_fields:
+                selected['VASE_biallelic_families'] = 'recessive'
+            else:
+                raise RuntimeError("no vase recessive annotations found in " +
+                                   "vcf - please run vase with --biallelic " +
+                                   "option first.")
+        return selected
 
     def _initialize_worksheet(self, family):
         worksheet = self.workbook.add_worksheet(family)

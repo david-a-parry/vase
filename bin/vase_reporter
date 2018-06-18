@@ -15,6 +15,18 @@ def parse_args():
     parser.add_argument("-f", "--families", nargs='+',
                         help='''One or more families to report variants
                                 for.''')
+    parser.add_argument("--recessive_only", action="store_true", help=
+                        '''Only output variants with recessive annotations. Can
+                        be combined with --dominant_only or --de_novo_only
+                        options.''')
+    parser.add_argument("--dominant_only", action="store_true", help=
+                        '''Only output variants with dominant annotations. Can
+                        be combined with --recessive_only or --de_novo_only
+                        options.''')
+    parser.add_argument("--de_novo_only", action="store_true", help=
+                        '''Only output variants with de_novo annotations. Can
+                        be combined with --recessive_only or --dominant_only
+                        options.''')
     parser.add_argument("-d", "--ddg2p", help='''DDG2P CSV file - if provided
                         additional fields will be added for DDG2P genes.''')
     parser.add_argument("--filter_non_ddg2p", action='store_true', help=
