@@ -223,7 +223,7 @@ annotations (e.g. allele frequency or biotype)
 irrespective of consequence.
 
 Note, that using the --csq option automaticaally
-turns on biotype filtering (see the --biotype
+turns on biotype filtering (see the --biotypes
 option below).
 
 ''' )
@@ -405,6 +405,29 @@ arguments are in effect):
                 gnomADg_AF_FIN
                 gnomADg_AF_NFE
                 gnomADg_AF_OTH
+
+''')
+
+    filter_args.add_argument(
+'--pathogenic', action='store_true', help=
+'''When used in conjunction with --csq argument,
+retain variants flagged as pathogenic by either
+'CLIN_SIG' or 'clinvar_clnsig' VEP annotations
+even if the consequence class is not included in
+those selected using the --csq argument. Note that
+this only alters filtering as specified by --csq
+and --missense_filters options; frequency,
+canonical transcript, flagged_features and biotype
+filtering will still occur as normal.
+
+''')
+
+    filter_args.add_argument(
+'--no_conflicted', action='store_true', help=
+'''When used in conjunction with --pathogenic
+argument, variants labelled as pathogenic will
+only be retained if there are no conflicting
+'benign' or 'likely benign' assertions.
 
 ''')
 

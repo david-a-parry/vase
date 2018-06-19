@@ -11,7 +11,8 @@ class VepFilter(object):
                  filter_unpredicted=False, keep_any_damaging=False,
                  filter_flagged_features=False, freq=None, min_freq=None,
                  afs=[], gene_filter=None, blacklist=None,filter_known=False,
-                 filter_novel=False, logging_level=logging.WARNING):
+                 filter_novel=False, pathogenic=False, no_conflicted=False,
+                 logging_level=logging.WARNING):
         '''
             Args:
                 vcf:    input VcfReader object
@@ -84,6 +85,19 @@ class VepFilter(object):
                 blacklist:
                         File containing a list of Feature IDs to ignore.
 
+                pathogenic:
+                        If True, retain consequences regardless of type
+                        if annotated as 'pathogenic' or 'likely
+                        pathogenic' in 'CLIN_SIG' or 'clinvar_clnsig'
+                        VEP fields. Frequency, biotype and canonical
+                        filtering will still be applied.
+
+                no_conflicted:
+                        If 'pathogenic' option is True, only retain
+                        'likely pathogenic' and 'pathogenic'
+                        consequences if there are no conflicting
+                        'benign' or 'likely benign' assertions.
+
                 logging_level:
                         Logging level to use. Default=logging.WARNING.
 
@@ -150,7 +164,10 @@ class VepFilter(object):
             self.in_silico = InSilicoFilter(in_silico, filter_unpredicted,
                                             keep_any_damaging)
         self.blacklist = self._read_blacklist(blacklist)
-
+        self.pathogenic = pathogenic
+        self.no_conflicted = no_conflicted
+        if pathogenic:
+            self.path_fields = self._get_path_fields(vcf)
 
     def filter(self, record):
         filter_alleles = [True] * (len(record.ALLELES) -1)
@@ -222,6 +239,10 @@ class VepFilter(object):
                 filter_alleles[alt_i] = False
                 filter_csq[i] = False
                 continue
+            if self.pathogenic and self._has_pathogenic_annotation(c, record):
+                filter_alleles[alt_i] = False
+                filter_csq[i] = False
+                continue
             consequence = c['Consequence'].split('&')
             for s_csq in consequence:
                 if s_csq in self.csq:
@@ -234,6 +255,31 @@ class VepFilter(object):
                         filter_alleles[alt_i] = False
                         filter_csq[i] = False
         return filter_alleles, filter_csq
+
+    def _has_pathogenic_annotation(self, csq, record):
+        path = []
+        benign = []
+        for annot in self.path_fields:
+            if not csq[annot]:
+                continue
+            assertions = csq[annot].split('&')
+            if annot == 'clinvar_clnsig':
+                #benign = 2, likely benign = 3
+                #likely pathognic = 4, pathogenic = 5
+                try:
+                    benign.extend((4 > int(x) > 1 for x in assertions))
+                    path.extend((6 > int(x) > 3 for x in assertions))
+                except ValueError:
+                    self.logger.warn("Error parsing 'clinvar_clnsig' fields " +
+                                     "at {}:{} - expected".format(record.CHROM,
+                                                                  record.POS) +
+                                     " numeric values.")
+            else:
+                benign.extend(('benign' in x for x in assertions))
+                path.extend(('pathogenic' in x for x in assertions))
+        if self.no_conflicted:
+            return sum(path) and not sum(benign)
+        return sum(path)
 
     def _read_csq_file(self):
         data_file = os.path.join(os.path.dirname(__file__),
@@ -310,6 +356,14 @@ class VepFilter(object):
         self.logger.info("{:,} unique feature IDs blacklisted from {}.".format(
                          len(features), blacklist))
         return features
+
+    def _get_path_fields(self, vcf):
+        cln_fields = ['CLIN_SIG', 'clinvar_clnsig']
+        path_fields = [f for f in vcf.header.csq_fields if f in cln_fields]
+        if not path_fields:
+            self.logger.warn("No compatible ClinVar VEP annotations found " +
+                             "for use with pathogenic allele identification.")
+        return path_fields
 
     def _get_logger(self, logging_level):
         logger = logging.getLogger(__name__)

@@ -102,6 +102,8 @@ class VaseRunner(object):
                                 afs=vep_af,
                                 gene_filter=self.gene_filter,
                                 blacklist=args.feature_blacklist,
+                                pathogenic=args.pathogenic,
+                                no_conflicted=args.no_conflicted,
                                 logging_level=self.logger.level)
         self.sample_filter = None
         self.burden_counter = None
