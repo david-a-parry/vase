@@ -20,6 +20,7 @@ setup(
     ],
     extras_require={
         'BGZIP': ['biopython'],
+        'REPORTER': ['xlsxwriter'],
     },
     scripts = ["bin/vase", "bin/burden_test_vase", "bin/vase_reporter"],
     include_package_data=True,
