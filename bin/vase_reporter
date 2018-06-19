@@ -27,6 +27,8 @@ def parse_args():
                         '''Only output variants with de_novo annotations. Can
                         be combined with --recessive_only or --dominant_only
                         options.''')
+    parser.add_argument("--blacklist", help='''A file containing a list of
+                        Ensembl feature IDs to ignore, one ID per line.''')
     parser.add_argument("-d", "--ddg2p", help='''DDG2P CSV file - if provided
                         additional fields will be added for DDG2P genes.''')
     parser.add_argument("--filter_non_ddg2p", action='store_true', help=

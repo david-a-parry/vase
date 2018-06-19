@@ -21,7 +21,7 @@ class VaseReporter(object):
         segregating variants. '''
 
     def __init__(self, vcf, ped, out, families=[], all_features=False,
-                 rest_lookups=False, grch37=False, ddg2p=None,
+                 rest_lookups=False, grch37=False, ddg2p=None, blacklist=None,
                  recessive_only=False, dominant_only=False, de_novo_only=False,
                  filter_non_ddg2p=False, prog_interval=None, timeout=2.0,
                  max_retries=2, quiet=False, debug=False, force=False):
@@ -53,6 +53,9 @@ class VaseReporter(object):
         elif self.require_ddg2p:
             raise RuntimeError("--filter_non_ddg2p option requires a DDG2P " +
                                "CSV to be supplied with the --ddg2p argument")
+        self.blacklist = None
+        if blacklist:
+            self.blacklist = self._read_blacklist(blacklist)
         if not families:
             families = sorted(self.ped.families.keys())
         for f in families:#respect the order of families provided before converting to set
@@ -205,6 +208,18 @@ class VaseReporter(object):
                             g2p[prev] = row
         return g2p
 
+    def _read_blacklist(self, blacklist):
+        '''
+            Reads a file of feature IDs to ignore. Only reads first
+            non-whitespace text from each line.
+        '''
+        if blacklist is None:
+            return None
+        with open (blacklist, 'rt') as bfile:
+            features = set(line.split()[0] for line in bfile)
+        self.logger.info("{:,} unique feature IDs blacklisted from {}.".format(
+                         len(features), blacklist))
+        return features
 
     def get_ensembl_rest_data(self, csq):
         if not csq['Feature']:
@@ -307,6 +322,9 @@ class VaseReporter(object):
             #                 GTS, VEP fields
             if self.require_ddg2p:
                 if csq['SYMBOL'] not in self.ddg2p:
+                    continue
+            if self.blacklist:
+                if csq['Feature'] in self.blacklist:
                     continue
             values = [inheritance]
             values.extend(getattr(record, f) for f in vcf_output_columns)
