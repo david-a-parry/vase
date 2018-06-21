@@ -100,6 +100,7 @@ class VaseReporter(object):
     def _get_seg_fields(self):
         inheritance_fields = dict()
         selected_fields = dict()
+        seg = False
         if 'VASE_biallelic_families' in self.vcf.metadata['INFO']:
             inheritance_fields['VASE_biallelic_families'] = 'recessive'
             self.logger.info("Found VASE biallelic annotations.")
