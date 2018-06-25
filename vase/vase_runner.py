@@ -94,6 +94,8 @@ class VaseRunner(object):
                                 in_silico=args.missense_filters,
                                 filter_unpredicted=args.filter_unpredicted,
                                 keep_any_damaging=args.keep_if_any_damaging,
+                                global_in_silico=args.retain_filters,
+                                retain_labels=args.retain_labels,
                                 filter_flagged_features=args.flagged_features,
                                 freq=vep_freq,
                                 min_freq=vep_min_freq,

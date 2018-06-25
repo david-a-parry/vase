@@ -1,5 +1,6 @@
 import sys
 import logging
+from collections import defaultdict
 from parse_vcf import *
 from .insilico_filter import *
 
@@ -9,6 +10,7 @@ class VepFilter(object):
 
     def __init__(self, vcf, csq=[], canonical=False, biotypes=[], in_silico=[],
                  filter_unpredicted=False, keep_any_damaging=False,
+                 global_in_silico=[], retain_labels=[],
                  filter_flagged_features=False, freq=None, min_freq=None,
                  afs=[], gene_filter=None, blacklist=None,filter_known=False,
                  filter_novel=False, pathogenic=False, no_conflicted=False,
@@ -47,6 +49,28 @@ class VepFilter(object):
                         If using 'in_silico' option, retain variants if
                         any of the criteria are met for any of the
                         specified filtering programs.
+
+                global_in_silico:
+                        Similar to 'in_silico' but the prediction
+                        programs are checked for all consequence types
+                        and variants retained irrespective of
+                        consequence type if they pass these filters.
+                        Note that variants matching the 'csq' list will
+                        be retained regardless of this filter. This
+                        option can be used to, for example, retain
+                        synonymous/intronic variants that are have an
+                        'ada_score' > 0.6 by specifying 'ada_score=0.6'
+                        with this option assuming neither
+                        'synonymous_variant' or 'intron_variant' are
+                        given to the 'csq' argument.
+
+                retain_labels:
+                        Do not filter any variants which have the
+                        following values for given label. Labels and
+                        values must be separated by '=' sign. For
+                        example, to retain any consequence which has
+                        a VEP annotation named 'FOO' with  value 'BAR'
+                        use 'FOO=BAR'.
 
                 filter_flagged_features:
                         Filter consequences on features which are
@@ -159,10 +183,24 @@ class VepFilter(object):
         self.filter_novel = filter_novel
         self._check_freq_fields(vcf)
         self.in_silico = False
+        self.global_in_silico = False
         if in_silico:
             in_silico = set(in_silico)
             self.in_silico = InSilicoFilter(in_silico, filter_unpredicted,
                                             keep_any_damaging)
+        if global_in_silico:
+            global_in_silico = set(global_in_silico)
+            self.global_in_silico = InSilicoFilter(global_in_silico,
+                                                   filter_unpredicted=True)
+        self.retain_labels = defaultdict(set)
+        if retain_labels:
+            for lbl in retain_labels:
+                split_lbl = lbl.split('=', 1)
+                if len(split_lbl) != 2:
+                    raise RuntimeError("Error in --retain_label - VEP " +
+                                       "annotation and value must be " +
+                                       "separated by a '=' character")
+                self.retain_labels[split_lbl[0]].add(split_lbl[1])
         self.blacklist = self._read_blacklist(blacklist)
         self.pathogenic = pathogenic
         self.no_conflicted = no_conflicted
@@ -243,18 +281,38 @@ class VepFilter(object):
                 filter_alleles[alt_i] = False
                 filter_csq[i] = False
                 continue
-            consequence = c['Consequence'].split('&')
+            if self._retain_label_matched(c):
+                filter_alleles[alt_i] = False
+                filter_csq[i] = False
+                continue
+            consequence = [x.lower() for x in c['Consequence'].split('&')]
+            csq_matched = False
             for s_csq in consequence:
                 if s_csq in self.csq:
                     if self.in_silico and s_csq == 'missense_variant':
                         do_filter = self.in_silico.filter(c)
                         if not do_filter:
                             filter_alleles[alt_i] = False
+                            csq_matched = True
                         filter_csq[i] = do_filter
                     else:
                         filter_alleles[alt_i] = False
                         filter_csq[i] = False
+                        csq_matched = True
+            if not csq_matched and self.global_in_silico:
+                do_filter = self.global_in_silico.filter(c)
+                if not do_filter:
+                    filter_alleles[alt_i] = False
+                    filter_csq[i] = False
+                    continue
         return filter_alleles, filter_csq
+
+    def _retain_label_matched(self, csq):
+        for k,v in self.retain_labels.items():
+            for lbl in csq[k].split('&'):
+                if lbl in v:
+                    return True
+        return False
 
     def _has_pathogenic_annotation(self, csq, record):
         path = []
@@ -303,9 +361,9 @@ class VepFilter(object):
                 cols = line.rstrip().split('\t')
                 if len(cols) < 2:
                     continue
-                valid.append(cols[0])
+                valid.append(cols[0].lower())
                 if cols[1] == 'default':
-                    defaults.append(cols[0])
+                    defaults.append(cols[0].lower())
         return defaults, valid
 
     def _read_maf_file(self):

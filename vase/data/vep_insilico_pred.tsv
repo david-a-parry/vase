@@ -67,3 +67,11 @@ Polyphen2_HVAR_rankscore	0.5	score
 SIFT_converted_rankscore	0.5	score
 Eigen-PC-raw_rankscore	0.5	score
 Eigen-raw_rankscore	0.5	score
+#splice region scoring
+ada_score	0.7	score
+rf_score	0.7	score
+maxentscan_diff	5.0	score
+#SpliceDistance plugin annotations (github.com/gantzgraf/SpliceDistance)
+SpliceDistance	donor-0	default
+SpliceDistance	donor+5	default
+SpliceDistance	(donor|acceptor)[\+\-]\d+	regex

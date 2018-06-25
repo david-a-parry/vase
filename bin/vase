@@ -366,6 +366,33 @@ prediction/score. This behaviour is overridden by
 missing for any program.
 
 ''')
+
+    filter_args.add_argument(
+'--retain_filters', nargs='+', help=
+'''Similar to --missense_filters except consequences
+are analyzed for all variant classes and variants
+are retained if they pass filters. Variants that
+match any of the classes for the --csq argument
+will be retained regardless of this filter, but
+this filter can be used to retain classes such as
+'synonomous_variant' or 'intonic_variant' if the
+annotation passes this filter. Currently only
+dbscSNV, MaxEntScan and SpliceDistance
+(https://github.com/gantzgraf/SpliceDistance)
+plugins are supported.
+
+''')
+
+    filter_args.add_argument(
+'--retain_labels', metavar='Label=Value', nargs='+', help=
+'''Retain consequence annotations if there is a
+matching annotation for the given label. For
+example, to retain any consequence where there is
+a VEP annotation for 'FOO' matching 'BAR' use
+"--retain_labels FOO=BAR".
+
+''')
+
     filter_args.add_argument(
 '--no_vep_freq', '-no_vep_freq', action='store_true', help=
 '''Use this option if you want to ignore VEP
