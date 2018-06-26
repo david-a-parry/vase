@@ -202,12 +202,12 @@ class VepFilter(object):
         if splice_in_silico:
             splice_in_silico = set(splice_in_silico)
             self.splice_in_silico = InSilicoFilter(
-                            programs=splice_in_silico,
-                            filter_unpredicted=splice_filter_unpredicted,
-                            keep_if_any_damaging=splice_keep_any_damaging,
-                            pred_file=os.path.join(os.path.dirname(__file__),
-                                                   "data",
-                                                   "vep_splice_insilico.tsv"))
+                        programs=splice_in_silico,
+                        filter_unpredicted=splice_filter_unpredicted,
+                        keep_if_any_damaging=splice_keep_any_damaging,
+                        pred_file=os.path.join(os.path.dirname(__file__),
+                                               "data",
+                                               "vep_splice_insilico_pred.tsv"))
         self.retain_labels = defaultdict(set)
         if retain_labels:
             for lbl in retain_labels:
