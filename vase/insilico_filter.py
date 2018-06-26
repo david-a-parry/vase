@@ -186,6 +186,7 @@ class InSilicoFilter(object):
                     self.score_filters[prog] = score
                 else:
                     self.pred_filters[prog] = default_progs[prog]['default']
+        self._n_prog = len(self.pred_filters) + len(self.score_filters)
 
     def filter(self, csq):
         '''
@@ -197,6 +198,7 @@ class InSilicoFilter(object):
                      provided by the CSQ property of a VcfRecord object.
 
         '''
+        unpredicted = 0
         for prog in self.pred_filters:
             try:
                 if csq[prog] != '':
@@ -211,8 +213,10 @@ class InSilicoFilter(object):
                             return False
                     elif do_filter:                #haven't matched - filter
                         return True
-                elif self.filter_unpredicted:
+                else:
+                    if self.filter_unpredicted:
                         return True
+                    unpredicted += 1
             except KeyError:
                 raise RuntimeError(self._get_prog_missing_string(prog))
         for prog in self.score_filters:
@@ -220,6 +224,7 @@ class InSilicoFilter(object):
                 if csq[prog] == '':
                     if self.filter_unpredicted:
                         return True
+                    unpredicted += 1
                 else:
                     do_filter = True
                     for p in csq[prog].split('&'):
@@ -244,6 +249,10 @@ class InSilicoFilter(object):
                 raise RuntimeError(self._get_prog_missing_string(prog))
         if self.keep_if_any_damaging:
             #would have already returned False if anything passed filters
+            if not self.filter_unpredicted and unpredicted == self._n_prog:
+                #everything unpredicted - do not filter
+                return False
+            #filter - no damaging pred & at least 1 prog with non-missing score
             return True
         return False
 
