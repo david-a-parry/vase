@@ -368,18 +368,36 @@ missing for any program.
 ''')
 
     filter_args.add_argument(
-'--retain_filters', nargs='+', help=
-'''Similar to --missense_filters except consequences
-are analyzed for all variant classes and variants
-are retained if they pass filters. Variants that
-match any of the classes for the --csq argument
-will be retained regardless of this filter, but
-this filter can be used to retain classes such as
-'synonomous_variant' or 'intonic_variant' if the
-annotation passes this filter. Currently only
-dbscSNV, MaxEntScan and SpliceDistance
+'--splice_filters', nargs='+', help=
+'''Similar to --missense_filters except only splice
+consequences (splice_donor_variant,
+splice_acceptor_variant and splice_region_variant)
+are checked versus the given in silico prediction
+programs. Currently only dbscSNV, (rf_score and
+ada_score), MaxEntScan and SpliceDistance
 (https://github.com/gantzgraf/SpliceDistance)
 plugins are supported.
+
+For example '--splice_filters ada_score' will
+filter splice region variants with a dbscSNV
+ada_score cutoff below the default value (0.7).
+Alternatively, '--splice_filters ada_score=0.9'
+would filter on a higher threshold of 0.9 or
+above.
+
+''')
+
+    filter_args.add_argument(
+'--splice_filter_unpredicted', action='store_true', default=False, help=
+'''Same as --filter_unpredicted but for
+--splice_filters only.
+
+''')
+
+    filter_args.add_argument(
+'--splice_keep_if_any_damaging', action='store_true', default=False, help=
+'''Same as --keep_if_any_damaging but for
+--splice_filters only.
 
 ''')
 

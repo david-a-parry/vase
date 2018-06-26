@@ -10,7 +10,8 @@ class VepFilter(object):
 
     def __init__(self, vcf, csq=[], canonical=False, biotypes=[], in_silico=[],
                  filter_unpredicted=False, keep_any_damaging=False,
-                 global_in_silico=[], retain_labels=[],
+                 splice_in_silico=[], splice_filter_unpredicted=False,
+                 splice_keep_any_damaging=False, retain_labels=[],
                  filter_flagged_features=False, freq=None, min_freq=None,
                  afs=[], gene_filter=None, blacklist=None,filter_known=False,
                  filter_novel=False, pathogenic=False, no_conflicted=False,
@@ -50,24 +51,34 @@ class VepFilter(object):
                         any of the criteria are met for any of the
                         specified filtering programs.
 
-                global_in_silico:
+                splice_in_silico:
                         Similar to 'in_silico' but the prediction
-                        programs are checked for all consequence types
-                        and variants retained irrespective of
-                        consequence type if they pass these filters.
-                        Note that variants matching the 'csq' list will
-                        be retained regardless of this filter. This
-                        option can be used to, for example, retain
-                        synonymous/intronic variants that are have an
-                        'ada_score' > 0.6 by specifying 'ada_score=0.6'
-                        with this option assuming neither
-                        'synonymous_variant' or 'intron_variant' are
-                        given to the 'csq' argument.
+                        programs are checked for splice_donor_variants,
+                        splice_acceptor_variants and
+                        splice_region_variants rather than missense.
+                        Currently only dbscSNV (rf_score and ada_score),
+                        MaxEntScan and SpliceDistance
+                        (https://github.com/gantzgraf/SpliceDistance)
+                        annotations are supported. This option can be
+                        used to, for example, retain
+                        splice region variants that are have
+                        an 'ada_score' > 0.6 by specifying
+                        'ada_score=0.6' with this option.
+
+                splice_filter_unpredicted:
+                        If using 'splice_in_silico' option, filter
+                        splice region variants that have missing values
+                        for any of the specified filtering programs.
+
+                splice_keep_any_damaging:
+                        If using 'splice_in_silico' option, retain
+                        variants if any of the criteria are met for any
+                        of the specified filtering programs.
 
                 retain_labels:
-                        Do not filter any variants which have the
-                        following values for given label. Labels and
-                        values must be separated by '=' sign. For
+                        Do not filter on consequence type if the
+                        following values are present for a label. Labels
+                        and values must be separated by '=' sign. For
                         example, to retain any consequence which has
                         a VEP annotation named 'FOO' with  value 'BAR'
                         use 'FOO=BAR'.
@@ -183,15 +194,20 @@ class VepFilter(object):
         self.filter_novel = filter_novel
         self._check_freq_fields(vcf)
         self.in_silico = False
-        self.global_in_silico = False
+        self.splice_in_silico = False
         if in_silico:
             in_silico = set(in_silico)
             self.in_silico = InSilicoFilter(in_silico, filter_unpredicted,
                                             keep_any_damaging)
-        if global_in_silico:
-            global_in_silico = set(global_in_silico)
-            self.global_in_silico = InSilicoFilter(global_in_silico,
-                                                   filter_unpredicted=True)
+        if splice_in_silico:
+            splice_in_silico = set(splice_in_silico)
+            self.splice_in_silico = InSilicoFilter(
+                            programs=splice_in_silico,
+                            filter_unpredicted=splice_filter_unpredicted,
+                            keep_if_any_damaging=splice_keep_any_damaging,
+                            pred_file=os.path.join(os.path.dirname(__file__),
+                                                   "data",
+                                                   "vep_splice_insilico.tsv"))
         self.retain_labels = defaultdict(set)
         if retain_labels:
             for lbl in retain_labels:
@@ -286,25 +302,26 @@ class VepFilter(object):
                 filter_csq[i] = False
                 continue
             consequence = [x.lower() for x in c['Consequence'].split('&')]
-            csq_matched = False
             for s_csq in consequence:
                 if s_csq in self.csq:
                     if self.in_silico and s_csq == 'missense_variant':
                         do_filter = self.in_silico.filter(c)
                         if not do_filter:
                             filter_alleles[alt_i] = False
-                            csq_matched = True
+                            filter_csq[i] = False
+                            break
+                        filter_csq[i] = do_filter
+                    elif self.splice_in_silico and s_csq.startswith("splice"):
+                        do_filter = self.splice_in_silico.filter(c)
+                        if not do_filter:
+                            filter_alleles[alt_i] = False
+                            filter_csq[i] = False
+                            break
                         filter_csq[i] = do_filter
                     else:
                         filter_alleles[alt_i] = False
                         filter_csq[i] = False
-                        csq_matched = True
-            if not csq_matched and self.global_in_silico:
-                do_filter = self.global_in_silico.filter(c)
-                if not do_filter:
-                    filter_alleles[alt_i] = False
-                    filter_csq[i] = False
-                    continue
+                        break
         return filter_alleles, filter_csq
 
     def _retain_label_matched(self, csq):
