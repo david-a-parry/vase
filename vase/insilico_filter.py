@@ -197,7 +197,6 @@ class InSilicoFilter(object):
                      provided by the CSQ property of a VcfRecord object.
 
         '''
-
         for prog in self.pred_filters:
             try:
                 if csq[prog] != '':
@@ -207,8 +206,9 @@ class InSilicoFilter(object):
                         if p in self.pred_filters[prog]: #matches, don't filter
                             do_filter = False
                             break
-                    if self.keep_if_any_damaging and not do_filter: #matched
-                        return False
+                    if self.keep_if_any_damaging:
+                        if not do_filter: #matched
+                            return False
                     elif do_filter:                #haven't matched - filter
                         return True
                 elif self.filter_unpredicted:
@@ -235,13 +235,16 @@ class InSilicoFilter(object):
                             if score >= self.score_filters[prog]: #
                                 do_filter = False
                                 break
-                    if self.keep_if_any_damaging and not do_filter:
-                        return False
+                    if self.keep_if_any_damaging:
+                        if not do_filter:
+                            return False
                     elif do_filter:
                         return True #score not over threshold - filter
-
             except KeyError:
                 raise RuntimeError(self._get_prog_missing_string(prog))
+        if self.keep_if_any_damaging:
+            #would have already returned False if anything passed filters
+            return True
         return False
 
 
