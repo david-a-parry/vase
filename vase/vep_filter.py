@@ -145,28 +145,30 @@ class VepFilter(object):
         if len(csq) == 0:
             csq = ['default']
         for c in csq:
-            if c.lower() == 'default':
+            lc = c.lower()
+            if lc == 'default':
                 self.csq.update(default_csq)
-            elif c.lower() == 'all':
+            elif lc == 'all':
                 self.csq = None
                 break
             else:
-                if c.lower() in valid_csq:
-                    self.csq.add(c.lower())
+                if lc in valid_csq:
+                    self.csq.add(lc)
                 else:
                     raise RuntimeError("ERROR: Unrecognised VEP consequence " +
                                        "class '{}'".format(c))
         if len(biotypes) == 0:
             biotypes = ['default']
         for b in biotypes:
-            if b.lower() == 'all':
+            lb = b.lower()
+            if lb == 'all':
                 self.biotypes = None
                 break
-            elif b.lower() == 'default':
+            elif lb == 'default':
                 self.biotypes.update(default_biotypes)
             else:
-                if b in valid_biotypes:
-                    self.biotypes.add(b)
+                if lb in valid_biotypes:
+                    self.biotypes.add(lb)
                 else:
                     raise RuntimeError("ERROR: Unrecognised VEP biotype " +
                                        "'{}'".format(b))
@@ -252,7 +254,8 @@ class VepFilter(object):
                         continue
                 except KeyError:
                     pass
-            if self.biotypes is not None and c['BIOTYPE'] not in self.biotypes:
+            if (self.biotypes is not None and
+                c['BIOTYPE'].lower() not in self.biotypes):
                 continue
             if self.gene_filter:
                 if not self.gene_filter.target_in_csq(c):
