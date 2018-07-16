@@ -15,6 +15,16 @@ vcf_output_columns = ['CHROM', 'POS', 'ID', 'REF', 'ALT', 'QUAL', 'FILTER',]
 feat_annots = { 'VASE_biallelic_families': 'VASE_biallelic_features',
                 'VASE_dominant_families': 'VASE_dominant_features',
                 'VASE_de_novo_families': 'VASE_de_novo_features',}
+allelic_req_to_label = {'biallelic'                 : ['recessive'],
+                        'digenic'                   : None,
+                        'hemizygous'                : ['recessive'],
+                        'imprinted'                 : None,
+                        'mitochondrial'             : None,
+                        'monoallelic'               : ['de novo', 'dominant'],
+                        'mosaic'                    : ['de novo', 'dominant'],
+                        'x-linked dominant'         : None,
+                        'x-linked over-dominance'   : None,}
+
 
 class VaseReporter(object):
     ''' Read a VASE annotated VCF and output XLSX format summary of
@@ -23,8 +33,9 @@ class VaseReporter(object):
     def __init__(self, vcf, ped, out, families=[], all_features=False,
                  rest_lookups=False, grch37=False, ddg2p=None, blacklist=None,
                  recessive_only=False, dominant_only=False, de_novo_only=False,
-                 filter_non_ddg2p=False, prog_interval=None, timeout=2.0,
-                 max_retries=2, quiet=False, debug=False, force=False):
+                 filter_non_ddg2p=False, allelic_requirement=False,
+                 prog_interval=None, timeout=2.0, max_retries=2, quiet=False,
+                 debug=False, force=False):
         self._set_logger(quiet, debug)
         self.vcf = VcfReader(vcf)
         self.ped = PedFile(ped)
@@ -48,6 +59,7 @@ class VaseReporter(object):
         self.rest_lookups = rest_lookups
         self.require_ddg2p = filter_non_ddg2p
         self.ddg2p = None
+        self.allelic_requirement = allelic_requirement
         if ddg2p:
             self.ddg2p = self._read_ddg2p_csv(ddg2p)
         elif self.require_ddg2p:
@@ -324,6 +336,11 @@ class VaseReporter(object):
             if self.require_ddg2p:
                 if csq['SYMBOL'] not in self.ddg2p:
                     continue
+                if self.allelic_requirement:
+                    req = self.ddg2p[csq['SYMBOL']]['allelic requirement']
+                    if req and allelic_req_to_label[req] is not None:
+                        if inheritance not in allelic_req_to_label[req]:
+                            continue
             if self.blacklist:
                 if csq['Feature'] in self.blacklist:
                     continue

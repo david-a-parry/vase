@@ -34,6 +34,10 @@ def parse_args():
     parser.add_argument("--filter_non_ddg2p", action='store_true', help=
                         '''If using a DDG2P file, only output records for genes
                         present in DDG2P.''')
+    parser.add_argument("--allelic_requirement", action='store_true', help=
+                        '''If using --filter_non_ddg2p, only output records if
+                           the inheritance pattern is consistent with the
+                           'allelic requirement' annotation from DDG2P.''')
     parser.add_argument("-r", "--rest_lookups", action="store_true", help=
                         '''Add additional fields by connecting to Ensembl's
                            REST server. Not recommended for large numbers of
