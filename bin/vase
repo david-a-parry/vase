@@ -1037,6 +1037,17 @@ necessary if your unaffected samples are already
 present in your PED file specified with --ped.
 
 ''')
+    sample_args.add_argument(
+'--strict_recessive', action='store_true', help=
+'''When using the --biallelic/--recessive option,
+for any affected sample with parents, require
+confirmation of parental genotypes. If either
+parent genotype is a no-call or fails genotype
+filters then a potential biallelic variant will be
+ignored.
+
+''')
+
     #help/logging arguments
     help_args.add_argument(
 '--prog_interval', '-prog_interval', type=int, default=1000, metavar='N', help=

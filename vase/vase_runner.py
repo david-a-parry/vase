@@ -153,6 +153,7 @@ class VaseRunner(object):
         self.use_cache = False
         self.prog_interval = args.prog_interval
         self.log_progress = args.log_progress
+        self.strict_recessive_inheritance = args.strict_recessive
         self.report_fhs = self.get_report_filehandles()
         seg_info = list()
         if args.de_novo:
@@ -175,7 +176,7 @@ class VaseRunner(object):
         for record in self.var_stream:
             self.process_record(record)
             var_count += 1
-            if (not self.args.no_progress and 
+            if (not self.args.no_progress and
                     var_count % self.prog_interval == 0):
                 n_prog_string = ('{:,} variants processed, '.format(var_count) +
                                '{:,} filtered, {:,} written... at pos {}:{}'
@@ -1092,7 +1093,8 @@ class VaseRunner(object):
     def _get_recessive_filter(self):
         self._get_family_filter()
         self.recessive_filter = RecessiveFilter(
-                              self.family_filter, gq=self.args.gq,
+                              self.family_filter,
+                              gq=self.args.gq,
                               dp=self.args.dp,
                               het_ab=self.args.het_ab,
                               hom_ab=self.args.hom_ab,
@@ -1111,6 +1113,7 @@ class VaseRunner(object):
                               sv_control_het_ab=self.args.sv_control_het_ab,
                               sv_control_hom_ab=self.args.sv_control_hom_ab,
                               sv_con_ref_ab=self.args.sv_control_max_ref_ab,
+                              strict=self.strict_recessive_inheritance,
                               report_file=self.report_fhs['recessive'])
         added_info = list(self.recessive_filter.get_header_fields().keys())
         if not self.recessive_filter.affected:
