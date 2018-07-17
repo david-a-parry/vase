@@ -500,14 +500,14 @@ class GtFilter(object):
             function) passes all parameters set on initialisation.
         '''
         if self.dp:
-            if gts['DP'][sample] is None or gts['DP'][sample] < self.dp:
+            if gts['DP'][sample] is not None and gts['DP'][sample] < self.dp:
                 return False
         if self.max_dp:
             if gts['DP'][sample] is not None and gts['DP'][sample] > self.max_dp:
                 return False
         if self.gq:
-            #if GQ is None presumably is a no call
-            if gts['GQ'][sample] is None or gts['GQ'][sample] < self.gq:
+            #if GQ is None do not filter(?)
+            if gts['GQ'][sample] is not None and gts['GQ'][sample] < self.gq:
                 return False
         if self.ab_filter is not None:
             if not self.ab_filter(gts, sample, allele):
