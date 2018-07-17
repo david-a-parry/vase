@@ -6,11 +6,11 @@ class SvGtFilter(object):
         etc.) established on initialisation.
     '''
 
-    __slots__ = ['gq', 'dp', 'het_ab', 'hom_ab', 'gt_is_ok', 'ab_filter',
-                 'ref_ab_filter', 'ad_over_threshold', 'fields',
+    __slots__ = ['gq', 'dp', 'max_dp', 'het_ab', 'hom_ab', 'gt_is_ok',
+                 'ab_filter', 'ref_ab_filter', 'ad_over_threshold', 'fields',
                  'enough_support']
 
-    def __init__(self, vcf, gq=0, dp=0, het_ab=0., hom_ab=0.,
+    def __init__(self, vcf, gq=0, dp=0, max_dp=0, het_ab=0., hom_ab=0.,
                  ref_ab_filter=None):
         '''
             Args:
@@ -23,6 +23,11 @@ class SvGtFilter(object):
                         Default=0 (i.e. not checked).
 
                 dp:     Semi-equivalent to minimum depth for short
+                        variant analysis. Actually equates to the number
+                        of supporting reads (SR + PR) for an ALT allele.
+                        Default=0.
+
+                max_dp: Semi-equivalent to maximum depth for short
                         variant analysis. Actually equates to the number
                         of supporting reads (SR + PR) for an ALT allele.
                         Default=0.
@@ -46,6 +51,7 @@ class SvGtFilter(object):
         '''
         self.gq = gq
         self.dp = dp
+        self.max_dp = max_dp
         self.het_ab = het_ab
         self.hom_ab = hom_ab
         self.ref_ab_filter = ref_ab_filter
@@ -107,7 +113,9 @@ class SvGtFilter(object):
             genotype is < self.dp.
         '''
         support = self._get_pr_sr(gts, sample)
-        if sum(support) < self.dp:
+        if self.dp and sum(support) < self.dp:
+            return False
+        if self.max_dp and sum(support) > self.max_dp:
             return False
         return True
 
@@ -126,7 +134,7 @@ class SvGtFilter(object):
             Returns True if genotype (from parse_vcf.py parsed_gts
             function) passes all parameters set on initialisation.
         '''
-        if self.dp:
+        if self.dp or self.max_dp:
             if not self.enough_support(gts, sample, allele):
                 return False
         if self.gq:
