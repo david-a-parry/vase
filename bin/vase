@@ -761,6 +761,15 @@ will be treated as no-calls. Default = 0.
 ''')
 
     gt_args.add_argument(
+'-max_dp', '--max_dp', type=int, default=0, help=
+'''Maximum genotype depth threshold. Sample genotype
+calls with a read depth higher than this threshold
+will be treated as no-calls. Default = 0 (i.e. not
+used).
+
+''')
+
+    gt_args.add_argument(
 '-het_ab', '--het_ab', type=float, default=0., metavar='AB', help=
 '''Minimum genotype allele balance for heterozygous
 genotypes. Heterozygous sample genotype calls
@@ -803,6 +812,14 @@ example, you require less evidence from
 controls/unaffected in order to filter a variant
 or from parental genotype calls when confirming
 a potential de novo variant.
+
+''')
+
+    gt_args.add_argument(
+'-con_max_dp', '--control_max_dp', type=int, help=
+'''Maximum depth threshold for
+parents/unaffecteds/controls when filtering
+variants. Defaults to the same value as --max_dp.
 
 ''')
 
@@ -863,6 +880,15 @@ as no-calls. Default = 0.
 ''')
 
     sv_gt_args.add_argument(
+'-sv_max_dp', '--sv_max_dp', type=int, default=0, help=
+'''Maximum genotype 'depth' threshold for structural
+variants. Sample genotype calls with more than
+this nunmber of supporting reads will be treated
+as no-calls. Default = 0 (i.e. not used).
+
+''')
+
+    sv_gt_args.add_argument(
 '-sv_het_ab', '--sv_het_ab', type=float, default=0., metavar='AB', help=
 '''Minimum genotype allele balance for heterozygous
 genotypes for structural variants. Heterozygous
@@ -907,6 +933,15 @@ value if, for example, you require less evidence
 from controls/unaffected in order to filter a
 variant or from parental genotype calls when
 confirming a potential de novo variant.
+
+''')
+
+    sv_gt_args.add_argument(
+'-sv_con_max_dp', '--sv_control_max_dp', type=int, help=
+'''Maximum supporting read threshold for
+parents/unaffecteds/controls when filtering
+structural variants. Defaults to the same value as
+--sv_max_dp.
 
 ''')
 
