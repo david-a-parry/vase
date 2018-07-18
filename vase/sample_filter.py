@@ -499,12 +499,14 @@ class GtFilter(object):
             Returns True if genotype (from parse_vcf.py parsed_gts
             function) passes all parameters set on initialisation.
         '''
-        if self.dp:
-            if gts['DP'][sample] is not None and gts['DP'][sample] < self.dp:
-                return False
-        if self.max_dp:
-            if gts['DP'][sample] is not None and gts['DP'][sample] > self.max_dp:
-                return False
+        if self.dp or self.max_dp:
+            dp = gts['DP'][sample]
+            if self.dp:
+                if dp is not None and dp < self.dp:
+                    return False
+            if self.max_dp:
+                if dp is not None and dp > self.max_dp:
+                    return False
         if self.gq:
             #if GQ is None do not filter(?)
             if gts['GQ'][sample] is not None and gts['GQ'][sample] < self.gq:
@@ -517,7 +519,7 @@ class GtFilter(object):
     def _check_header_fields(self, vcf):
         ''' Ensure the required annotations are present in VCF header. '''
         #DP and GQ are common fields that may not be defined in header
-        if self.dp:
+        if self.dp or self.max_dp:
             self.fields.append('DP')
         if self.gq:
             self.fields.append('GQ')
