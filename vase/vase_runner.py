@@ -473,7 +473,7 @@ class VaseRunner(object):
 
     def filter_on_af(self, record):
         remove  = [False] * (len(record.ALLELES) -1)
-        if self.args.an and self.an_below_threshold(record):
+        if self.args.filtering_an and self.an_below_threshold(record):
             return remove
         try:
             af = record.parsed_info_fields(fields=['AF'])['AF']
@@ -501,12 +501,20 @@ class VaseRunner(object):
     def an_below_threshold(self, record):
         try:
             return (record.parsed_info_fields(fields=['AN'])['AN'] <
-                    self.args.an)
+                    self.args.filtering_an)
         except KeyError:
             self.logger.warn("No 'AN' in INFO at {}:{}".format(record.CHROM,
                                                                record.POS))
             return True
 
+    def an_under_minimum(self, record):
+        try:
+            return (record.parsed_info_fields(fields=['AN'])['AN'] <
+                    self.args.min_an)
+        except KeyError:
+            self.logger.warn("No 'AN' in INFO at {}:{}".format(record.CHROM,
+                                                               record.POS))
+            return True
 
     def filter_on_ac_over_an(self, record):
         remove  = [False] * (len(record.ALLELES) -1)
@@ -636,6 +644,8 @@ class VaseRunner(object):
             if (len([x for x in record.ALLELES if x != '*']) >
                 self.args.max_alt_alleles + 1):
                 return True
+        if self.args.min_an and self.an_under_minimum(record):
+            return True
         return False
 
     def get_cadd_filter(self):

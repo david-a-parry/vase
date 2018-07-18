@@ -163,7 +163,7 @@ AF < than this value will be filtered.
 ''')
 
     filter_args.add_argument(
-'-an', '--an', type=int, default=0, help=
+'-filtering_an', '--filtering_an', type=int, default=0, help=
 '''Require at least this number of allele calls
 before filtering with --af or --min_af options.
 Useful to avoid filtering at sites with many
@@ -171,6 +171,15 @@ uncalled genotpyes. If AN field is missing from a
 record and this value is > 0, --af/--min_af
 filtering will not occur for that record.
 Default=0.
+
+''')
+
+    filter_args.add_argument(
+'-min_an', '--min_an', type=int, default=0, help=
+'''Minimum number of allele calls as given by the
+'AN' INFO field. Variants with an AN value below
+this threshold or a missing AN field will be
+filtered. Default=0.
 
 ''')
 
