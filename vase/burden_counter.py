@@ -8,7 +8,7 @@ class BurdenCounter(object):
         per transcript.
     '''
 
-    def __init__(self, vcf, output, gq=0, dp=0, het_ab=0., hom_ab=0.,
+    def __init__(self, vcf, output, gq=0, dp=0, max_dp=0, het_ab=0., hom_ab=0.,
                  is_gnomad=False, cases=[], controls=[]):
         self.vcf = vcf
         if 'SYMBOL' in vcf.header.csq_fields:
@@ -19,6 +19,7 @@ class BurdenCounter(object):
             self.gene_field = 'Feature'
         self.min_gq = gq
         self.min_dp = dp
+        self.max_dp = max_dp
         self.samples = None
         self.use_ac = False
         self.total_alleles = {'Cases': 0, 'Controls': 0}
@@ -49,8 +50,8 @@ class BurdenCounter(object):
             for pop in self.gnomad_pops:
                 self.total_alleles[pop] = 0
         elif not self.use_ac:
-            self.gt_filter = GtFilter(vcf, gq=gq, dp=dp, het_ab=het_ab,
-                                      hom_ab=hom_ab)
+            self.gt_filter = GtFilter(vcf, gq=gq, dp=dp, max_dp=max_dp,
+                                      het_ab=het_ab, hom_ab=hom_ab)
             self.gt_fields = self.gt_filter.fields
         self.feat_to_cases = defaultdict(dict)
         self.feat_to_controls = defaultdict(dict)
