@@ -151,7 +151,8 @@ class SvGtFilter(object):
         #DP and GQ are common fields that may not be defined in header
         if self.gq:
             self.fields.append('GQ')
-        if self.dp or self.het_ab or self.hom_ab or self.ref_ab_filter:
+        if (self.dp or self.max_dp or self.het_ab or self.hom_ab
+            or self.ref_ab_filter):
             if ('PR' in vcf.header.metadata['FORMAT'] and
                 'SR' in vcf.header.metadata['FORMAT']):
                 self.fields.append('PR')
