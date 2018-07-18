@@ -7,8 +7,8 @@ class BurdenCounter(object):
     ''' For a set of variants count the number of qualifying alleles
         per transcript.
     '''
-    
-    def __init__(self, vcf, output, gq=0, dp=0, het_ab=0., hom_ab=0., 
+
+    def __init__(self, vcf, output, gq=0, dp=0, het_ab=0., hom_ab=0.,
                  is_gnomad=False, cases=[], controls=[]):
         self.vcf = vcf
         if 'SYMBOL' in vcf.header.csq_fields:
@@ -27,7 +27,7 @@ class BurdenCounter(object):
         if cases or controls:
             if not vcf.header.samples:
                 raise RuntimeError("No samples defined in VCF header - " +
-                                   "cannot use --cases or --controls " + 
+                                   "cannot use --cases or --controls " +
                                     "arguments.")
             self.samples = cases + controls
             self.total_alleles['Cases'] = len(cases) * 2
@@ -49,7 +49,7 @@ class BurdenCounter(object):
             for pop in self.gnomad_pops:
                 self.total_alleles[pop] = 0
         elif not self.use_ac:
-            self.gt_filter = GtFilter(vcf, gq=gq, dp=dp, het_ab=het_ab, 
+            self.gt_filter = GtFilter(vcf, gq=gq, dp=dp, het_ab=het_ab,
                                       hom_ab=hom_ab)
             self.gt_fields = self.gt_filter.fields
         self.feat_to_cases = defaultdict(dict)
@@ -70,8 +70,8 @@ class BurdenCounter(object):
                 cols.extend(["Cases", "N_Cases"])
             if self.controls:
                 cols.extend(["Controls", "N_Controls"])
-        else: 
-            #all samples labelled as 'Cases' if neither cases or controls given 
+        else:
+            #all samples labelled as 'Cases' if neither cases or controls given
             cols.extend(["Cases", "N_Cases"])
         self.out_fh.write(str.join("\t", cols) + "\n")
 
@@ -87,31 +87,31 @@ class BurdenCounter(object):
                 ac_typ = self.vcf.metadata['INFO'][f][-1]['Type']
                 an_num = self.vcf.metadata['INFO'][an][-1]['Number']
                 an_typ = self.vcf.metadata['INFO'][an][-1]['Type']
-                if (ac_num == 'A' and ac_typ == 'Integer' and 
+                if (ac_num == 'A' and ac_typ == 'Integer' and
                     an_num == '1' and an_typ == 'Integer'):
                     pops.append(p)
         if not pops:
             raise RuntimeError("No gnomAD populations found for VCF input!")
         pops.sort()
         return pops
-    
+
     def count(self, record, ignore_alleles=[], ignore_csq=[]):
-        ''' 
-            If using cases and controls add IDs to 
-            self.feat_to_cases/controls set, otherwise add number of 
+        '''
+            If using cases and controls add IDs to
+            self.feat_to_cases/controls set, otherwise add number of
             alleles.
-            
+
             Args:
                 record: VcfRecord from VcfReader
 
                 ignore_alleles:
                         List of 0-based ALT allele indices that should
                         NOT be counted.
-    
+
                 ignore_csq:
                         List of 0-based CSQ annotations from VEP that
-                        should not be counted (i.e. do not assign 
-                        counts for the 'features' associated with 
+                        should not be counted (i.e. do not assign
+                        counts for the 'features' associated with
                         these consequences).
 
         '''
@@ -119,22 +119,22 @@ class BurdenCounter(object):
             these_feats = set([x['Feature'] for x in record.CSQ])
             if (self.current_features and these_feats.isdisjoint(
                 self.current_features)):
-                # if we've moved on to next set of features clear feat_to_cases 
-                # etc. and add sample counts 
-                feats_to_delete = set() 
+                # if we've moved on to next set of features clear feat_to_cases
+                # etc. and add sample counts
+                feats_to_delete = set()
                 # can't delete keys while iterating over dict
                 for feat in self.feat_to_cases:
                     feats_to_delete.add(feat)
                     self.counts[feat]['Cases'] = sum(
-                            self.feat_to_cases[feat][x] for x in 
+                            self.feat_to_cases[feat][x] for x in
                             self.feat_to_cases[feat])
                     self.counts[feat]['Controls'] = sum(
-                            self.feat_to_controls[feat][x] for x in 
+                            self.feat_to_controls[feat][x] for x in
                             self.feat_to_controls[feat])
                 for feat in (x for x in self.feat_to_controls if x not in
                              self.feat_to_cases):
                     self.counts[feat]['Controls'] = sum(
-                            self.feat_to_controls[feat][x] for x in 
+                            self.feat_to_controls[feat][x] for x in
                             self.feat_to_controls[feat])
                     feats_to_delete.add(feat)
                 for feat in feats_to_delete:
@@ -156,30 +156,30 @@ class BurdenCounter(object):
             self.count_samples(record, features, i)
 
     def count_samples(self, record, features, allele, max_alleles=2):
-        ''' 
-            If using cases and controls add IDs to 
-            self.feat_to_cases/controls set, otherwise add number of 
+        '''
+            If using cases and controls add IDs to
+            self.feat_to_cases/controls set, otherwise add number of
             alleles.
-            
+
             Args:
                 record: VcfRecord from VcfReader
 
                 features:
-                        Names of the features/transcripts for 
+                        Names of the features/transcripts for
                         registering allele counts.
-    
-                allele: 0-based ALT allele index (i.e. 0 = first ALT 
+
+                allele: 0-based ALT allele index (i.e. 0 = first ALT
                         allele)
 
                 max_alleles:
-                        Maximum number of allele counts that can be 
+                        Maximum number of allele counts that can be
                         assigned to one sample. Default=2.
 
         '''
         a_counts = defaultdict(int)
         if self.gnomad_pops:
             for pop in self.gnomad_pops:
-                g_ac = 'AC_' + pop 
+                g_ac = 'AC_' + pop
                 g_an = 'AN_' + pop
                 info = record.parsed_info_fields(fields=[g_ac, g_an])
                 if info[g_ac][allele] is not None:
@@ -195,9 +195,9 @@ class BurdenCounter(object):
                     self.total_alleles['Cases'] = info['AN']
         else:
             gts = record.parsed_gts(fields=self.gt_fields, samples=self.samples)
-            a_counts = dict((s, gts['GT'][s].count(allele+1)) for s in 
-                            gts['GT'] if 
-                            self.gt_filter.gt_is_ok(gts, s, allele) and 
+            a_counts = dict((s, gts['GT'][s].count(allele+1)) for s in
+                            gts['GT'] if
+                            self.gt_filter.gt_is_ok(gts, s, allele) and
                             (allele+1) in gts['GT'][s])
         for feat in features:
             self._check_gene_name(feat, record)
@@ -219,7 +219,7 @@ class BurdenCounter(object):
                             else:
                                 self.feat_to_cases[feat][s] = a_counts[s]
                     for s in self.controls:
-                        if s in a_counts: 
+                        if s in a_counts:
                             if s in self.feat_to_cases[feat]:
                                 self.feat_to_controls[feat][s] += a_counts[s]
                                 if self.feat_to_controls[feat][s] > max_alleles:
@@ -234,15 +234,15 @@ class BurdenCounter(object):
         if not self.use_ac and not self.gnomad_pops:
             for feat in self.feat_to_cases:
                 self.counts[feat]['Cases'] = sum(
-                        self.feat_to_cases[feat][x] for x in 
+                        self.feat_to_cases[feat][x] for x in
                         self.feat_to_cases[feat])
                 self.counts[feat]['Controls'] = sum(
-                        self.feat_to_controls[feat][x] for x in 
+                        self.feat_to_controls[feat][x] for x in
                         self.feat_to_controls[feat])
             for feat in (x for x in self.feat_to_controls if x not in
                          self.feat_to_cases):
                 self.counts[feat]['Controls'] = sum(
-                        self.feat_to_controls[feat][x] for x in 
+                        self.feat_to_controls[feat][x] for x in
                         self.feat_to_controls[feat])
         groups = []
         if self.gnomad_pops:
@@ -261,14 +261,14 @@ class BurdenCounter(object):
             for g in groups:
                 if g in self.counts[feat]:
                     row.append(str(self.counts[feat][g]))
-                    row.append(str(self.total_alleles[g] - 
+                    row.append(str(self.total_alleles[g] -
                                    self.counts[feat][g]))
                 else:
                     row.append("0")
                     row.append(str(self.total_alleles[g]))
             self.out_fh.write(str.join("\t", row) + "\n")
         self.out_fh.close()
-        
+
     def _check_gene_name(self, feat, record):
         if feat not in self.transcript_to_gene:
             csq = next(x for x in record.CSQ if x['Feature'] == feat)
