@@ -332,7 +332,7 @@ class SampleFilter(object):
         if sv_con_hom_ab is None:
             sv_con_hom_ab = sv_hom_ab
         self.sv_gt_filter = SvGtFilter(self.vcf, gq=sv_gq, dp=sv_dp,
-                                       max_dp=max_dp, het_ab=sv_het_ab,
+                                       max_dp=sv_max_dp, het_ab=sv_het_ab,
                                        hom_ab=sv_hom_ab)
         self.sv_gt_fields = set(self.sv_gt_filter.fields)
         self.sv_con_gt_filter = SvGtFilter(self.vcf, gq=sv_con_gq,
