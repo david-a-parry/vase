@@ -307,7 +307,7 @@ VEP.
 '''A list of in silico prediction programs to use
 for filtering missense variants (must be used in
 conjunction with --csq argument). The programs
-provided her must have been annotated on the
+provided here must have been annotated on the
 input VCF file either directly by VEP or via the
 dbNSFP VEP plugin. Recognised program names and
 default 'damaging' values are provided in the
