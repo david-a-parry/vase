@@ -57,6 +57,9 @@ def parse_args():
                         '''Report progress every N variants. Defaults to 1000
                            unless using --rest_lookups in which case it
                            defaults to 100.''')
+    parser.add_argument('--hide_empty', action='store_true', help=
+                        '''Hide worksheets that do not contain any variants in
+                           the output.''')
     parser.add_argument('--quiet', action='store_true', help=
                         '''Do not output progress information to STDERR.''')
     parser.add_argument('--debug', action='store_true', help=

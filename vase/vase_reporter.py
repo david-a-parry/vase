@@ -35,7 +35,7 @@ class VaseReporter(object):
                  recessive_only=False, dominant_only=False, de_novo_only=False,
                  filter_non_ddg2p=False, allelic_requirement=False,
                  prog_interval=None, timeout=2.0, max_retries=2, quiet=False,
-                 debug=False, force=False):
+                 debug=False, force=False, hide_empty=False):
         self._set_logger(quiet, debug)
         self.vcf = VcfReader(vcf)
         self.ped = PedFile(ped)
@@ -56,6 +56,7 @@ class VaseReporter(object):
         self.bold = self.workbook.add_format({'bold': True})
         self.worksheets = dict()
         self.rows = dict()
+        self.hide_empty = hide_empty
         self.rest_lookups = rest_lookups
         self.require_ddg2p = filter_non_ddg2p
         self.ddg2p = None
@@ -398,4 +399,8 @@ class VaseReporter(object):
             if n % self.prog_interval == 0:
                 self.logger.info("Parsed {:,} records".format(n))
         self.logger.info("Finished parsing {:,} records".format(n))
+        if self.hide_empty:
+            for family in self.worksheets.keys():
+                if self.rows[family] < 2:
+                    self.worksheets[family].hide()
         self.workbook.close()
