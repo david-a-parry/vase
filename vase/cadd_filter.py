@@ -21,7 +21,8 @@ class CaddFilter(object):
         '''
         self.logger = self._get_logger(logging_level)
         if cadd_dir:
-            cadd_files.extend([os.path.join(cadd_dir, f) for f in os.listdir(cadd_dir) if
+            cadd_files.extend([os.path.join(cadd_dir, f) for f in
+                               os.listdir(cadd_dir) if
                                f.endswith(('.gz', '.bgz')) and
                                os.path.isfile(os.path.join(cadd_dir, f))])
         if not cadd_files:
@@ -34,16 +35,21 @@ class CaddFilter(object):
         self.phred = min_phred
         self.raw = min_raw_score
         self.info_fields = {'CADD_PHRED_score': {'Number': 'A',
-                                           'Type': 'Float',
-                                           'Description': 'CADD PHRED score ' +
-                                                          'added from ' +
-                                                          'reference files ' +
-                                                          'by VASE'},
-                            'CADD_raw_score': {'Number': 'A', 'Type': 'Float',
-                                              'Description': 'CADD RawScore' +
-                                                             ' added from ' +
-                                                             'reference files'+
-                                                             ' by VASE'},}
+                                                 'Type': 'Float',
+                                                 'Description': 'CADD PHRED ' +
+                                                                'score added '+
+                                                                'from ' +
+                                                                'reference ' +
+                                                                'files by VASE'
+                                                },
+                            'CADD_raw_score': {'Number': 'A',
+                                               'Type': 'Float',
+                                               'Description': 'CADD RawScore' +
+                                                              ' added from ' +
+                                                              'reference '+
+                                                              'files by VASE'
+                                              },
+                           }
 
     def annotate_or_filter(self, record):
         '''
