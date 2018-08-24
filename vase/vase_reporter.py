@@ -166,9 +166,18 @@ class VaseReporter(object):
 
     def _initialize_worksheet(self, family):
         worksheet = self.workbook.add_worksheet(family)
+        header = self._get_header_columns(family)
+        for i in range(len(header)):
+            worksheet.write(0, i, header[i], self.bold)
+        return worksheet
+
+    def _get_header_columns(self, family=None):
         header = ['INHERITANCE'] + vcf_output_columns + ['ALLELE', 'AC', 'AN',
                                                          'FORMAT']
-        header.extend(self._get_sample_order(family))
+        if family is not None:
+            header.extend(self._get_sample_order(family))
+        if 'CADD_PHRED_score' in self.vcf.header.metadata['INFO']:
+            header.append("CADD_PHRED_score")
         header.extend(x for x in self.vcf.header.csq_fields if x != 'Allele')
         if self.rest_lookups:
             header.extend(["ENTREZ", "GO", "REACTOME", "MOUSE_TRAITS",
@@ -177,9 +186,8 @@ class VaseReporter(object):
             header.extend(["DDG2P_disease", "DDG2P_Category",
                            "DDG2P_Allelic_Requirement", "DDG2P_consequences",
                            "DDG2P_organs"])
-        for i in range(len(header)):
-            worksheet.write(0, i, header[i], self.bold)
-        return worksheet
+        return header
+
 
     def _get_sample_order(self, family):
         if family in self.sample_orders:
@@ -356,6 +364,9 @@ class VaseReporter(object):
             values.append(record.FORMAT)
             values.extend(record.CALLS[x] for x in
                           self._get_sample_order(family))
+            if 'CADD_PHRED_score' in self.vcf.header.metadata['INFO']:
+                cinf = record.parsed_info_fields(['CADD_PHRED_score'])
+                values.append(cinf['CADD_PHRED_score'][allele-1])
             values.extend(csq[x] for x in self.vcf.header.csq_fields if
                               x != 'Allele')
             col = self.write_row(self.worksheets[family], self.rows[family],
