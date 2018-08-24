@@ -572,6 +572,16 @@ included.
 ''')
 
     file_args.add_argument(
+'--missing_cadd_scores', metavar='FILE', help=
+'''Filename to output variants that are not found
+in CADD annotation files. Output will be gzip
+compressed and in a format suitable for uploading
+to https://cadd.gs.washington.edu/score for
+scoring (or for scoring locally).
+
+''')
+
+    file_args.add_argument(
 '--cadd_phred', '-cadd_phred', metavar='FLOAT', type=float, help=
 '''CADD PHRED score cutoff. Variants with a CADD
 PHRED score below this value will be filtered.

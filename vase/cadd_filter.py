@@ -2,6 +2,7 @@ import sys
 import os
 import pysam
 import logging
+import gzip
 from collections import defaultdict
 
 class CaddFilter(object):
@@ -12,13 +13,40 @@ class CaddFilter(object):
     '''
 
     def __init__(self, cadd_files=[], cadd_dir=[], min_phred=None,
-                 min_raw_score=None, logging_level=logging.WARNING):
+                 min_raw_score=None, to_score=None,
+                 logging_level=logging.WARNING):
         '''
             Either a directory containing at least one tabix indexed
             file of CADD scores or a list of such files must be
             provided. Optionally a minimum PHRED score for filtering
             records can be provided.
+
+            Args:
+                cadd_files:
+                    One or more reference CADD files with CADD_raw_score
+                    and CADD_PHRED_score columns for variants.
+
+                cadd_dir:
+                    One or more directories containing CADD files.
+                    Files with '.gz' or '.bgz' extensions will be
+                    assumed to be CADD reference files.
+
+                min_phred:
+                    Minimum CADD PHRED score for filtering variants.
+
+                min_raw_score:
+                    Minimum CADD raw score for filtering variants.
+
+                to_score:
+                    Name of file for writing variants which cannot be
+                    found in the given CADD reference files. If a
+                    variant passed to the annotate_or_filter method is
+                    not found it will be written to this in a format
+                    suitable for uploading to the CADD server for
+                    scoring.
+
         '''
+        self.to_score_file = None
         self.logger = self._get_logger(logging_level)
         if cadd_dir:
             cadd_files.extend([os.path.join(cadd_dir, f) for f in
@@ -51,6 +79,14 @@ class CaddFilter(object):
                                                               'files by VASE'
                                               },
                            }
+        if to_score is not None:
+            if not to_score.endswith('.gz'):
+                to_score += '.gz'
+            self.to_score_file = gzip.open(to_score, 'wt')
+
+    def __del__(self):
+        if self.to_score_file is not None:
+            self.to_score_file.close()
 
     def annotate_or_filter(self, record):
         '''
@@ -62,6 +98,7 @@ class CaddFilter(object):
         scores = self.score_record(record)
         info_to_add = defaultdict(list)
         filter_alleles = []
+        i = 0
         for s in scores:
             info_to_add['CADD_raw_score'].append(s[0] or '.')
             info_to_add['CADD_PHRED_score'].append(s[1] or '.')
@@ -73,6 +110,9 @@ class CaddFilter(object):
                 if float(s[1]) < self.phred:
                     do_filter = True
             filter_alleles.append(do_filter)
+            if self.to_score_file and s[0] is None:
+                self._write_for_scoring(record, i)
+            i += 1
         record.add_info_fields(info_to_add)
         return filter_alleles
 
@@ -154,6 +194,14 @@ class CaddFilter(object):
                 self.logger.warn("Finished indexing {}.".format(fn))
             tabixfiles.append(pysam.Tabixfile(fn))
         return tabixfiles
+
+    def _write_for_scoring(self, record, alt):
+        if record.DECOMPOSED_ALLELES[alt].ALT != '*':
+            self.to_score_file.write("{}\t{}\t.\t{}\t{}\n".format(
+                                           record.CHROM,
+                                           record.DECOMPOSED_ALLELES[alt].POS,
+                                           record.DECOMPOSED_ALLELES[alt].REF,
+                                           record.DECOMPOSED_ALLELES[alt].ALT))
 
     def _check_contigs(self):
         tbx_has_chr = dict()

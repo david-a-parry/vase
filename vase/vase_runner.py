@@ -654,7 +654,8 @@ class VaseRunner(object):
             cadd_args = {'cadd_files': self.args.cadd_files,
                          'cadd_dir': self.args.cadd_directory,
                          'min_phred': self.args.cadd_phred,
-                         'min_raw_score': self.args.cadd_raw}
+                         'min_raw_score': self.args.cadd_raw,
+                         'to_score': self.args.missing_cadd_scores}
             cf = CaddFilter(**cadd_args)
             for f,d in cf.info_fields.items():
                 self.logger.debug("Adding {} annotation")
