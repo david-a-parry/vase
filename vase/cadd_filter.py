@@ -32,6 +32,7 @@ class CaddFilter(object):
             else:
                 raise RuntimeError("No CADD files or directory provided.")
         self.cadd_tabix = self._get_tabix_files(cadd_files)
+        self._has_chr = self._check_contigs()
         self.phred = min_phred
         self.raw = min_raw_score
         self.info_fields = {'CADD_PHRED_score': {'Number': 'A',
@@ -129,8 +130,14 @@ class CaddFilter(object):
     def search_coordinates(self, chrom, start, end):
         hits = []
         for tbx in self.cadd_tabix:
+            chrom = str(chrom)
+            if chrom.startswith("chr"):
+                if not self._has_chr[tbx]:
+                    chrom = chrom.replace("chr", "", 1)
+            elif self._has_chr[tbx]:
+                chrom = 'chr' + chrom
             try:
-                 for rec in tbx.fetch(str(chrom), start, end):
+                 for rec in tbx.fetch(chrom, start, end):
                     hits.append(self._simplify_cadd_record(rec))
             except ValueError: #presumably no matching contig
                 pass
@@ -147,6 +154,25 @@ class CaddFilter(object):
                 self.logger.warn("Finished indexing {}.".format(fn))
             tabixfiles.append(pysam.Tabixfile(fn))
         return tabixfiles
+
+    def _check_contigs(self):
+        tbx_has_chr = dict()
+        for tbx in self.cadd_tabix:
+            has_chr = False
+            no_chr = False
+            for c in tbx.contigs:
+                if c.startswith('chr'):
+                    has_chr = True
+                else:
+                    no_chr = True
+            if has_chr and no_chr:
+                raise RuntimeError("CADD file '{}'".format(
+                                                        tbx.filename.decode())+
+                                   "has chromosomes with and without 'chr' " +
+                                   "prefix - please only provide files with " +
+                                   "chromosomes in the same format.")
+            tbx_has_chr[tbx] = has_chr
+        return tbx_has_chr
 
     def _get_logger(self, logging_level):
         logger = logging.getLogger(__name__)
