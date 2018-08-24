@@ -8,9 +8,10 @@ from .insilico_filter import *
 class VepFilter(object):
     '''An object that filters VCF records based on annotated VEP data.'''
 
-    def __init__(self, vcf, csq=[], canonical=False, biotypes=[], in_silico=[],
-                 filter_unpredicted=False, keep_any_damaging=False,
-                 splice_in_silico=[], splice_filter_unpredicted=False,
+    def __init__(self, vcf, csq=[], impact=[], canonical=False, biotypes=[],
+                 in_silico=[], filter_unpredicted=False,
+                 keep_any_damaging=False, splice_in_silico=[],
+                 splice_filter_unpredicted=False,
                  splice_keep_any_damaging=False, retain_labels=[],
                  filter_flagged_features=False, freq=None, min_freq=None,
                  afs=[], gene_filter=None, blacklist=None,filter_known=False,
@@ -26,6 +27,8 @@ class VepFilter(object):
                         data/vep_classes.tsv) will be used. Similarly if
                         'all' appears anywhere in this list no filtering
                         on consequence type will occur.
+
+                impact: list of variant impacts to retain.
 
                 canonical:
                         Filter consequences on non-canonical transcirpts.
@@ -141,9 +144,12 @@ class VepFilter(object):
         default_csq, valid_csq = self._read_csq_file()
         default_biotypes, valid_biotypes = self._read_biotype_file()
         self.csq = set()
+        self.impact = None
         self.biotypes = set()
-        if len(csq) == 0:
+        if not csq and not impact:
             csq = ['default']
+        if csq is None:
+            csq = []
         for c in csq:
             lc = c.lower()
             if lc == 'default':
@@ -157,6 +163,13 @@ class VepFilter(object):
                 else:
                     raise RuntimeError("ERROR: Unrecognised VEP consequence " +
                                        "class '{}'".format(c))
+        if impact:
+            self.impact = set((x.upper() for x in impact))
+            valid_impacts = set(['HIGH', 'MODERATE', 'LOW', 'MODIFIER'])
+            if not self.impact.issubset(valid_impacts):
+                raise RuntimeError("ERROR: Unrecognised VEP IMPACT provided."+
+                                   "Valid values are 'HIGH', 'MODERATE', " + 
+                                   "'LOW' or 'MODIFIER'")
         if len(biotypes) == 0:
             biotypes = ['default']
         for b in biotypes:
@@ -174,6 +187,8 @@ class VepFilter(object):
                                        "'{}'".format(b))
         required = ['Consequence', 'BIOTYPE']
         self.canonical = canonical
+        if self.impact:
+            required.append('IMPACT')
         if self.canonical:
             required.append('CANONICAL')
         self.filter_flagged = filter_flagged_features
@@ -292,7 +307,8 @@ class VepFilter(object):
                     filter_af[alt_i] = True
                 if filter_af[alt_i]:
                     continue
-            if self.csq is None: #if only using biotypes/MAF for filtering
+            if self.csq is None and self.impact is None:
+                #if only using biotypes/MAF for filtering
                 filter_alleles[alt_i] = False
                 filter_csq[i] = False
                 continue
@@ -306,7 +322,8 @@ class VepFilter(object):
                 continue
             consequence = [x.lower() for x in c['Consequence'].split('&')]
             for s_csq in consequence:
-                if s_csq in self.csq:
+                if ((self.csq is not None and s_csq in self.csq) or
+                    (self.impact is not None and c['IMPACT'] in self.impact)):
                     if self.in_silico and s_csq == 'missense_variant':
                         do_filter = self.in_silico.filter(c)
                         if not do_filter:

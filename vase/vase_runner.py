@@ -74,7 +74,7 @@ class VaseRunner(object):
             self.var_stream = self.gene_filter
             self.retrieving_by_region = True
             self.logger.info("Finished processing intervals.")
-        if args.csq is not None:
+        if args.csq is not None or args.impact is not None:
             if args.no_vep_freq:
                 if args.vep_af:
                     self.logger.warn("Ignoring --vep_af argument because " +
@@ -89,6 +89,7 @@ class VaseRunner(object):
             self.csq_filter = VepFilter(
                     vcf=self.input,
                     csq=args.csq,
+                    impact=args.impact,
                     canonical=args.canonical,
                     biotypes=args.biotypes,
                     in_silico=args.missense_filters,

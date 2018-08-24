@@ -231,11 +231,25 @@ example, you want to filter on other VEP
 annotations (e.g. allele frequency or biotype)
 irrespective of consequence.
 
-Note, that using the --csq option automaticaally
+Note, that using the --csq option automatically
 turns on biotype filtering (see the --biotypes
 option below).
 
 ''' )
+
+    filter_args.add_argument(
+'--impact', nargs='+', help=
+'''One or more VEP 'IMPACT' types to retain. Valid
+values are 'HIGH', 'MODERATE', 'LOW' and
+'MODIFIER'. Any consequence classes specified by
+the '--csq' argument will still be retained
+irrespective of values specified here.
+
+Note, that using the --impact option automatically
+turns on biotype filtering (see the --biotypes
+option below).
+
+''')
 
     filter_args.add_argument(
 '--canonical', '-canonical', action='store_true', help=
@@ -424,7 +438,7 @@ a VEP annotation for 'FOO' matching 'BAR' use
 '--no_vep_freq', '-no_vep_freq', action='store_true', help=
 '''Use this option if you want to ignore VEP
 annotated allele frequencies when using --freq and
---csq options.
+--csq/--impact options.
 
 ''')
 
@@ -432,8 +446,8 @@ annotated allele frequencies when using --freq and
 '--vep_af', '-vep_af', nargs='+', default=[], help=
 '''One or more VEP allele frequency annotations to
 use for frequency filtering. Default is to use the
-following (assuming --csq and --freq or --min_freq
-arguments are in effect):
+following (assuming --csq/--impact and --freq or
+--min_freq arguments are in effect):
 
                 MAX_AF
                 AFR_AF
@@ -629,11 +643,13 @@ for extenal allele frequency sources such as
 an allele frequency equal to or greater than
 this value in these sources will be filtered
 from your input. VEP annotated allele frequencies
-will also be used for filtering if '--csq' option
-is used (VEP v90 or higher required). This can be
-disabled with the --no_vep_freq option.
+will also be used for filtering if '--csq' or
+'--impact' options are used (annotations from VEP
+v90 or higher required). This can be disabled with
+the --no_vep_freq option.
 
 ''')
+
     file_args.add_argument(
 '--min_freq', '-min_freq', type=float, help=
 '''Minimum allele frequency cutoff (between 0 and 1).
