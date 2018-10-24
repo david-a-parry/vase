@@ -608,13 +608,26 @@ plugin use the --missense_filters option.
     file_args.add_argument(
 '-d', '--dbsnp', '--clinvar', metavar='VCF', nargs='+', default=[], help=
 '''dbSNP or ClinVar VCF file for variant
-annotating/filtering
+annotating/filtering.
 
 ''')
     file_args.add_argument(
 '-g', '--gnomad', '--exac', metavar='VCF', nargs='+', default=[], help=
 '''gnomAD/ExAC file for variant annotating/filtering
-using population allele frequencies
+using population allele frequencies. By default
+allele frequencies from AFR, AMR, EAS, FIN, NFE
+and SAS populations are used. Populations to use
+can be chosen with the --gnomad_pops argument.
+
+''')
+
+    file_args.add_argument(
+'--gnomad_pops', metavar='POP', nargs='+', default=["AFR", "AMR", "EAS", "FIN",
+                                                    "NFE", "SAS"], help=
+'''Populations to use for annotating/filtering from
+gnomAD VCFs. The default are AFR, AMR, EAS, FIN,
+NFE and SAS. Any combination of these plus "ASJ"
+and "POPMAX" can be chosen.
 
 ''')
 

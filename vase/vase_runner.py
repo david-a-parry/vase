@@ -703,7 +703,9 @@ class VaseRunner(object):
         # get gnomAD/ExAC filters
         for gnomad in self.args.gnomad:
             prefix = self.check_info_prefix('VASE_gnomAD')
-            kwargs = {"vcf" : gnomad, "prefix" : prefix}
+            kwargs = {"vcf" : gnomad,
+                      "prefix" : prefix,
+                      "pops": self.args.gnomad_pops}
             kwargs.update(uni_args)
             gnomad_filter = GnomadFilter(**kwargs)
             filters.append(gnomad_filter)
@@ -789,6 +791,14 @@ class VaseRunner(object):
                         self.input.metadata['INFO'][annot][-1]['Type'] == 'Float'):
                         self.logger.info("Found previous allele frequency " +
                                           "annotation '{}'".format(annot))
+                        if len(match.groups()) == 3:
+                            pop = match.group(3).replace("_", "") 
+                            if pop not in self.args.gnomad_pops:
+                                self.logger.info("Ignoring {} ".format(annot) +
+                                                 "annotation as not in " +
+                                                 "populations specified by " +
+                                                 "--gnomad_pops")
+                                continue
                         frq_annots.append(annot)
         if (not self.args.ignore_existing_annotations and (self.args.build or
             self.args.max_build or get_matching)):
