@@ -10,8 +10,8 @@ def parse_args():
                        description='''Perform a burden test using output from
                                       VASE --burden_counts option.''',)
     parser.add_argument('counts', metavar='COUNTS', help=
-'''Input file generated using VASE's --burden_counts feature. This file must 
-contain both output from both CASES and CONTROLS or else must be used in 
+'''Input file generated using VASE's --burden_counts feature. This file must
+contain both output from both CASES and CONTROLS or else must be used in
 conjunction with --control_counts or --gnomad_counts.''')
 
     parser.add_argument('-c', '--control_counts', help=
@@ -19,13 +19,13 @@ conjunction with --control_counts or --gnomad_counts.''')
 feature.''')
 
     parser.add_argument('-g', '--gnomad_counts', help=
-'''File containing counts from gnomAD/ExAC data  generaged using VASE's 
+'''File containing counts from gnomAD/ExAC data  generaged using VASE's
 --burden_counts and --gnomad_burden options.''')
 
     parser.add_argument('-p', '--pops', nargs='+', help=
-'''One or more population codes from gnomAD to test against (only applicable if 
+'''One or more population codes from gnomAD to test against (only applicable if
 using the --gnomad_counts option). Default behaviour is to report the highest
-(i.e. least significant) p-value of all gnomAD populations for each 
+(i.e. least significant) p-value of all gnomAD populations for each
 transcript.''')
 
     parser.add_argument('-s', '--sum_pops', action='store_true', help=
@@ -48,7 +48,7 @@ def get_counts(tsv, targets=None):
                 f = cols[0] + '/' + cols[1] #Feature/Gene
                 counts[f][k] = (int(cols[i]), int(cols[i + 1]))
     return counts
-            
+
 
 def parse_count_header(header, targets):
     al_indices = dict()
@@ -70,16 +70,16 @@ def parse_count_header(header, targets):
                                    + "'{}' column.".format(t))
         else:
             if len(targets) == 1 and (t == 'Controls' or t == 'Cases'):
-                # if only case or controls requested, and only one 
+                # if only case or controls requested, and only one
                 # group in file can assume want counts for this group
                 if len(header) == 4 and header[3] == "N_" + header[2]:
                     al_indices[t] = 2
                     break
-            raise RuntimeError("Could not find {} and N_{}".format(t, t) + 
+            raise RuntimeError("Could not find {} and N_{}".format(t, t) +
                                " columns in input file")
     return al_indices
-    
-def test_cases_vs_controls(counts, control_counts=None, pops=None, 
+
+def test_cases_vs_controls(counts, control_counts=None, pops=None,
                            sum_pops=False):
     if control_counts:
         _test_two_sets(counts, control_counts, pops, sum_pops)
@@ -91,7 +91,7 @@ def _test_one_set(counts):
     odds = dict()
     allele_counts = dict()
     for feat in counts:
-        odds[feat], pvals[feat] = stats.fisher_exact([counts[feat]['Cases'], 
+        odds[feat], pvals[feat] = stats.fisher_exact([counts[feat]['Cases'],
                                                       counts[feat]['Controls']],
                                                       alternative='greater')
         allele_counts[feat] = counts[feat]['Cases'] + counts[feat]['Controls']
@@ -111,13 +111,13 @@ def _test_two_sets(counts, control_counts, pops=None, sum_pops=False):
                 pos = sum(control_counts[feat][x][0] for x in pops)
                 neg = sum(control_counts[feat][x][1] for x in pops)
             else:
-                pos = sum(control_counts[feat][x][0] for x in 
+                pos = sum(control_counts[feat][x][0] for x in
                           control_counts[feat])
-                neg = sum(control_counts[feat][x][1] for x in 
+                neg = sum(control_counts[feat][x][1] for x in
                           control_counts[feat])
             odds[feat], pvals[feat] = stats.fisher_exact(
-                                                        [counts[feat]['Cases'], 
-                                                        (pos, neg)], 
+                                                        [counts[feat]['Cases'],
+                                                        (pos, neg)],
                                                         alternative='greater')
             acs[feat] = counts[feat]['Cases'] + (pos, neg)
         else:
@@ -132,14 +132,14 @@ def _test_two_sets(counts, control_counts, pops=None, sum_pops=False):
                         odds[feat] = o
                         acs[feat] = counts[feat]['Cases'] + control_counts[feat][group]
     #TODO infer pop size and test those not found
-    output_pvals(pvals, odds, acs) 
-      
+    output_pvals(pvals, odds, acs)
+
 def output_pvals(pvals, odds, allele_counts):
     for k in sorted(pvals, key=pvals.get):
-        print(str.join("\t", (k, str(pvals[k]), str(odds[k])) + 
+        print(str.join("\t", (k, str(pvals[k]), str(odds[k])) +
                               tuple(str(x) for x in allele_counts[k])))
 
-def main(counts, output=None, control_counts=None, gnomad_counts=None, 
+def main(counts, output=None, control_counts=None, gnomad_counts=None,
          pops=None, sum_pops=False):
     if control_counts and gnomad_counts:
         raise RuntimeError('--control_counts and --gnomad_counts arguments ' +
