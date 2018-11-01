@@ -1,6 +1,7 @@
 import sys
 from .vcf_filter import *
 
+clinvar_path_annot = ['Likely_pathogenic', 'Pathogenic', '4', '5']
 
 class dbSnpFilter(VcfFilter):
     '''
@@ -151,7 +152,7 @@ class dbSnpFilter(VcfFilter):
                             do_filter = True
 
                     if 'CLNALLE' in snp.INFO_FIELDS:
-                        #the clinvar annotations are done in a non-standard
+                        #the old clinvar annotations are done in a non-standard
                         #way, giving indexes of relevant alleles in CLNALLE
                         #and keeping other annotations in the same order
                         cln_idx = str(i + 1)
@@ -169,11 +170,19 @@ class dbSnpFilter(VcfFilter):
                                         raise
                                 annot[f] = sig
                                 if self.clinvar_path and f == 'CLNSIG':
-                                    if ([i for i in ['4', '5'] if i
+                                    if ([i for i in clinvar_path_annot if i
                                                            in sig.split('|')]):
                                         #keep anything with path or likely labl
                                         do_filter = False
                                         do_keep = True
+                    elif len(snp.DECOMPOSED_ALLELES) == 1:
+                        if 'CLNSIG' in snp.INFO_FIELDS:
+                            annot['CLNSIG'] = snp.INFO_FIELDS['CLNSIG']
+                            if ([i for i in clinvar_path_annot if i in
+                                 snp.INFO_FIELDS['CLNSIG'].split('|')]):
+                                #keep anything with path or likely label
+                                do_filter = False
+                                do_keep = True
                 if matched: break
             #if matched: break #bail out on first matching SNP
 

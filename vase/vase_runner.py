@@ -616,7 +616,7 @@ class VaseRunner(object):
         for annot in parsed:
             if parsed[annot] is None:
                 continue
-            for i in range(len(remove)):
+            for i in range(len(keep)):
                 if parsed[annot][i] is not None:
                     matched[i] = True
                     if self.args.clinvar_path:
