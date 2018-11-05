@@ -22,7 +22,8 @@ setup(
         'BGZIP': ['biopython'],
         'REPORTER': ['xlsxwriter'],
     },
-    scripts = ["bin/vase", "bin/burden_test_vase", "bin/vase_reporter"],
+    scripts = ["bin/vase", "bin/burden_test_vase", "bin/vase_reporter",
+               "bin/coordinates_from_genes"],
     include_package_data=True,
     classifiers = [
         "Programming Language :: Python :: 3",
