@@ -130,7 +130,7 @@ def parse_args():
            usage='''%(prog)s -l gene_list.txt [options]
        %(prog)s -g gene1 [gene2 ...] [options]''',
            description='''Retrieve gene coordinates from Ensembl's REST
-                          server.''')
+                          server (accessory script provided by VASE).''')
     parser.add_argument("-g", "--genes", nargs='+', help=
                         '''One or more gene symbols/IDs to retrieve coordinates
                            for. Recognises Ensembl gene/transcript/protein
