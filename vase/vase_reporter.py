@@ -365,8 +365,11 @@ class VaseReporter(object):
             values.extend(record.CALLS[x] for x in
                           self._get_sample_order(family))
             if 'CADD_PHRED_score' in self.vcf.header.metadata['INFO']:
-                cinf = record.parsed_info_fields(['CADD_PHRED_score'])
-                values.append(cinf['CADD_PHRED_score'][allele-1])
+                try:
+                    cinf = record.parsed_info_fields(['CADD_PHRED_score'])
+                    values.append(cinf['CADD_PHRED_score'][allele-1])
+                except KeyError:
+                    values.append('.')
             values.extend(csq[x] for x in self.vcf.header.csq_fields if
                               x != 'Allele')
             col = self.write_row(self.worksheets[family], self.rows[family],
