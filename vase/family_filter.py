@@ -62,7 +62,8 @@ class FamilyFilter(object):
                                   if x in self.vcf.header.samples)
         if not self.vcf_affected:
             raise RuntimeError("No affected individuals in PED file '{}'"
-                               .format(ped.filename) + " found in VCF '{}'")
+                               .format(ped.filename) + " found in VCF " +
+                               "'{}'".format(vcf.filename))
         self.vcf_unaffected = list(x for x in self.unaffected
                                     if x in self.vcf.header.samples)
         self.vcf_samples = self.vcf_affected + self.vcf_unaffected
