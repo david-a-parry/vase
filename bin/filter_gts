@@ -1,0 +1,294 @@
+#!/usr/bin/env python3
+
+import sys
+import argparse
+import logging
+from parse_vcf import VcfReader, VcfHeader, VcfRecord
+from vase.sample_filter import GtFilter
+from vase.sv_gt_filter import SvGtFilter
+
+def parse_args():
+    parser = argparse.ArgumentParser(
+                       description='''Set VCF genotypes to no calls (./.) if
+                                      they do not meet the filtering
+                                      criteria.''',
+                       add_help=False)
+    parser._action_groups.pop()
+    required_args = parser.add_argument_group('Required Arguments')
+    output_args = parser.add_argument_group('Output Arguments')
+    file_args = parser.add_argument_group('Annotation File Arguments')
+    gt_args = parser.add_argument_group('Genotype Filtering Arguments',
+                                        'Arguments for filtering genotypes')
+    sv_gt_args = parser.add_argument_group(
+                            'Structural Variant Genotype Filtering Arguments',
+                            '''Arguments for filtering genotypes for Structural
+                               Variant calls.''')
+    help_args = parser.add_argument_group('Help/Logging Arguments')
+    #required arguments
+    required_args.add_argument('-i', '--input', required=True, metavar='VCF',
+                               help='''Input VCF filename''')
+    #output arguments
+    output_args.add_argument('-o', '--output', help='''Filename for VCF output.
+                             If this ends in .gz or .bgz the output will be
+                             BGZIP compressed. Default = STDOUT''')
+
+
+    gt_args.add_argument('-gq', '--gq', type=int, default=0, help='''Minimum
+                         genotype quality score threshold. Sample genotype
+                         calls with a score lower than this threshold will be
+                         converted to no-calls. Default = 0.''')
+
+    gt_args.add_argument('-dp', '--dp', type=int, default=0, help='''Minimum
+                         genotype depth threshold. Sample genotype calls with
+                         a read depth lower than this threshold will be
+                         converted to no-calls. Default = 0.''')
+
+    gt_args.add_argument('-max_dp', '--max_dp', type=int, default=0, help='''
+                         Maximum genotype depth threshold. Sample genotype
+                         calls with a read depth higher than this threshold
+                         will be converted to no-calls. Default = 0 (i.e. not
+                         used''')
+
+    gt_args.add_argument('-het_ab', '--het_ab', type=float, default=0.,
+                         metavar='AB', help='''Minimum genotype allele balance
+                         for heterozygous genotypes. Heterozygous sample
+                         genotype calls with a ratio of the alternate allele vs
+                         total depth lower than this threshold will be
+                         converted to no-calls. Default = 0.''')
+
+    gt_args.add_argument('-hom_ab', '--hom_ab', type=float, default=0.,
+                         metavar='AB', help='''Minimum genotype allele balance
+                         for homozygous genotypes. Homozygous sample genotype
+                         calls with a ratio of the alternate allele vs total
+                         depth lower than this threshold will be converted to
+                         no-calls. Default = 0.''')
+
+    gt_args.add_argument('-ref_ab', '--max_ref_ab', type=float, metavar='AB',
+                         help='''Maximum genotype allele balance for reference
+                         (0/0) genotypes. Reference genotypes with an allele
+                         balance > than this value will be converted to
+                         no-calls. Default=0.0''')
+
+    sv_gt_args.add_argument('-sv_gq', '--sv_gq', type=int, default=20, help=
+                            '''Minimum genotype quality score threshold for
+                            structural variants. Sample genotype calls with a
+                            score lower than this threshold will be converted
+                            to no-calls. Default = 20.''')
+
+    sv_gt_args.add_argument('-sv_dp', '--sv_dp', type=int, default=0, help=
+                            '''Minimum genotype 'depth' threshold for
+                            structural variants. Sample genotype calls with
+                            fewer than this number of supporting reads will be
+                            converted to no-calls. Default = 0.''')
+
+    sv_gt_args.add_argument('-sv_max_dp', '--sv_max_dp', type=int, default=0,
+                            help='''Maximum genotype 'depth' threshold for
+                            structural variants. Sample genotype calls with
+                            more than this nunmber of supporting reads will be
+                            converted to no-calls. Default = 0 (i.e. not
+                            used).''')
+
+    sv_gt_args.add_argument('-sv_het_ab', '--sv_het_ab', type=float,
+                            default=0., metavar='AB', help='''Minimum genotype
+                            allele balance for heterozygous genotypes for
+                            structural variants. Heterozygous sample genotype
+                            calls with a ratio of reads supporting the
+                            alternate allele vs total supporting reads lower
+                            than this threshold will be converted to no-calls.
+                            Default = 0.''')
+
+    sv_gt_args.add_argument('-sv_hom_ab', '--sv_hom_ab', type=float,
+                            default=0., metavar='AB', help='''Minimum genotype
+                            allele balance for homozygous genotypes for
+                            structural variants. Homozygous sample genotype
+                            calls with a ratio of reads supporting the
+                            alternate allele vs total supporting reads lower
+                            than this threshold will be converted to no-calls.
+                            Default = 0.''')
+
+    sv_gt_args.add_argument('-sv_ref_ab', '--sv_max_ref_ab', type=float,
+                            metavar='AB', help='''Maximum genotype allele
+                            balance for reference (0/0) genotypes when
+                            filtering structural variants. Reference genotypes
+                            with an allele balance > than this value will be
+                            converted to no-calls. Default=0.0''')
+    #help/logging arguments
+    help_args.add_argument('--prog_interval', '-prog_interval', type=int,
+                           default=1000, metavar='N', help='''Report progress
+                           information every N variants. Default=1000.''')
+    help_args.add_argument('--log_progress', '-log_progress',
+                           action='store_true', help='''Use logging output for
+                           progress rather than wiping progress line after each
+                           update.''')
+    help_args.add_argument('--no_progress', action='store_true', help='''Do not
+                           output progress information to STDERR.''')
+    help_args.add_argument('--quiet', action='store_true', help='''Do not
+                           output INFO messages to STDERR. Warnings will still
+                           be shown.''')
+    help_args.add_argument('--debug', action='store_true', help='''Output
+                           debugging level information to STDERR.''')
+    help_args.add_argument('--no_warnings', action='store_true', help='''Do not
+                           output INFO or WARN messages to STDERR. Only
+                           program ending errors will appear.''')
+    help_args.add_argument('--silent', action='store_true', help=
+                           '''Equivalent to specifying both '--no_progress' and
+                           '--no_warnings' options.''')
+    help_args.add_argument('-h', '--help', action='help', help='''Show this
+                           help message and exit''')
+    #end of args
+    return parser
+
+def get_logger(quiet=False, debug=False, no_warnings=False, silent=False):
+    logger = logging.getLogger("filter_gts")
+    if silent:
+        no_warnings = True
+        no_progress = True
+    if debug:
+        logger.setLevel(logging.DEBUG)
+    elif no_warnings:
+        logger.setLevel(logging.ERROR)
+    elif quiet:
+        logger.setLevel(logging.WARNING)
+    else:
+        logger.setLevel(logging.INFO)
+    formatter = logging.Formatter(
+                    '[%(asctime)s] %(name)s - %(levelname)s - %(message)s')
+    ch = logging.StreamHandler()
+    ch.setLevel(logger.level)
+    ch.setFormatter(formatter)
+    logger.addHandler(ch)
+    return logger
+
+def get_output(filename):
+    if isinstance(filename, str):
+        if filename.endswith(('.gz', '.bgz')):
+            try:
+                from Bio import bgzf
+            except ImportError:
+                raise RuntimeError("Can not import bgzf via " +
+                                   "biopython. Please install biopython " +
+                                   "in order to write bgzip compressed " +
+                                   "(.gz/.bgz) output.")
+            fh = bgzf.BgzfWriter(filename)
+        else:
+            fh = open(filename, 'w')
+    else:
+        fh = sys.stdout
+    return fh
+
+def print_header(vcf, filehandle):
+    ''' Write VCF header based on input VCF template to filehandle.'''
+    vcf.header.add_header_field(name="gt_filter.py",
+                               string='"' + str.join(" ", sys.argv) + '"')
+    filehandle.write(str(vcf.header))
+
+def main(input, output=None, gq=0, dp=0, max_dp=0, het_ab=0.0, hom_ab=0.0,
+         max_ref_ab=0.0, sv_gq=0, sv_dp=0, sv_max_dp=0, sv_het_ab=0.0,
+         sv_hom_ab=0.0, sv_max_ref_ab=0.0, no_progress=False, quiet=False,
+         debug=False, no_warnings=False, silent=False, prog_interval=1000,
+         log_progress=False, argstring=''):
+    logger = get_logger(quiet, debug, no_warnings, silent)
+    vcf = VcfReader(input)
+    if not vcf.header.samples:
+        raise RuntimeError("No samples found in input VCF - exiting")
+    logger.info("{} samples genotyped in input VCF".format(
+        len(vcf.header.samples)))
+    short_filter = GtFilter(vcf=vcf, gq=gq, dp=dp, max_dp=max_dp,
+                            het_ab=het_ab, hom_ab=hom_ab,
+                            ref_ab_filter=max_ref_ab)
+    sv_gt_filter = SvGtFilter(vcf, gq=sv_gq, dp=sv_dp, max_dp=sv_max_dp,
+                              het_ab=sv_het_ab, hom_ab=sv_hom_ab,
+                              ref_ab_filter=sv_max_ref_ab)
+    outfile = get_output(output)
+    print_header(vcf, outfile)
+    v = 0
+    f = 0
+    fv = 0
+    prog_string = ''
+    for record in vcf:
+        if record.IS_SV:
+            gt_filter = sv_gt_filter
+        else:
+            gt_filter = short_filter
+        gts = record.parsed_gts(fields=gt_filter.fields,
+                                samples=vcf.header.samples)
+        samp2filter = set()
+        ac = [0] * (len(record.ALLELES) - 1)
+        an = 0
+        for s in vcf.header.samples:
+            sgt = gts['GT'][s]
+            if sgt == (None,) * len(sgt):
+                continue
+            do_filter = False
+            for i in range(1, len(record.ALLELES)):
+                if not gt_filter.gt_is_ok(gts, s, i):
+                    do_filter = True
+                    break
+                if i not in sgt and gt_filter.ad_over_threshold is not None:
+                    if gt_filter.ad_over_threshold(gts, s, i):
+                        do_filter = True
+                        break
+            if do_filter:
+                samp2filter.add(s)
+                f += 1
+            else:
+                an += len(sgt)
+                for i in range(1, len(record.ALLELES)):
+                    if i in sgt:
+                        ac[i-1] += 1
+        if not samp2filter: #nothing changed
+            outfile.write(str(record) + "\n")
+        else:
+            fv += 1
+            #update AN/AC/AF fields if present
+            inf2change = dict()
+            if 'AN' in record.INFO_FIELDS:
+                inf2change['AN'] = an
+            if 'AC' in record.INFO_FIELDS:
+                inf2change['AC'] = ac
+            if 'AF' in record.INFO_FIELDS:
+                af = []
+                for c in ac:
+                    if an == 0:
+                        af.append(0)
+                    else:
+                        af.append(c/an)
+                inf2change['AF'] = af
+            if inf2change:
+                record.add_info_fields(inf2change)
+            #write non-genotype columns
+            outfile.write("\t".join(record.cols[:9]))
+            #write genotypes/no-calls
+            calls = []
+            for s in vcf.header.samples:
+                if s in samp2filter:
+                    calls.append('./.')
+                else:
+                    calls.append(record.CALLS[s])
+            outfile.write("\t".join(calls) + "\n")
+        v += 1
+        if not no_progress and v % prog_interval == 0:
+            n_prog_string = ('{:,} variants processed, '.format(v) +
+                             '{:,} genotypes filtered in {:,} '.format(f, fv) +
+                             'variants... at pos {}:{}'.format(record.CHROM,
+                                                               record.POS))
+            if log_progress:
+                logger.info(n_prog_string)
+            else:
+                n_prog_string = '\r' + n_prog_string
+                if len(prog_string) > len(n_prog_string):
+                    sys.stderr.write('\r' + ' ' * len(prog_string) )
+                prog_string = n_prog_string
+                sys.stderr.write(prog_string)
+    logger.info('Finished processing {:,} variants.'.format(v) +
+                '{:,} genotypes filtered in {:,} variants.'.format(f, fv))
+    if outfile is not sys.stdout:
+        outfile.close
+
+
+if __name__ == '__main__':
+    parser = parse_args()
+    args = parser.parse_args()
+    dargs = vars(args)
+    dargs['argstring'] = str.join(" ", sys.argv)
+    main(**dargs)

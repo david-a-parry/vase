@@ -23,7 +23,7 @@ setup(
         'REPORTER': ['xlsxwriter'],
     },
     scripts = ["bin/vase", "bin/burden_test_vase", "bin/vase_reporter",
-               "bin/coordinates_from_genes"],
+               "bin/coordinates_from_genes", "bin/filter_gts"],
     include_package_data=True,
     classifiers = [
         "Programming Language :: Python :: 3",
