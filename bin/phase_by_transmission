@@ -1,0 +1,310 @@
+#!/usr/bin/env python3
+import sys
+import argparse
+import re
+import logging
+import io
+from collections import defaultdict
+from parse_vcf import VcfReader, VcfHeader, VcfRecord
+from vase.ped_file import PedFile, Family, Individual, PedError
+from vase.sample_filter import GtFilter
+from vase.gnomad_filter import GnomadFilter
+from bedfinder import BedFinder
+
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description='''Phase variants for samples with at least one parent in
+                       VCF.''',)
+    required_args = parser.add_argument_group('Required Arguments')
+    opt_args = parser.add_argument_group('Optional Arguments')
+    #required arguments
+    required_args.add_argument('-i', '--vcf', '--input', required=True, metavar='VCF',
+                                help='''Input VCF filename''')
+    required_args.add_argument('-p', '--ped', required=True,
+                                help='''PED file including sample and parental
+                                        IDs for at least each sample.''')
+    opt_args.add_argument('-o', '--output',
+                            help='''Filename for tabular output.''')
+    opt_args.add_argument('--gq', type=int,
+                            help='''Minimum genotype quality (GQ) score.
+                                    Genotype calls with lower GQs than this
+                                    will be treated as no-calls.''')
+    opt_args.add_argument('--dp', type=int,
+                            help='''Minimum genotype depth. Genotype calls with
+                                    lower depth than this value will be treated
+                                    as no-calls.''')
+    opt_args.add_argument('--het_ab', type=float,
+                            help='''Minimum allele balance (0.0-0.5) for an ALT
+                                    genotype in a heterozygous call.
+                                    Heterozygous calls with an ALT allele
+                                    balance lower than this value will be
+                                    treated as no-calls.''')
+    opt_args.add_argument('--hom_ab', type=float,
+                            help='''Minimum allele balance (0.5-1.0) for an ALT
+                                    genotype in a homozygous call. Homozygous
+                                    calls with an ALT allele balance lower than
+                                    this value will be treated as no-calls.''')
+    #help/logging arguments
+    opt_args.add_argument('--prog_interval', '-prog_interval', type=int,
+                           default=1000, metavar='N', help='''Report progress
+                           information every N variants. Default=1000.''')
+    opt_args.add_argument('--log_progress', '-log_progress',
+                           action='store_true', help='''Use logging output for
+                           progress rather than wiping progress line after each
+                           update.''')
+    opt_args.add_argument('--no_progress', action='store_true', help='''Do not
+                           output progress information to STDERR.''')
+    opt_args.add_argument('--quiet', action='store_true', help='''Do not
+                           output INFO messages to STDERR. Warnings will still
+                           be shown.''')
+    opt_args.add_argument('--debug', action='store_true', help='''Output
+                           debugging level information to STDERR.''')
+    opt_args.add_argument('--no_warnings', action='store_true', help='''Do not
+                           output INFO or WARN messages to STDERR. Only
+                           program ending errors will appear.''')
+    opt_args.add_argument('--silent', action='store_true', help=
+                           '''Equivalent to specifying both '--no_progress' and
+                           '--no_warnings' options.''')
+    return parser
+
+def get_output(output):
+    '''
+        Return an output filehandle. If no output specified return
+        sys.stdout.
+    '''
+    if isinstance(output, str):
+        fh = open(output, 'w')
+    else:
+        fh = sys.stdout
+    return fh
+
+def get_logger(quiet=False, debug=False, no_warnings=False, silent=False):
+    logger = logging.getLogger("phase_by_transmission")
+    if silent:
+        no_warnings = True
+        no_progress = True
+    if debug:
+        logger.setLevel(logging.DEBUG)
+    elif no_warnings:
+        logger.setLevel(logging.ERROR)
+    elif quiet:
+        logger.setLevel(logging.WARNING)
+    else:
+        logger.setLevel(logging.INFO)
+    formatter = logging.Formatter(
+                    '[%(asctime)s] %(name)s - %(levelname)s - %(message)s')
+    ch = logging.StreamHandler()
+    ch.setLevel(logger.level)
+    ch.setFormatter(formatter)
+    logger.addHandler(ch)
+    return logger
+
+def print_header(vcf, filehandle):
+    ''' Write VCF header based on input VCF template to filehandle.'''
+    vcf.header.add_header_field(name='NonMendelian',
+                                dictionary={'Number': '.',
+                                            'Type': 'String',
+                                            'Description': '''"Samples
+                                            demonstrating non-mendelian
+                                            inheritance."'''},
+                                field_type='INFO')
+    vcf.header.add_header_field(name='PhasedByTransmission',
+                                dictionary={'Number': '.',
+                                            'Type': 'String',
+                                            'Description': '''"Samples
+                                            phased using VASE's
+                                            phase_by_transmission program.'''},
+                                field_type='INFO')
+    vcf.header.add_header_field(name="gt_filter.py",
+                               string='"' + str.join(" ", sys.argv) + '"')
+    filehandle.write(str(vcf.header))
+
+def report_progress(n, prev_string, record, logger, log_progress=False):
+    prog_string = ('{:,} variants processed...'.format(n) +
+                     'at pos {}:{}'.format(record.CHROM, record.POS))
+    if log_progress:
+        logger.info(prog_string)
+    else:
+        prog_string = '\r' + prog_string
+        if len(prev_string) > len(prog_string):
+            sys.stderr.write('\r' + ' ' * len(prev_string) )
+        sys.stderr.write(prog_string)
+    return prog_string
+
+def phase_alleles(var, trios, gt_filter=None):
+    fgt = ()
+    mgt = ()
+    gts = var.parsed_gts(fields=gt_filter.fields)
+    phased_calls = dict()
+    chrom = var.CHROM.lstrip("chr")
+    mendelian_violations = list()
+    for child, tdict in trios.items():
+        paternal = None
+        maternal = None
+        cgt = gts['GT'][child]
+        if None in cgt or not gt_filter.gt_is_ok(gts, child, max(cgt)):
+            continue
+        if 'mother' in tdict:
+            mgt = gts['GT'][tdict['mother']]
+            if None in mgt or not gt_filter.gt_is_ok(gts, tdict['mother'],
+                                                     max(mgt)):
+                mgt = ()
+        if 'father' in tdict:
+            fgt = gts['GT'][tdict['father']]
+            if None in fgt or not gt_filter.gt_is_ok(gts, tdict['father'],
+                                                     max(fgt)):
+                fgt = ()
+        if not fgt and not mgt: #can't phase
+            continue
+        non_mendelian = False
+        if len(set(cgt)) == 1: #hom/hemizygous
+            if chrom == 'X' and tdict['sex'] == 1:
+                #if child is male alleles on X should be from mother
+                if mgt and cgt[0] not in mgt:
+                    non_mendelian = True
+            elif chrom == 'Y' and tdict['sex'] == 1:
+                if fgt and cgt[0] not in fgt:
+                    non_mendelian = True
+            else:
+                if mgt and cgt[0] not in mgt:
+                    non_mendelian = True
+                elif fgt and cgt[0] not in fgt:
+                    non_mendelian = True
+                else:
+                    maternal = cgt[0]
+                    paternal = cgt[0]
+        else: #heterozygous
+            for allele in cgt:
+                if mgt and fgt: #both parents
+                    if allele not in mgt and allele not in fgt:
+                        non_mendelian = True
+                    elif allele in mgt and allele not in fgt:
+                        maternal = allele
+                    elif allele in fgt and allele not in mgt:
+                        paternal = allele
+                elif mgt: #mother only
+                    if allele not in mgt:
+                        paternal = allele
+                elif fgt: #father only
+                    if allele not in fgt:
+                        maternal = allele
+        if maternal is not None or paternal is not None: #can phase
+            if maternal is not None and paternal is not None:
+                phased_gt = "{}|{}".format(maternal, paternal)
+            elif maternal is not None:
+                other = [x for x in cgt if x != maternal]
+                phased_gt = "{}|{}".format(maternal, other[0])
+            elif paternal is not None:
+                other = [x for x in cgt if x != paternal]
+                phased_gt = "{}|{}".format(paternal, other[0])
+            new_call = []
+            for f in var.GT_FORMAT:
+                if f == 'GT':
+                    new_call.append(phased_gt)
+                else:
+                    new_call.append(var.sample_calls()[child][f])
+            phased_calls[child] = ':'.join(new_call)
+        if non_mendelian:
+            mendelian_violations.append(child)
+    if mendelian_violations:
+        var.add_info_fields({'NonMendelian': ','.join(mendelian_violations)})
+    if not phased_calls:
+        return(str(var))
+    else:
+        calls = []
+        var.add_info_fields({'PhasedByTransmission':
+                             ','.join(phased_calls.keys())})
+        for sample in var.header.samples:
+            if sample in phased_calls:
+                calls.append(phased_calls[sample])
+            else:
+                calls.append(var.CALLS[sample])
+        return "\t".join(var.cols[:9] + calls)
+
+
+def main(vcf, ped, output=None, gq=0, dp=0, het_ab=0., hom_ab=0.,
+         sv_hom_ab=0.0, sv_max_ref_ab=0.0, no_progress=False, quiet=False,
+         debug=False, no_warnings=False, silent=False, prog_interval=1000,
+         log_progress=False):
+    '''
+        Phase alleles in VCF for parent-child trios/duos.
+
+        Args:
+            vcf:    input VCF
+
+            ped:    PED file indicating sample relationships
+
+            output: Optional name for output file. Will print to STDOUT
+                    by default.
+
+            gq:     Minimum genotype quality (GQ) score. Genotype calls
+                    with lower GQs than this will be treated as
+                    no-calls.
+
+            dp:     Minimum genotype depth. Genotype calls with lower
+                    depth than this value will be treated as no-calls.
+
+            het_ab: Minimum allele balance (0.0-0.5) for an ALT genotype
+                    in a heterozygous call. Heterozygous calls with an
+                    ALT allele balance lower than this value will be
+                    treated as no-calls.
+
+            hom_ab: Minimum allele balance (0.5-1.0) for an ALT genotype
+                    in a homozygous call. Homozygous calls with an
+                    ALT allele balance lower than this value will be
+                    treated as no-calls.
+
+    '''
+    logger = get_logger(quiet, debug, no_warnings, silent)
+    vreader = VcfReader(vcf)
+    ped_file = PedFile(ped)
+    trios = defaultdict(dict)
+    families = dict()
+    for s in vreader.header.samples:
+        if s not in ped_file.individuals:
+            logger.warn("Sample '{}' is not in PED file - will not phase"
+                        .format(s))
+        else:
+            if ped_file.individuals[s].fid not in families:
+                families[ped_file.individuals[s].fid] = False
+            pars = 0
+            f = ped_file.individuals[s].father
+            m = ped_file.individuals[s].mother
+            if m and m in vreader.header.samples:
+                pars += 1
+                trios[s]['mother'] = m
+            if f and f in vreader.header.samples:
+                pars += 1
+                trios[s]['father'] = f
+            if pars > 0:
+                families[ped_file.individuals[s].fid] = True
+                trios[s]['sex'] = ped_file.individuals[s].sex
+                if pars == 2:
+                    logger.info("Got parent/child trio for sample {}".format(s)
+                               )
+                if pars == 1:
+                    logger.info("Got parent/child pair for sample {}".format(s)
+                               )
+    for fam, got_pars in families.items():
+        if not got_pars:
+            logger.warn("No parent-child pairs/trios for family {}".format(fam)
+                        + " - will not phase")
+    gt_filter = GtFilter(vreader, gq=gq, dp=dp, het_ab=het_ab, hom_ab=hom_ab)
+    out_fh = get_output(output)
+    print_header(vreader, out_fh)
+    prog_string = ''
+    v = 0
+    for record in vreader:
+        phased = phase_alleles(record, trios, gt_filter)
+        out_fh.write(phased + "\n")
+        v += 1
+        if not no_progress and v % prog_interval == 0:
+            prog_string = report_progress(v, prog_string, record, logger,
+                                          log_progress)
+    if output is not None:
+        out_fh.close()
+
+if __name__ == '__main__':
+    parser = parse_args()
+    args = parser.parse_args()
+    main(**vars(args))
