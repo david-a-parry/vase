@@ -114,16 +114,16 @@ def print_header(vcf, filehandle):
     vcf.header.add_header_field(name='NonMendelian',
                                 dictionary={'Number': '.',
                                             'Type': 'String',
-                                            'Description': '''"Samples
-                                            demonstrating non-mendelian
-                                            inheritance."'''},
+                                            'Description': '"Samples ' +
+                                            'demonstrating non-mendelian ' +
+                                            'inheritance."'},
                                 field_type='INFO')
     vcf.header.add_header_field(name='PhasedByTransmission',
                                 dictionary={'Number': '.',
                                             'Type': 'String',
-                                            'Description': '''"Samples
-                                            phased using VASE's
-                                            phase_by_transmission program.'''},
+                                            'Description': '"Samples phased ' +
+                                            'using VASE\'s ' +
+                                            'phase_by_transmission program.'},
                                 field_type='INFO')
     vcf.header.add_header_field(name="gt_filter.py",
                                string='"' + str.join(" ", sys.argv) + '"')
