@@ -313,6 +313,9 @@ def main(vcf, ped, output=None, gq=0, dp=0, het_ab=0., hom_ab=0.,
                                           log_progress)
     if output is not None:
         out_fh.close()
+    if prog_string and not log_progress:
+        sys.stderr.write('\r' + '-' * len(prog_string) + '\n')
+    logger.info('Finished Processing {:,} variants.'.format(v))
 
 if __name__ == '__main__':
     parser = parse_args()
