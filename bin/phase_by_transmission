@@ -73,7 +73,17 @@ def get_output(output):
         sys.stdout.
     '''
     if isinstance(output, str):
-        fh = open(output, 'w')
+        if output.endswith(('.gz', '.bgz')):
+            try:
+                from Bio import bgzf
+            except ImportError:
+                raise RuntimeError("Can not import bgzf via " +
+                                   "biopython. Please install biopython " +
+                                   "in order to write bgzip compressed " +
+                                   "(.gz/.bgz) output.")
+            fh = bgzf.BgzfWriter(output)
+        else:
+            fh = open(output, 'w')
     else:
         fh = sys.stdout
     return fh
