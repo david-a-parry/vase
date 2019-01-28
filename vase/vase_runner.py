@@ -751,9 +751,10 @@ class VaseRunner(object):
         info = record.parsed_info_fields(fields=[pf, ps])
         f_al = [False if info[ps][i] != '.' else filter_al[i] for i in
                 range(len(filter_al))]
-        f_csq = [[False if record.CSQ[j]['Feature'] in
-                  info[pf][i].split('|') else filter_csq[i][j] for j in
-                  range(len(record.CSQ))] for i in range(len(filter_al))]
+        f_csq = [[False if (info[pf][i] is not None and
+                            record.CSQ[j]['Feature'] in info[pf][i].split('|'))
+                  else filter_csq[i][j] for j in range(len(record.CSQ))] for i
+                 in range(len(filter_al))]
         return f_al, f_csq
 
     def _get_prev_annotations(self):
