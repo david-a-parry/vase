@@ -214,7 +214,7 @@ def phase_alleles(var, trios, gt_filter=None):
                 phased_gt = "{}|{}".format(maternal, other[0])
             elif paternal is not None:
                 other = [x for x in cgt if x != paternal]
-                phased_gt = "{}|{}".format(paternal, other[0])
+                phased_gt = "{}|{}".format(other[0], paternal)
             new_call = []
             for f in var.GT_FORMAT:
                 if f == 'GT':
