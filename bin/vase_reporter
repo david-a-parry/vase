@@ -29,6 +29,11 @@ def parse_args():
                         options.''')
     parser.add_argument("--blacklist", help='''A file containing a list of
                         Ensembl feature IDs to ignore, one ID per line.''')
+    parser.add_argument("--choose_transcript", action='store_true', help=
+                        '''Pick a single transcript for each variant. The
+                        highest impact transcript will be chosen with canonical
+                        and protein coding transcripts preferred where impacts
+                        are the same.''')
     parser.add_argument("-d", "--ddg2p", help='''DDG2P CSV file - if provided
                         additional fields will be added for DDG2P genes.''')
     parser.add_argument("--filter_non_ddg2p", action='store_true', help=

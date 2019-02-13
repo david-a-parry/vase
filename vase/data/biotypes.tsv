@@ -1,44 +1,44 @@
-3prime_overlapping_ncrna	default
-antisense	default
-CTCF_binding_site	default
-enhancer	default
-IG_C_gene	default
-IG_C_pseudogene	valid
-IG_D_gene	default
-IG_J_gene	default
-IG_J_pseudogene	valid
-IG_V_gene	default
-IG_V_pseudogene	valid
-lincRNA	default
-miRNA	default
-misc_RNA	default
-Mt_rRNA	default
-Mt_tRNA	default
-nonsense_mediated_decay	valid
-non_stop_decay	valid
-open_chromatin_region	default
-polymorphic_pseudogene	default
-processed_pseudogene	valid
-processed_transcript	default
-promoter	default
-promoter_flanking_region	default
-protein_coding	default
-pseudogene	valid
-retained_intron	valid
-rRNA	default
-sense_intronic	default
-sense_overlapping	default
-snoRNA	default
-snRNA	default
-TF_binding_site	default
-transcribed_processed_pseudogene	valid
-transcribed_unprocessed_pseudogene	valid
-translated_processed_pseudogene	default
-TR_C_gene	default
-TR_D_gene	default
-TR_J_gene	default
-TR_J_pseudogene	valid
-TR_V_gene	default
-TR_V_pseudogene	valid
-unitary_pseudogene	valid
-unprocessed_pseudogene	valid
+protein_coding	default	0
+miRNA	default	1
+IG_C_gene	default	2
+IG_D_gene	default	3
+IG_J_gene	default	4
+IG_V_gene	default	5
+TF_binding_site	default	6
+TR_C_gene	default	7
+TR_D_gene	default	8
+TR_J_gene	default	9
+TR_V_gene	default	10
+translated_processed_pseudogene	default	11
+lincRNA	default	12
+snRNA	default	13
+snoRNA	default	14
+rRNA	default	15
+processed_transcript	default	16
+3prime_overlapping_ncrna	default	17
+Mt_rRNA	default	18
+Mt_tRNA	default	19
+misc_RNA	default	20
+promoter	default	21
+promoter_flanking_region	default	22
+open_chromatin_region	default	23
+CTCF_binding_site	default	24
+enhancer	default	25
+polymorphic_pseudogene	default	26
+antisense	default	27
+sense_intronic	default	28
+sense_overlapping	default	29
+retained_intron	valid	30
+transcribed_processed_pseudogene	valid	31
+processed_pseudogene	valid	32
+transcribed_unprocessed_pseudogene	valid	33
+pseudogene	valid	34
+TR_J_pseudogene	valid	35
+TR_V_pseudogene	valid	36
+unitary_pseudogene	valid	37
+unprocessed_pseudogene	valid	38
+IG_C_pseudogene	valid	39
+IG_J_pseudogene	valid	40
+IG_V_pseudogene	valid	41
+non_stop_decay	valid	42
+nonsense_mediated_decay	valid	43

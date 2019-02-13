@@ -12,9 +12,11 @@ from .ensembl_rest_queries import EnsemblRestQueries
 
 ENST = re.compile(r'''^ENS\w*T\d{11}(\.\d+)?''')
 vcf_output_columns = ['CHROM', 'POS', 'ID', 'REF', 'ALT', 'QUAL', 'FILTER',]
+
 feat_annots = { 'VASE_biallelic_families': 'VASE_biallelic_features',
                 'VASE_dominant_families': 'VASE_dominant_features',
                 'VASE_de_novo_families': 'VASE_de_novo_features',}
+
 allelic_req_to_label = {'biallelic'                 : ['recessive'],
                         'digenic'                   : None,
                         'hemizygous'                : ['recessive'],
@@ -23,8 +25,10 @@ allelic_req_to_label = {'biallelic'                 : ['recessive'],
                         'monoallelic'               : ['de novo', 'dominant'],
                         'mosaic'                    : ['de novo', 'dominant'],
                         'x-linked dominant'         : None,
-                        'x-linked over-dominance'   : None,}
-
+                        'x-linked over-dominance'   : None,
+                       }
+impact_order = dict((k,n) for n,k in enumerate(['HIGH', 'MODERATE', 'LOW',
+                                              'MODIFIER']))
 
 class VaseReporter(object):
     ''' Read a VASE annotated VCF and output XLSX format summary of
@@ -34,8 +38,9 @@ class VaseReporter(object):
                  rest_lookups=False, grch37=False, ddg2p=None, blacklist=None,
                  recessive_only=False, dominant_only=False, de_novo_only=False,
                  filter_non_ddg2p=False, allelic_requirement=False,
-                 prog_interval=None, timeout=2.0, max_retries=2, quiet=False,
-                 debug=False, force=False, hide_empty=False):
+                 choose_transcript=False, prog_interval=None, timeout=2.0,
+                 max_retries=2, quiet=False, debug=False, force=False,
+                 hide_empty=False):
         self._set_logger(quiet, debug)
         self.vcf = VcfReader(vcf)
         self.ped = PedFile(ped)
@@ -44,6 +49,7 @@ class VaseReporter(object):
         self.recessive_only = recessive_only
         self.dominant_only = dominant_only
         self.de_novo_only = de_novo_only
+        self.choose_transcript = choose_transcript
         self.seg_fields = self._get_seg_fields()
         if not out.endswith(".xlsx"):
             out = out + ".xlsx"
@@ -66,6 +72,7 @@ class VaseReporter(object):
         elif self.require_ddg2p:
             raise RuntimeError("--filter_non_ddg2p option requires a DDG2P " +
                                "CSV to be supplied with the --ddg2p argument")
+        self.biotype_order = self._get_biotype_order()
         self.blacklist = None
         if blacklist:
             self.blacklist = self._read_blacklist(blacklist)
@@ -208,6 +215,21 @@ class VaseReporter(object):
                 samples.append(indv)
         self.sample_orders[family] = samples
         return samples
+
+    def _get_biotype_order(self):
+        data_file = os.path.join(os.path.dirname(__file__),
+                                 "data",
+                                 "biotypes.tsv")
+        biotype_order = dict()
+        with open(data_file, 'rt') as bfile:
+            for line in bfile:
+                if line.startswith('#'):
+                    continue
+                cols = line.rstrip().split('\t')
+                if len(cols) < 3:
+                    continue
+                biotype_order[cols[0]] = int(cols[2])
+        return biotype_order
 
     def _read_ddg2p_csv(self, ddg2p):
         g2p = dict()
@@ -386,6 +408,23 @@ class VaseReporter(object):
                                             csq)
             self.rows[family] += 1
 
+    def pick_transcript(self, features, allele, csq):
+        '''
+            Return a single feature from the list provided, picking
+            transcripts with the highest impact and preferring biotypes
+            as ordered in vase/data/biotypes.tsv and canonical
+            transcripts where impacts are the same.
+        '''
+        feat_csq = list(x for x in csq if x['Feature'] in features and
+                        x['alt_index'] == allele)
+        sorted_csq = sorted(feat_csq, key=lambda x: x['CANONICAL'],
+                            reverse=True)
+        sorted_csq = sorted(sorted_csq, key=lambda x:
+                            self.biotype_order[x['BIOTYPE']])
+        sorted_csq = sorted(sorted_csq, key=lambda x:
+                            impact_order[x['IMPACT']])
+        return sorted_csq[0]['Feature']
+
     def write_report(self):
         ''' Write a line for every segregating allele in VCF to XLSX'''
         self.logger.info("Reading variants and writing report")
@@ -406,6 +445,9 @@ class VaseReporter(object):
                                         x['alt_index'] == i +1)
                         else:
                             feat = info[feat_annots[annot]][i].split("|")
+                        if self.choose_transcript:
+                            feat = [self.pick_transcript(feat, i+1,
+                                                         record.CSQ)]
                         for fam in info[annot][i].split("|"):
                             if fam in self.families:
                                 self.write_records(record, fam, pattern, i+1,
