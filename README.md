@@ -28,7 +28,7 @@ if following the instructions below. You may also wish to install biopython,
 which is required if you want to write directly to bgzipped output.
 
 To install the vase script to $HOME/.local/bin (or possibly on Mac OS
-/Users/david/Library/Python/3.\*/bin/) the simplest way is to use pip:
+/Users/$USER/Library/Python/3.\*/bin/) the simplest way is to use pip:
 
     pip3 install git+git://github.com/gantzgraf/vase.git --user
 
