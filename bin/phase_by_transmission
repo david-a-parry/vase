@@ -9,7 +9,6 @@ from parse_vcf import VcfReader, VcfHeader, VcfRecord
 from vase.ped_file import PedFile, Family, Individual, PedError
 from vase.sample_filter import GtFilter
 from vase.gnomad_filter import GnomadFilter
-from bedfinder import BedFinder
 
 def parse_args():
     parser = argparse.ArgumentParser(
