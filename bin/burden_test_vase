@@ -43,10 +43,14 @@ def get_counts(tsv, targets=None):
         counts = defaultdict(dict)
         for line in infile:
             cols = line.rstrip().split()
-            for k in al_indices:
-                i = al_indices[k]
-                f = cols[0] + '/' + cols[1] #Feature/Gene
-                counts[f][k] = (int(cols[i]), int(cols[i + 1]))
+            try:
+                for k in al_indices:
+                    i = al_indices[k]
+                    f = cols[0] + '/' + cols[1] #Feature/Gene
+                    counts[f][k] = (int(cols[i]), int(cols[i + 1]))
+            except IndexError as e:
+                raise RuntimeError("Error processing line: {}\n".format(line) +
+                                   str(e))
     return counts
 
 

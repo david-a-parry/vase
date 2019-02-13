@@ -146,6 +146,8 @@ class FamilyFilter(object):
                         dominant = True
             if not dominant:
                 recessive = True
+            if no_parents:
+                dominant = True
             if recessive and n_affected == 1 and not no_parents:
                 f_par = fam.individuals[f_aff[0]].parents
                 if len(f_par) != 2:

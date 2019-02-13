@@ -25,25 +25,33 @@ def parse_args():
                                         IDs for at least each sample.''')
     opt_args.add_argument('-o', '--output',
                             help='''Filename for tabular output.''')
-    opt_args.add_argument('--gq', type=int,
+    opt_args.add_argument('--gq', type=int, default=0,
                             help='''Minimum genotype quality (GQ) score.
                                     Genotype calls with lower GQs than this
                                     will be treated as no-calls.''')
-    opt_args.add_argument('--dp', type=int,
+    opt_args.add_argument('--dp', type=int, default=0,
                             help='''Minimum genotype depth. Genotype calls with
                                     lower depth than this value will be treated
                                     as no-calls.''')
-    opt_args.add_argument('--het_ab', type=float,
+    opt_args.add_argument('--het_ab', type=float, default=0.0,
                             help='''Minimum allele balance (0.0-0.5) for an ALT
                                     genotype in a heterozygous call.
                                     Heterozygous calls with an ALT allele
                                     balance lower than this value will be
                                     treated as no-calls.''')
-    opt_args.add_argument('--hom_ab', type=float,
+    opt_args.add_argument('--hom_ab', type=float, default=0.0,
                             help='''Minimum allele balance (0.5-1.0) for an ALT
                                     genotype in a homozygous call. Homozygous
                                     calls with an ALT allele balance lower than
                                     this value will be treated as no-calls.''')
+    opt_args.add_argument('--min_phased', type=int, default=0,
+                            help='''Only output variants that have been phased
+                                    in at least this many samples.''')
+
+    opt_args.add_argument('--frac_phased', type=float, default=0.0,
+                            help='''Only output variants that have been phased
+                                    in this proportion (or higher) of samples
+                                    that have parents and can be phased.''')
     #help/logging arguments
     opt_args.add_argument('--prog_interval', '-prog_interval', type=int,
                            default=1000, metavar='N', help='''Report progress
@@ -129,9 +137,9 @@ def print_header(vcf, filehandle):
                                string='"' + str.join(" ", sys.argv) + '"')
     filehandle.write(str(vcf.header))
 
-def report_progress(n, prev_string, record, logger, log_progress=False):
-    prog_string = ('{:,} variants processed...'.format(n) +
-                     'at pos {}:{}'.format(record.CHROM, record.POS))
+def report_progress(n, w, prev_string, record, logger, log_progress=False):
+    prog_string = ('{:,} variants processed, {:,} written...'.format(n, w) +
+                   'at pos {}:{}'.format(record.CHROM, record.POS))
     if log_progress:
         logger.info(prog_string)
     else:
@@ -206,7 +214,7 @@ def phase_alleles(var, trios, gt_filter=None):
                 phased_gt = "{}|{}".format(maternal, other[0])
             elif paternal is not None:
                 other = [x for x in cgt if x != paternal]
-                phased_gt = "{}|{}".format(paternal, other[0])
+                phased_gt = "{}|{}".format(other[0], paternal)
             new_call = []
             for f in var.GT_FORMAT:
                 if f == 'GT':
@@ -219,7 +227,7 @@ def phase_alleles(var, trios, gt_filter=None):
     if mendelian_violations:
         var.add_info_fields({'NonMendelian': ','.join(mendelian_violations)})
     if not phased_calls:
-        return(str(var))
+        return(str(var), 0)
     else:
         calls = []
         var.add_info_fields({'PhasedByTransmission':
@@ -229,13 +237,13 @@ def phase_alleles(var, trios, gt_filter=None):
                 calls.append(phased_calls[sample])
             else:
                 calls.append(var.CALLS[sample])
-        return "\t".join(var.cols[:9] + calls)
+        return "\t".join(var.cols[:9] + calls), len(phased_calls)
 
 
 def main(vcf, ped, output=None, gq=0, dp=0, het_ab=0., hom_ab=0.,
-         sv_hom_ab=0.0, sv_max_ref_ab=0.0, no_progress=False, quiet=False,
-         debug=False, no_warnings=False, silent=False, prog_interval=1000,
-         log_progress=False):
+         sv_hom_ab=0.0, sv_max_ref_ab=0.0, min_phased=0, frac_phased=0.,
+         no_progress=False, quiet=False, debug=False, no_warnings=False,
+         silent=False, prog_interval=1000, log_progress=False):
     '''
         Phase alleles in VCF for parent-child trios/duos.
 
@@ -263,6 +271,15 @@ def main(vcf, ped, output=None, gq=0, dp=0, het_ab=0., hom_ab=0.,
                     in a homozygous call. Homozygous calls with an
                     ALT allele balance lower than this value will be
                     treated as no-calls.
+
+            min_phased:
+                    Only output variants that have been phased in at
+                    least this many samples.
+
+            frac_phased:
+                    Only output variants that have been phased in
+                    this proportion (or higher) of samples that have
+                    parents and can be phased.
 
     '''
     logger = get_logger(quiet, debug, no_warnings, silent)
@@ -304,18 +321,25 @@ def main(vcf, ped, output=None, gq=0, dp=0, het_ab=0., hom_ab=0.,
     print_header(vreader, out_fh)
     prog_string = ''
     v = 0
+    w = 0
     for record in vreader:
-        phased = phase_alleles(record, trios, gt_filter)
-        out_fh.write(phased + "\n")
+        phased, n_phased = phase_alleles(record, trios, gt_filter)
         v += 1
         if not no_progress and v % prog_interval == 0:
-            prog_string = report_progress(v, prog_string, record, logger,
+            prog_string = report_progress(v, w, prog_string, record, logger,
                                           log_progress)
+        if min_phased and phased < min_phased:
+            continue
+        if frac_phased and (float(n_phased)/len(trios)) < frac_phased:
+            continue
+        out_fh.write(phased + "\n")
+        w += 1
     if output is not None:
         out_fh.close()
     if prog_string and not log_progress:
         sys.stderr.write('\r' + '-' * len(prog_string) + '\n')
-    logger.info('Finished Processing {:,} variants.'.format(v))
+    logger.info('Finished Processing {:,} variants. '.format(v) +
+                '{:,} variants written'.format(w))
 
 if __name__ == '__main__':
     parser = parse_args()
