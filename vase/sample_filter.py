@@ -204,7 +204,8 @@ class SampleFilter(object):
                     return True
             elif control_filter.ad_over_threshold is not None:
                 #check hom ref for ALT allele counts
-                if control_filter.ad_over_threshold(gts, s, allele):
+                if (control_filter.ad_over_threshold(gts, s, allele) and
+                    gts['AD'][s] != (None,)):
                     if self.n_controls:
                         control_matches += 1
                     else:
@@ -538,4 +539,3 @@ class GtFilter(object):
                               "FORMAT fields are defined in your VCF " +
                               "header.")
         return None
-
