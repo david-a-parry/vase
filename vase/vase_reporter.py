@@ -415,8 +415,8 @@ class VaseReporter(object):
             as ordered in vase/data/biotypes.tsv and canonical
             transcripts where impacts are the same.
         '''
-        feat_csq = list(x for x in csq if x['Feature'] in features and
-                        x['alt_index'] == allele)
+        feat_csq = (x for x in csq if x['Feature'] in features and
+                    x['alt_index'] == allele)
         sorted_csq = sorted(feat_csq, key=lambda x: x['CANONICAL'],
                             reverse=True)
         sorted_csq = sorted(sorted_csq, key=lambda x:
