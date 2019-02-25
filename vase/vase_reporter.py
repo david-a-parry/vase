@@ -172,7 +172,8 @@ class VaseReporter(object):
         return selected
 
     def _initialize_worksheet(self, family):
-        worksheet = self.workbook.add_worksheet(family)
+        sheet_name = re.sub(r'[\[\]\:\*\?\/]', '_', family)
+        worksheet = self.workbook.add_worksheet(sheet_name)
         header = self._get_header_columns(family)
         for i in range(len(header)):
             worksheet.write(0, i, header[i], self.bold)
