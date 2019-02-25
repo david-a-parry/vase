@@ -78,16 +78,20 @@ class VaseReporter(object):
             self.blacklist = self._read_blacklist(blacklist)
         if not families:
             families = sorted(self.ped.families.keys())
+        fams_with_samples = []
         for f in families:#respect the order of families provided before converting to set
             if f not in self.ped.families:
-                raise RuntimeError("Familiy '{}' not found in ped ".format(f) +
+                raise RuntimeError("Family '{}' not found in ped ".format(f) +
                                    "'{}'.".format(ped))
             if f in self.worksheets:
                 logger.warn("Duplicate family '{}' specified".format(f))
             else:
-                self.worksheets[f] = self._initialize_worksheet(f)
-                self.rows[f] = 1
-        self.families = set(families)
+                w = self._initialize_worksheet(f)
+                if w is not None:
+                    self.worksheets[f] = w
+                    self.rows[f] = 1
+                    fams_with_samples.append(f)
+        self.families = set(fams_with_samples)
         if self.rest_lookups:
             self.ensembl_rest = EnsemblRestQueries(use_grch37_server=grch37,
                                                    timeout=timeout,
@@ -172,9 +176,11 @@ class VaseReporter(object):
         return selected
 
     def _initialize_worksheet(self, family):
+        header = self._get_header_columns(family)
+        if header is None:
+            return None
         sheet_name = re.sub(r'[\[\]\:\*\?\/]', '_', family)
         worksheet = self.workbook.add_worksheet(sheet_name)
-        header = self._get_header_columns(family)
         for i in range(len(header)):
             worksheet.write(0, i, header[i], self.bold)
         return worksheet
@@ -183,7 +189,13 @@ class VaseReporter(object):
         header = ['INHERITANCE'] + vcf_output_columns + ['ALLELE', 'AC', 'AN',
                                                          'FORMAT']
         if family is not None:
-            header.extend(self._get_sample_order(family))
+            samples = self._get_sample_order(family)
+            if not samples:
+                self.logger.warn("No samples in VCF for family {}".format(
+                                                                        family))
+                return None
+            self.sample_orders[family] = samples
+            header.extend(samples)
         if 'CADD_PHRED_score' in self.vcf.header.metadata['INFO']:
             header.append("CADD_PHRED_score")
         header.extend(x for x in self.vcf.header.csq_fields if x != 'Allele')
@@ -206,15 +218,14 @@ class VaseReporter(object):
             if par in self.vcf.header.samples:
                 samples.append(par)
             for child in self.ped.families[family].parents[par]:
-                if child not in children:
+                if child not in children and child in self.vcf.header.samples:
                     children.append(child)
         for child in children:
             if child not in samples and child in self.vcf.header.samples:
                 samples.append(child)
         for indv in self.ped.families[family].individuals:
-            if indv not in samples:
+            if indv not in samples and indv in self.vcf.header.samples:
                 samples.append(indv)
-        self.sample_orders[family] = samples
         return samples
 
     def _get_biotype_order(self):
