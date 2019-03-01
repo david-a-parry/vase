@@ -30,6 +30,22 @@ allelic_req_to_label = {'biallelic'                 : ['recessive'],
 impact_order = dict((k,n) for n,k in enumerate(['HIGH', 'MODERATE', 'LOW',
                                               'MODIFIER']))
 
+def csv_to_dict(f, index, fieldnames, delimiter=','):
+    d = dict()
+    method = open
+    if f.endswith(".gz") or f.endswith(".bgz"):
+        method = gzip.open
+    with method(f, 'rt', newline='') as csvfile:
+        reader = csv.DictReader(csvfile, delimiter=delimiter)
+        for x in fieldnames:
+            if x not in reader.fieldnames:
+                raise RuntimeError("Missing '{}' ".format(x) + "field in" +
+                                   " file '{}'".format(f))
+        for row in reader:
+            d[row[index]] = row
+    return d
+
+
 class VaseReporter(object):
     ''' Read a VASE annotated VCF and output XLSX format summary of
         segregating variants. '''
@@ -38,9 +54,9 @@ class VaseReporter(object):
                  rest_lookups=False, grch37=False, ddg2p=None, blacklist=None,
                  recessive_only=False, dominant_only=False, de_novo_only=False,
                  filter_non_ddg2p=False, allelic_requirement=False,
-                 choose_transcript=False, prog_interval=None, timeout=2.0,
-                 max_retries=2, quiet=False, debug=False, force=False,
-                 hide_empty=False):
+                 gnomad_constraint=None, choose_transcript=False,
+                 prog_interval=None, timeout=2.0, max_retries=2, quiet=False,
+                 debug=False, force=False, hide_empty=False):
         self._set_logger(quiet, debug)
         self.vcf = VcfReader(vcf)
         self.ped = PedFile(ped)
@@ -72,6 +88,9 @@ class VaseReporter(object):
         elif self.require_ddg2p:
             raise RuntimeError("--filter_non_ddg2p option requires a DDG2P " +
                                "CSV to be supplied with the --ddg2p argument")
+        self.constraint = None
+        if gnomad_constraint:
+            self.constraint = self._read_gnomad_constraint(gnomad_constraint)
         self.biotype_order = self._get_biotype_order()
         self.blacklist = None
         if blacklist:
@@ -206,6 +225,9 @@ class VaseReporter(object):
             header.extend(["DDG2P_disease", "DDG2P_Category",
                            "DDG2P_Allelic_Requirement", "DDG2P_consequences",
                            "DDG2P_organs"])
+        if self.constraint:
+            header.extend(["pLI", "pRec", "pNull", "mis_z", "syn_z",
+                           "constraint_issues"])
         return header
 
 
@@ -244,25 +266,31 @@ class VaseReporter(object):
         return biotype_order
 
     def _read_ddg2p_csv(self, ddg2p):
-        g2p = dict()
-        method = open
-        if ddg2p.endswith(".gz"):
-            method = gzip.open
-        with method(ddg2p, 'rt', newline='') as csvfile:
-            reader = csv.DictReader(csvfile)
-            required_fields = ['gene symbol', 'disease name', 'DDD category',
-                               'allelic requirement', 'mutation consequence',
-                               'organ specificity list', 'prev symbols']
-            for f in required_fields:
-                if f not in reader.fieldnames:
-                    raise RuntimeError("Missing '{}' ".format(f) + "field in" +
-                                       "DDG2P file '{}'".format(f, ddg2p))
-                for row in reader:
-                    g2p[row['gene symbol']] = row
-                    if row['prev symbols']:
-                        for prev in row['prev symbols'].split(';'):
-                            g2p[prev] = row
+        required_fields = ['gene symbol', 'disease name', 'DDD category',
+                           'allelic requirement', 'mutation consequence',
+                           'organ specificity list', 'prev symbols']
+        g2p = csv_to_dict(ddg2p, 'gene symbol', required_fields)
+        prev_symbol_d = dict()
+        for row in g2p.values():
+            if row['prev symbols']:
+                for prev in row['prev symbols'].split(';'):
+                    if prev not in g2p:
+                        prev_symbol_d[prev] = row
+        g2p.update(prev_symbol_d)
         return g2p
+
+    def _read_gnomad_constraint(self, constraint_file):
+        required_fields = ["gene", "transcript", "canonical", "mis_z", "syn_z",
+                           "pLI", "pRec", "pNull", "gene_issues"]
+        d = csv_to_dict(constraint_file, 'transcript', required_fields,
+                        delimiter='\t')
+        #in case we transcript ref differs, also index on gene name
+        gene_d = dict()
+        for v in d.values():
+            if v["gene"] not in d and v["canonical"] == 'true':
+                gene_d[v["gene"]] = v
+        d.update(gene_d)
+        return d
 
     def _read_blacklist(self, blacklist):
         '''
@@ -358,6 +386,23 @@ class VaseReporter(object):
             col += 1
         return col
 
+    def write_constraint_data(self, worksheet, row, col, csq):
+        constraint_cols = ["pLI", "pRec", "pNull", "mis_z", "syn_z",
+                           "gene_issues"]
+        cons = [''] * 5
+        k = None
+        if csq['Feature'] in self.constraint:
+            k = csq['Feature']
+        elif csq['SYMBOL'] in self.constraint:
+            k = csq['SYMBOL']
+        if k is not None:
+            cons = [self.constraint[k][f] for f in constraint_cols]
+        for x in cons:
+            worksheet.write(row, col, x)
+            col += 1
+        return col
+
+
     def write_rest_data(self, worksheet, row, col, csq):
         entrez, *rest = (self.get_ensembl_rest_data(csq))
         if entrez:
@@ -418,6 +463,11 @@ class VaseReporter(object):
                                             self.rows[family],
                                             col,
                                             csq)
+            if self.constraint:
+                col = self.write_constraint_data(self.worksheets[family],
+                                                 self.rows[family],
+                                                 col,
+                                                 csq)
             self.rows[family] += 1
 
     def pick_transcript(self, features, allele, csq):
