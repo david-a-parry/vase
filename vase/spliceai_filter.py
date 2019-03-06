@@ -80,7 +80,7 @@ class SpliceAiFilter(object):
                             score reaches this value.
 
                 max_delta:  Return True for each allele if any delta
-                            score reaches is below this value.
+                            score is below this value.
 
                 to_score:   Name of file for writing variants which
                             cannot be found in the given SpliceAI VCFs.
