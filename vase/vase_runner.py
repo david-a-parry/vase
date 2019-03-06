@@ -16,6 +16,8 @@ from .burden_counter import BurdenCounter
 from .var_by_region import VarByRegion
 from .region_iter import RegionIter
 from .gt_annotator import GtAnnotator
+from .spliceai_filter import SpliceAiFilter, filter_on_splice_ai
+
 
 class VaseRunner(object):
 
@@ -34,10 +36,12 @@ class VaseRunner(object):
         self.var_types = self._parse_var_type_arg()
         self.prev_cadd_phred = False
         self.prev_cadd_raw = False
+        self.prev_splice_ai = False
         self._get_prev_annotations()
         self.out = self.get_output()
         self.vcf_filters = self.get_vcf_filter_classes()
         self.cadd_filter = self.get_cadd_filter()
+        self.splice_ai_filter = self.get_splice_ai_filter()
         self.gt_annotators = self.get_gt_annotators()
         self.ped = None
         if args.ped:
@@ -415,10 +419,53 @@ class VaseRunner(object):
         if self.csq_filter:
             r_alts, remove_csq = self.csq_filter.filter(record)
             self._set_to_true_if_true(remove_alleles, r_alts)
+            if self.prev_splice_ai and (self.args.splice_ai_min_delta or
+                                        self.args.splice_ai_max_delta):
+                splice_alleles, splice_csq = filter_on_splice_ai(record,
+                                    min_delta=self.args.splice_ai_min_delta,
+                                    max_delta=self.args.splice_ai_max_delta,
+                                    check_symbol=True,
+                                    canonical_csq=self.args.canonical)
+                remove_alleles = [False if y else x for x,y in
+                                  zip(remove_alleles, splice_alleles)]
+                remove_csq = [False if y else x for x,y in zip(remove_csq,
+                                                               splice_csq)]
+            if self.splice_ai_filter:
+                splice_alleles, splice_csq = (
+                self.splice_ai_filter.annotate_or_filter(record,
+                                                          True,
+                                                          self.args.canonical))
+                if (self.args.splice_ai_min_delta
+                    or self.args.splice_ai_max_delta):
+                    #RETAIN Alleles/csq if SpliceAI scores meet threshold
+                    remove_alleles = [False if y else x for x,y in
+                                      zip(remove_alleles, splice_alleles)]
+                    remove_csq = [False if y else x for x,y in zip(remove_csq,
+                                                                   splice_csq)]
             if (not self.args.clinvar_path and
                 sum(remove_alleles) == len(remove_alleles)):
                 # bail out now if no valid consequence
                 return remove_alleles, remove_csq
+        elif (self.splice_ai_filter or self.args.splice_ai_min_delta or
+              self.args.splice_ai_max_delta):
+            if self.prev_splice_ai and (self.args.splice_ai_min_delta or
+                                        self.args.splice_ai_max_delta):
+                splice_alleles, splice_csq = filter_on_splice_ai(record,
+                                    min_delta=self.args.splice_ai_min_delta,
+                                    max_delta=self.args.splice_ai_max_delta,
+                                    check_symbol=True,
+                                    canonical_csq=self.args.canonical)
+                self._set_to_true_if_true(remove_alleles, [not(x) for x in
+                                                           splice_alleles])
+            else:
+                splice_alleles, splice_csq = (
+                              self.splice_ai_filter.annotate_or_filter(record))
+                if (self.args.splice_ai_min_delta
+                    or self.args.splice_ai_max_delta):
+                    #use SpliceAI on alleles only - FILTER If threshold not met
+                    #FILTER alleles if SpliceAI scores meet threshold
+                    self._set_to_true_if_true(remove_alleles, [not(x) for x in
+                                                               splice_alleles])
         if self.prev_cadd_phred and self.args.cadd_phred:
             r_alts = self.filter_on_existing_cadd_phred(record)
             self._set_to_true_if_true(remove_alleles, r_alts)
@@ -677,6 +724,36 @@ class VaseRunner(object):
                                    "or --cadd_dir arguments.")
         return None
 
+    def get_splice_ai_filter(self):
+        if self.args.splice_ai_vcfs:
+            splice_ai_args = {'vcfs': self.args.splice_ai_vcfs,
+                              'min_delta': self.args.splice_ai_min_delta,
+                              'max_delta': self.args.splice_ai_max_delta,
+                              'to_score': self.args.missing_splice_ai_scores,
+                              'logging_level': self.logger.level,}
+            sf = SpliceAiFilter(**splice_ai_args)
+            for f,d in sf.info_fields.items():
+                self.logger.debug("Adding {} annotation")
+                self.input.header.add_header_field(name=f, dictionary=d,
+                                                   field_type='INFO')
+            return sf
+        else:
+            if not self.prev_splice_ai:
+                if self.args.splice_ai_min_delta is not None:
+                    raise RuntimeError("--splice_ai_min_delta cutoff given " +
+                                       "but VCF does not have SpliceAI INFO " +
+                                       "field in its header and no SpliceAI " +
+                                       "score files have been specified with " +
+                                       "--splice_ai_vcfs argument.")
+                if self.args.splice_ai_max_delta is not None:
+                    raise RuntimeError("--splice_ai_max_delta cutoff given " +
+                                       "but VCF does not have SpliceAI INFO " +
+                                       "field in its header and no SpliceAI " +
+                                       "score files have been specified with " +
+                                       "--splice_ai_vcfs argument.")
+        return None
+
+
     def get_vcf_filter_classes(self):
         filters = []
         uni_args = {}
@@ -722,7 +799,7 @@ class VaseRunner(object):
                                    "values for --vcf_filter argument '{}'"
                                    .format(var_filter))
             prefix = self.check_info_prefix('VASE_' + vcf_and_id[1])
-            kwargs = {"vcf" : vcf_and_id[0], "prefix" : prefix, 
+            kwargs = {"vcf" : vcf_and_id[0], "prefix" : prefix,
                       "annotations" : vcf_and_id[2:]}
             kwargs.update(uni_args)
             vcf_filter = VcfFilter(**kwargs)
@@ -776,6 +853,9 @@ class VaseRunner(object):
             if (self.input.metadata['INFO']['CADD_raw_score'][-1]['Number'] == 'A' and
                 self.input.metadata['INFO']['CADD_raw_score'][-1]['Type'] == 'Float'):
                 self.prev_cadd_raw = True
+        if 'SpliceAI' in self.input.metadata['INFO']:
+            if self.input.metadata['INFO']['SpliceAI'][-1]['Number'] == '.':
+                self.prev_splice_ai = True
 
     def _parse_prev_vcf_filter_annotations(self):
         frq_annots = []
@@ -792,8 +872,8 @@ class VaseRunner(object):
                         self.input.metadata['INFO'][annot][-1]['Type'] == 'Float'):
                         self.logger.info("Found previous allele frequency " +
                                           "annotation '{}'".format(annot))
-                        if len(match.groups()) == 3:
-                            pop = match.group(3).replace("_", "") 
+                        if len(match.groups()) == 3 and match.group(3) is not None:
+                            pop = match.group(3).replace("_", "")
                             if pop not in self.args.gnomad_pops:
                                 self.logger.info("Ignoring {} ".format(annot) +
                                                  "annotation as not in " +
@@ -1259,5 +1339,3 @@ class CachedVariant(object):
         self.can_output = can_output
         self.var_id = "{}:{}-{}/{}" .format(record.CHROM, record.POS,
                                             record.REF, record.ALT)
-
-
