@@ -178,7 +178,7 @@ class SpliceAiFilter(object):
         else:
             splice_ai = record.parsed_info_fields(['SpliceAI'])['SpliceAI']
             info_dict = defaultdict(list)
-            info_string = []
+            info_strings = []
             for s in splice_ai:
                 scores = s.split('|')
                 if scores[0] == alt:
