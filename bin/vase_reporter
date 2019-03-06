@@ -43,6 +43,10 @@ def parse_args():
                         '''If using --filter_non_ddg2p, only output records if
                            the inheritance pattern is consistent with the
                            'allelic requirement' annotation from DDG2P.''')
+    parser.add_argument("-c", "--gnomad_constraint", help='''Constraint txt
+                        file from gnomAD. If provided, pLI, pRec, pNull, mis_z
+                        and syn_z columns will be added from this file for
+                        matching transcripts/genes.''')
     parser.add_argument("-r", "--rest_lookups", action="store_true", help=
                         '''Add additional fields by connecting to Ensembl's
                            REST server. Not recommended for large numbers of
@@ -52,6 +56,12 @@ def parse_args():
                         '''Use GRCh37 REST server
                            (http://grch37.rest.ensembl.org/) for REST
                            lookups.''')
+    parser.add_argument("-i", "--info_fields", nargs='+', help=
+                        '''Additional INFO field(s) to add as a column in your
+                           output. Fields that are annotated per allele
+                           (Number=A or Number=R) will be annotated for the
+                           relevant allele otherwise the whole INFO field will
+                           be added.''')
     parser.add_argument("-t", "--timeout", type=float, default=2.0, help=
                         '''Timeout (in seconds) for REST lookups.
                            Default=2.0''')
