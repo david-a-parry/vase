@@ -1,11 +1,59 @@
 import sys
 import gzip
+import logging
 from collections import defaultdict
+from parse_vcf import VcfReader
 
 pre_scored_fields = ["SYMBOL", "DS_AG", "DS_AL", "DS_DG", "DS_DL", "DP_AG",
                      "DP_AL", "DP_DG", "DP_DL"]
 annot_order = ["ALLELE", "SYMBOL", "DS_AG", "DS_AL", "DS_DG", "DS_DL", "DP_AG",
                "DP_AL", "DP_DG", "DP_DL"]
+
+def filter_on_splice_ai(record, min_delta=None, max_delta=None,
+                        check_symbol=False, canonical_csq=False):
+    keep_alleles = [False] * (len(record.ALLELES) - 1)
+    keep_csq = []
+    if check_symbol:
+        try:
+            keep_csq = [False] * len(record.CSQ)
+        except HeaderError:
+            raise RuntimeError("Could not identify CSQ or ANN fields in " +
+                               "VCF header. Please ensure your input is " +
+                               "annotated with Ensembl's VEP")
+    if 'SpliceAI' not in record.INFO_FIELDS:
+        return keep_alleles, keep_csq
+    splice_ai = record.parsed_info_fields(['SpliceAI'])['SpliceAI']
+    info_dicts = list()
+    for s in splice_ai:
+        scores = s.split('|')
+        idict = dict((k, v) for k,v in zip(annot_order, scores))
+        idict.update(dict((k, float(idict[k])) if idict[k] != '.' else
+                          (k, None) for k in annot_order[2:6]))
+        info_dicts.append(idict)
+    for i in range(1, len(record.ALLELES)):
+        if check_symbol:
+            csqs = [(n,x) for n,x in enumerate(record.CSQ) if
+                    x['alt_index'] == i]
+            if canonical_csq:
+                csqs = [x for x in csqs if x[1]['CANONICAL'] == 'YES']
+        for idict in info_dicts:
+            if idict['ALLELE'] != record.ALLELES[i]:
+                continue
+            if min_delta:
+                over_threshold = [ds for ds in annot_order[2:6] if idict[ds] is
+                                  not None and idict[ds] >= min_delta]
+            if max_delta:
+                over_threshold = [ds for ds in annot_order[2:6] if idict[ds] is
+                                  not None and idict[ds] <= max_delta]
+            if over_threshold:
+                keep_alleles[i-1] = True
+                if check_symbol:
+                    for c in (x for x in csqs if idict['SYMBOL'] ==
+                              x[1]['SYMBOL']):
+                        keep_csq[c[0]] = True
+                else:
+                    continue
+    return keep_alleles, keep_csq
 
 
 class SpliceAiFilter(object):
@@ -14,7 +62,8 @@ class SpliceAiFilter(object):
         annotations from SpliceAI score VCF.
     '''
 
-    def __init__(self, vcfs, min_score=None, max_score=None, to_score=None):
+    def __init__(self, vcfs, min_delta=None, max_delta=None, to_delta=None,
+                 to_score=None, logging_level=logging.WARNING):
         '''
             Initialize object with a VCF file and optional filtering
             arguments.
@@ -42,8 +91,12 @@ class SpliceAiFilter(object):
                             an additional reference file for scoring
                             variants.
 
+                logging_level:
+                            Logging level to use. Default=logging.WARNING
+
         '''
         self.vcfs = dict()
+        self.logger = self._get_logger(logging_level)
         self.min_delta = min_delta
         self.max_delta = max_delta
         self.to_score = to_score
@@ -65,7 +118,19 @@ class SpliceAiFilter(object):
         if to_score is not None:
             if not to_score.endswith('.gz'):
                 to_score += '.gz'
-            self.to_score_file = gzip.open(to_score, 'wt')
+            try:
+                from Bio import bgzf
+                self.to_score_file = bgzf.BgzfWriter(to_score)
+            except ImportError:
+                self.logger.warn("Can not import bgzf via biopython. Please " +
+                                 "install biopython in order to write bgzip " +
+                                 "compressed (.gz/.bgz) output. Missing " +
+                                 "SpliceAI scores will be written using gzip" +
+                                 " instead.")
+                self.to_score_file = gzip.open(to_score, 'wt')
+            self.to_score_file.write('##fileformat=VCFv4.0\n' +
+                                     '#CHROM\tPOS\tID\tREF\tALT\tQUAL\t' +
+                                     'FILTER\tINFO\n')
 
     def __del__(self):
         if self.to_score_file is not None:
@@ -111,29 +176,35 @@ class SpliceAiFilter(object):
             info_dict = dict([(x, [record.parsed_info_fields([x])[x]]) for x in
                              pre_scored_fields])
         else:
-            splice_ai = rec.parsed_info_fields(['SpliceAI'])['SpliceAI']
+            splice_ai = record.parsed_info_fields(['SpliceAI'])['SpliceAI']
             info_dict = defaultdict(list)
             info_string = []
             for s in splice_ai:
                 scores = s.split('|')
                 if scores[0] == alt:
                     info_strings.append('|'.join(scores[1:]))
-                    for i in range(1, len(annot_order)):
+                    for i in range(1, len(annot_order[:6])):
                         if annot_order[i] == 'SYMBOL':
                             info_dict[annot_order[i]].append(scores[i])
                         else:
-                            info_dict[annot_order[i]].append(float(scores[i]))
+                            if scores[i] != '.':
+                                info_dict[annot_order[i]].append(
+                                    float(scores[i]))
+                            else:
+                                info_dict[annot_order[i]].append(None)
         return info_strings, info_dict
 
     def _search_annotations(self, alt_allele, overlaps):
         for vcf, olap in overlaps.items():
-            for i in range(len(olap.DECOMPOSED_ALLELES)):
-                if alt_allele == olap.DECOMPOSED_ALLELES[i]:
-                    return self._get_annotation(olap, i,
-                                                self.vcf_is_prescored[vcf])
+            for o in olap:
+                for i in range(len(o.DECOMPOSED_ALLELES)):
+                    if alt_allele == o.DECOMPOSED_ALLELES[i]:
+                        return self._get_annotation(o, i,
+                                                    self.vcf_is_prescored[vcf])
         return None, None
 
-    def annotate_or_filter(self, record, check_symbol=False):
+    def annotate_or_filter(self, record, check_symbol=False,
+                           canonical_csq=False):
         '''
             Add SpliceAI annotation for each ALT allele in record. If
             min_delta or max_delta are set return True/False for each
@@ -141,6 +212,20 @@ class SpliceAiFilter(object):
             specified. Optionally also returns True/False for each CSQ
             annotation from by checking the gene symbol matches in the
             SpliceAI annotation.
+
+            Args:
+                record: VCF record to annotate
+
+                check_symbol:
+                        Check for annotation's SYMBOL annotation and
+                        compare with CSQ annotations. CSQ annotations
+                        will only be marked for retaining if these match.
+
+                canonical_csq:
+                        Only mark CSQ annotations for retention if
+                        CANONICAL field is 'YES' when running with
+                        check_symbol option.
+
         '''
         keep_alleles = [False] * (len(record.ALLELES) - 1)
         keep_csq = []
@@ -165,12 +250,14 @@ class SpliceAiFilter(object):
                               info_strings)
             over_threshold = []
             if self.min_delta or self.max_delta:
-                for ds in annot_order[2:]:
+                for ds in annot_order[2:6]:
                     if self.min_delta:
                         over_threshold.extend((x for x in info_dict[ds] if
+                                               x is not None and
                                                x >= self.min_delta))
                     if self.max_delta:
                         over_threshold.extend((x for x in info_dict[ds] if
+                                               x is not None and
                                                x <= self.max_delta))
                     if over_threshold:
                         keep_alleles[i] = True
@@ -180,6 +267,8 @@ class SpliceAiFilter(object):
                     continue
             if check_symbol and (self.min_delta or self.max_delta):
                 for j in range(len(record.CSQ)):
+                    if canonical_csq and record.CSQ[j]['CANONICAL'] != 'YES':
+                        continue
                     gene_match = []
                     alt_j = record.CSQ[j]['alt_index'] -1
                     if alt_j == i:
@@ -191,7 +280,7 @@ class SpliceAiFilter(object):
                                                    record.CSQ[j]['SYMBOL']))
                             if self.max_delta:
                                 gene_match.extend((x for x in info_dict[ds] if
-                                                   x <= self.min_delta and
+                                                   x <= self.max_delta and
                                                    info_dict['SYMBOL'] ==
                                                    record.CSQ[j]['SYMBOL']))
                             if gene_match:
@@ -209,3 +298,15 @@ class SpliceAiFilter(object):
                                            record.DECOMPOSED_ALLELES[alt].POS,
                                            record.DECOMPOSED_ALLELES[alt].REF,
                                            record.DECOMPOSED_ALLELES[alt].ALT))
+
+    def _get_logger(self, logging_level):
+        logger = logging.getLogger(__name__)
+        if not logger.hasHandlers():
+            logger.setLevel(logging_level)
+            formatter = logging.Formatter(
+                        '[%(asctime)s] %(name)s - %(levelname)s - %(message)s')
+            ch = logging.StreamHandler()
+            ch.setLevel(logger.level)
+            ch.setFormatter(formatter)
+            logger.addHandler(ch)
+        return logger
