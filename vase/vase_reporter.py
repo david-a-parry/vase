@@ -5,7 +5,7 @@ import xlsxwriter
 import os
 import gzip
 import csv
-from collections import namedtuple
+from collections import namedtuple, OrderedDict
 from .ped_file import PedFile, Family, Individual, PedError
 from parse_vcf import VcfReader, VcfHeader, VcfRecord
 from .ensembl_rest_queries import EnsemblRestQueries
@@ -54,9 +54,10 @@ class VaseReporter(object):
                  rest_lookups=False, grch37=False, ddg2p=None, blacklist=None,
                  recessive_only=False, dominant_only=False, de_novo_only=False,
                  filter_non_ddg2p=False, allelic_requirement=False,
-                 gnomad_constraint=None, choose_transcript=False,
-                 prog_interval=None, timeout=2.0, max_retries=2, quiet=False,
-                 debug=False, force=False, hide_empty=False):
+                 info_fields=[], gnomad_constraint=None,
+                 choose_transcript=False, prog_interval=None, timeout=2.0,
+                 max_retries=2, quiet=False, debug=False, force=False,
+                 hide_empty=False):
         self._set_logger(quiet, debug)
         self.vcf = VcfReader(vcf)
         self.ped = PedFile(ped)
@@ -67,6 +68,7 @@ class VaseReporter(object):
         self.de_novo_only = de_novo_only
         self.choose_transcript = choose_transcript
         self.seg_fields = self._get_seg_fields()
+        self.info_annotations = self._get_info_fields(info_fields)
         if not out.endswith(".xlsx"):
             out = out + ".xlsx"
         if os.path.exists(out) and not force:
@@ -139,6 +141,35 @@ class VaseReporter(object):
         ch.setFormatter(formatter)
         self.logger.addHandler(ch)
 
+    def _get_info_fields(self, info_fields):
+        idict = OrderedDict()
+        for x in info_fields:
+            if x not in self.vcf.metadata['INFO']:
+                raise ValueError("Requested INFO annotation {} ".format(x) +
+                                 "not found in VCF header.")
+            if len(self.vcf.metadata['INFO'][x]) > 1:
+                self.logger.warn("Multiple header lines for INFO annotation " +
+                                 "'{}' - picking last occurence".format(x))
+            idict[x] = self.vcf.metadata['INFO'][x][-1]
+        return idict
+
+    def _add_info_annotations(self, record, allele):
+        annots = []
+        for inf,d  in self.info_annotations.items():
+            if d['Number'] == 'A' or d['Number'] == 'R':
+                i = allele
+                if d['Number'] == 'A':
+                    i -= 1
+                try:
+                    annots.append(record.parsed_info_fields([inf])[i])
+                except KeyError:
+                    annots.append('.')
+            else:
+                try:
+                    annots.append(record.INFO_FIELDS[inf])
+                except KeyError:
+                    annots.append('.')
+        return annots
 
     def _get_seg_fields(self):
         inheritance_fields = dict()
@@ -217,6 +248,8 @@ class VaseReporter(object):
             header.extend(samples)
         if 'CADD_PHRED_score' in self.vcf.header.metadata['INFO']:
             header.append("CADD_PHRED_score")
+        for inf in self.info_annotations.keys():
+            header.append(inf)
         header.extend(x for x in self.vcf.header.csq_fields if x != 'Allele')
         if self.rest_lookups:
             header.extend(["ENTREZ", "GO", "REACTOME", "MOUSE_TRAITS",
@@ -449,6 +482,7 @@ class VaseReporter(object):
                     values.append(cinf['CADD_PHRED_score'][allele-1])
                 except KeyError:
                     values.append('.')
+            values.extend(self._add_info_annotations(record, allele))
             values.extend(csq[x] for x in self.vcf.header.csq_fields if
                               x != 'Allele')
             col = self.write_row(self.worksheets[family], self.rows[family],
