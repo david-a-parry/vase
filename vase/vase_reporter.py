@@ -519,7 +519,11 @@ class VaseReporter(object):
                             self.biotype_order[x['BIOTYPE']])
         sorted_csq = sorted(sorted_csq, key=lambda x:
                             impact_order[x['IMPACT']])
-        return sorted_csq[0]['Feature']
+        if sorted_csq:
+            return sorted_csq[0]['Feature']
+        # none of the features are in the CSQ annotations (e.g. feature is a
+        # genomic coordinate)
+        return features[0]
 
     def write_report(self):
         ''' Write a line for every segregating allele in VCF to XLSX'''
