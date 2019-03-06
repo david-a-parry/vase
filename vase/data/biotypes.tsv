@@ -26,6 +26,7 @@ CTCF_binding_site	default	24
 enhancer	default	25
 polymorphic_pseudogene	default	26
 antisense	default	27
+antisense_RNA	default	27
 sense_intronic	default	28
 sense_overlapping	default	29
 retained_intron	valid	30
@@ -42,3 +43,4 @@ IG_J_pseudogene	valid	40
 IG_V_pseudogene	valid	41
 non_stop_decay	valid	42
 nonsense_mediated_decay	valid	43
+TEC	valid	44
