@@ -687,6 +687,14 @@ or higher required). This can be disabled with the
 ''')
 
     file_args.add_argument(
+'--max_gnomad_homozygotes', type=int, default=None, help=
+'''Filter alleles if the total number of homozygotes
+or hemizygotes in any provided gnomAD VCF is equal
+to or greater than this value.
+
+''')
+
+    file_args.add_argument(
 '-b', '--build', type=int, metavar='dbSNP_build', help=
 '''dbSNP build version cutoff. For use with --dbsnp
 files. Alleles/variants present in this dbSNP

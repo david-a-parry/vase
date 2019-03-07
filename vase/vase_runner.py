@@ -782,7 +782,8 @@ class VaseRunner(object):
             prefix = self.check_info_prefix('VASE_gnomAD')
             kwargs = {"vcf" : gnomad,
                       "prefix" : prefix,
-                      "pops": self.args.gnomad_pops}
+                      "pops": self.args.gnomad_pops,
+                      "max_homozygotes": self.args.max_gnomad_homozygotes}
             kwargs.update(uni_args)
             gnomad_filter = GnomadFilter(**kwargs)
             filters.append(gnomad_filter)
