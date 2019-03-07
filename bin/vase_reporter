@@ -56,7 +56,7 @@ def parse_args():
                         '''Use GRCh37 REST server
                            (http://grch37.rest.ensembl.org/) for REST
                            lookups.''')
-    parser.add_argument("-i", "--info_fields", nargs='+', help=
+    parser.add_argument("-i", "--info_fields", nargs='+', default=[], help=
                         '''Additional INFO field(s) to add as a column in your
                            output. Fields that are annotated per allele
                            (Number=A or Number=R) will be annotated for the
