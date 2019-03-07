@@ -10,7 +10,7 @@ class VcfFilter(object):
 
     def __init__(self, vcf, prefix, freq=None, min_freq=None,
                  freq_fields=("AF",), ac_fields=("AC",), an_fields=("AN",),
-                 annotations=[]):
+                 annotations=[], allow_missing_annotations=False):
         '''
             Initialize object with a VCF file and optional filtering
             arguments.
@@ -47,6 +47,12 @@ class VcfFilter(object):
                         Additional INFO field annotations to add to
                         matching records.
 
+                allow_missing_annotations:
+                        If True, do not raise a RuntimeError if any of
+                        the provided annotations are not present in the
+                        VCF.
+
+
         '''
 
         self.vcf = VcfReader(vcf)
@@ -57,6 +63,7 @@ class VcfFilter(object):
         self.ac_info = ac_fields
         self.an_info = an_fields
         self.extra = annotations
+        self.allow_missing_annotations = allow_missing_annotations
         if self.freq is not None and self.min_freq is not None:
             if self.freq <= self.min_freq:
                 raise RuntimeError("freq argument must be greater than " +
@@ -229,7 +236,7 @@ class VcfFilter(object):
         for f in self.extra:
             if f in self.vcf.metadata['INFO']:
                 self.annot_fields[f] = self.vcf.metadata['INFO'][f][-1]
-            else:
+            elif not self.allow_missing_annotations:
                 raise RuntimeError("Requested annotation '{}' ".format(f) +
                                    "does not exist in VCF header for file " +
                                    "{}".format(self.vcf.filename))
