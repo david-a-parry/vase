@@ -252,8 +252,8 @@ class VaseReporter(object):
             header.append(inf)
         header.extend(x for x in self.vcf.header.csq_fields if x != 'Allele')
         if self.rest_lookups:
-            header.extend(["ENTREZ", "GO", "REACTOME", "MOUSE_TRAITS",
-                           "MIM_MORBID"])
+            header.extend(["ENTREZ", "Full_Name", "GO", "REACTOME", 
+                           "MOUSE_TRAITS", "MIM_MORBID"])
         if self.ddg2p:
             header.extend(["DDG2P_disease", "DDG2P_Category",
                            "DDG2P_Allelic_Requirement", "DDG2P_consequences",
@@ -359,6 +359,7 @@ class VaseReporter(object):
 
     def _get_rest_data(self, csq):
         entrez = ''
+        full_name = ''
         go = ''
         reactome = ''
         traits = ''
@@ -378,6 +379,8 @@ class VaseReporter(object):
                 xref_data = self.ensembl_rest.get_xref(csq['Gene'])
                 entrez = str.join("|", (x['primary_id'] for x in xref_data
                                         if x['dbname'] == 'EntrezGene'))
+                full_name = str.join("|", (x['description'] for x in xref_data
+                                        if x['dbname'] == 'EntrezGene'))
                 reactome = str.join("|", (x['description'] for x in xref_data
                                           if x['dbname'] == 'Reactome_gene'))
                 mim = str.join("|", (x['description'] for x in xref_data
@@ -387,6 +390,7 @@ class VaseReporter(object):
                 self.logger.warn("XREF lookups for {} failed".format(
                                                                csq['Feature']))
                 entrez = 'LOOKUP FAILED'
+                full_name = 'LOOKUP FAILED'
                 reactome = 'LOOKUP FAILED'
                 mim = 'LOOKUP FAILED'
             try:
@@ -398,7 +402,7 @@ class VaseReporter(object):
                 self.logger.warn("Orthology lookup for {} failed".format(
                                                                csq['Feature']))
                 traits = 'LOOKUP FAILED'
-        return [entrez, go, reactome, traits, mim]
+        return [entrez, full_name, go, reactome, traits, mim]
 
     def write_row(self, worksheet, row, values):
         ''' Write a list of values to given worksheet and row '''
