@@ -326,6 +326,14 @@ VEP.
 ''')
 
     filter_args.add_argument(
+'--loftee', default=False, action='store_true', help=
+'''Retain LoF (stop_gained, frameshift_variant,
+splice_acceptor_variant and splice_donor_variant)
+classes only if the LoF annotation from loftee is
+'HC'.
+
+''')
+    filter_args.add_argument(
 '-m', '--missense_filters', default=[], nargs='+', help=
 '''A list of in silico prediction programs to use
 for filtering missense variants (must be used in

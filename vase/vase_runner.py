@@ -99,6 +99,7 @@ class VaseRunner(object):
                     in_silico=args.missense_filters,
                     filter_unpredicted=args.filter_unpredicted,
                     keep_any_damaging=args.keep_if_any_damaging,
+                    loftee=args.loftee,
                     splice_in_silico=args.splice_filters,
                     splice_filter_unpredicted=args.splice_filter_unpredicted,
                     splice_keep_any_damaging=args.splice_keep_if_any_damaging,

@@ -4,6 +4,8 @@ from collections import defaultdict
 from parse_vcf import *
 from .insilico_filter import *
 
+lof_csq = {'frameshift_variant', 'stop_gained', 'splice_acceptor_variant',
+           'splice_donor_variant'}
 
 class VepFilter(object):
     '''An object that filters VCF records based on annotated VEP data.'''
@@ -11,7 +13,7 @@ class VepFilter(object):
     def __init__(self, vcf, csq=[], impact=[], canonical=False, biotypes=[],
                  in_silico=[], filter_unpredicted=False,
                  keep_any_damaging=False, splice_in_silico=[],
-                 splice_filter_unpredicted=False,
+                 loftee=False, splice_filter_unpredicted=False,
                  splice_keep_any_damaging=False, retain_labels=[],
                  filter_flagged_features=False, freq=None, min_freq=None,
                  afs=[], gene_filter=None, blacklist=None,filter_known=False,
@@ -53,6 +55,10 @@ class VepFilter(object):
                         If using 'in_silico' option, retain variants if
                         any of the criteria are met for any of the
                         specified filtering programs.
+
+                loftee: Only retain LoF (i.e. high impact variants)
+                        variants if the LoF annotation from loftee is
+                        'HC' (high confidence).
 
                 splice_in_silico:
                         Similar to 'in_silico' but the prediction
@@ -168,7 +174,7 @@ class VepFilter(object):
             valid_impacts = set(['HIGH', 'MODERATE', 'LOW', 'MODIFIER'])
             if not self.impact.issubset(valid_impacts):
                 raise RuntimeError("ERROR: Unrecognised VEP IMPACT provided."+
-                                   "Valid values are 'HIGH', 'MODERATE', " + 
+                                   "Valid values are 'HIGH', 'MODERATE', " +
                                    "'LOW' or 'MODIFIER'")
         if len(biotypes) == 0:
             biotypes = ['default']
@@ -185,13 +191,16 @@ class VepFilter(object):
                 else:
                     raise RuntimeError("ERROR: Unrecognised VEP biotype " +
                                        "'{}'".format(b))
-        required = ['Consequence', 'BIOTYPE']
         self.canonical = canonical
+        self.loftee = loftee
+        self.filter_flagged = filter_flagged_features
+        required = ['Consequence', 'BIOTYPE']
         if self.impact:
             required.append('IMPACT')
         if self.canonical:
             required.append('CANONICAL')
-        self.filter_flagged = filter_flagged_features
+        if self.loftee:
+            required.append('LoF')
         if self.filter_flagged:
             required.append('FLAGS')
         for rq in required:
@@ -338,6 +347,11 @@ class VepFilter(object):
                             filter_csq[i] = False
                             break
                         filter_csq[i] = do_filter
+                    elif self.loftee and s_csq in lof_csq:
+                        if c['LoF'] == 'HC':
+                            filter_alleles[alt_i] = False
+                            filter_csq[i] = False
+                            break
                     else:
                         filter_alleles[alt_i] = False
                         filter_csq[i] = False
