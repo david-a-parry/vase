@@ -59,17 +59,17 @@ class GnomadFilter(VcfFilter):
 
 
     def filter_including_homozygotes(self, record):
-        filter, keep, matched = super().annotate_and_filter_record(record)
-        if sum(filter) == len(filter):
+        filt, keep, matched = super().annotate_and_filter_record(record)
+        if sum(filt) == len(filt):
             #no need to check homozygotes - filtering anyway
-            return filter, keep, matched
+            return filt, keep, matched
         hom_info = record.parsed_info_fields(self.hom_annots)
         if hom_info:
             for i in range(len(record.DECOMPOSED_ALLELES)):
-                if filter[i]:
+                if filt[i]:
                     continue
                 hom_counts = sum(hom_info[x][i] for x in self.hom_annots if
-                                 hom_info[x][i] is not None)
+                                 x in hom_info and hom_info[x][i] is not None)
                 if hom_counts > self.max_homozygotes:
-                    filter[i] = True
-        return filter, keep, matched
+                    filt[i] = True
+        return filt, keep, matched
