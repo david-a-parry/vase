@@ -652,7 +652,7 @@ class VaseRunner(object):
                     if self.args.build:
                         if parsed[annot][i] <= self.args.build:
                             remove[i] = True
-                    if self.args.min_freq:
+                    if self.args.max_build:
                         if parsed[annot][i] > self.args.max_build:
                             remove[i] = True
         return remove,matched
