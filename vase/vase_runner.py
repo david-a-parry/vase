@@ -495,6 +495,10 @@ class VaseRunner(object):
             r,m = self.filter_on_existing_freq(record)
             self._set_to_true_if_true(remove_alleles, r)
             self._set_to_true_if_true(matched_alleles, m)
+        if self.prev_homs:
+            r,m = self.filter_on_existing_homs(record)
+            self._set_to_true_if_true(remove_alleles, r)
+            self._set_to_true_if_true(matched_alleles, m)
         if self.prev_builds:
             r,m = self.filter_on_existing_build(record)
             self._set_to_true_if_true(remove_alleles, r)
@@ -637,6 +641,20 @@ class VaseRunner(object):
                     if self.args.min_freq:
                         if parsed[annot][i] < self.args.min_freq:
                             remove[i] = True
+        return remove,matched
+
+    def filter_on_existing_homs(self, record):
+        remove  = [False] * (len(record.ALLELES) -1)
+        matched = [False] * (len(record.ALLELES) -1)
+        parsed = record.parsed_info_fields(fields=self.prev_homs)
+        for annot in parsed:
+            if parsed[annot] is None:
+                continue
+            for i in range(len(remove)):
+                if parsed[annot][i] is not None:
+                    matched[i] = True
+                    if parsed[annot][i] > self.args.max_gnomad_homozygotes:
+                        remove[i] = True
         return remove,matched
 
     def filter_on_existing_build(self, record):
@@ -861,66 +879,85 @@ class VaseRunner(object):
 
     def _parse_prev_vcf_filter_annotations(self):
         frq_annots = []
+        hom_annots = []
         bld_annots = []
         cln_annots = []
         get_matching = self.args.filter_known or self.args.filter_novel
-        if (not self.args.ignore_existing_annotations and
-           (self.args.freq or self.args.min_freq or get_matching)):
-            for annot in sorted(self.prev_annots):
-                match = re.search('^VASE_dbSNP|gnomAD(_\d+)?_(CAF|AF)(_\w+)?',
-                                  annot)
-                if match:
-                    if (self.input.metadata['INFO'][annot][-1]['Number'] == 'A' and
-                        self.input.metadata['INFO'][annot][-1]['Type'] == 'Float'):
-                        self.logger.info("Found previous allele frequency " +
-                                          "annotation '{}'".format(annot))
-                        if len(match.groups()) == 3 and match.group(3) is not None:
-                            pop = match.group(3).replace("_", "")
-                            if pop not in self.args.gnomad_pops:
-                                self.logger.info("Ignoring {} ".format(annot) +
-                                                 "annotation as not in " +
-                                                 "populations specified by " +
-                                                 "--gnomad_pops")
-                                continue
-                        frq_annots.append(annot)
-        if (not self.args.ignore_existing_annotations and (self.args.build or
-            self.args.max_build or get_matching)):
-            for annot in sorted(self.prev_annots):
-                match = re.search('^VASE_dbSNP(_\d+)?_dbSNPBuildID', annot)
-                if match:
-                    if (self.input.metadata['INFO'][annot][-1]['Number'] == 'A' and
-                      self.input.metadata['INFO'][annot][-1]['Type'] == 'Integer'):
-                        self.logger.info("Found previous dbSNP build " +
-                                          "annotation '{}'".format(annot))
-                        bld_annots.append(annot)
-        if (not self.args.ignore_existing_annotations and
-            (self.args.clinvar_path or get_matching)):
-            for annot in sorted(self.prev_annots):
-                match = re.search('^VASE_dbSNP(_\d+)?_CLNSIG', annot)
-                if match:
-                    if (self.input.metadata['INFO'][annot][-1]['Number'] == 'A' and
-                      self.input.metadata['INFO'][annot][-1]['Type'] == 'String'):
-                        self.logger.info("Found previous ClinVar " +
-                                          "annotation '{}'".format(annot))
-                        cln_annots.append(annot)
-        # if using gnomAD file for burden counting use internal annotations
-        # for frequency filtering, if specified
-        if (not self.args.ignore_existing_annotations and
-                self.args.gnomad_burden and
-                (self.args.freq or self.args.min_freq)):
-            #check only relatively outbred pops by default
-            pops = set(("POPMAX", "AFR", "AMR", "EAS", "FIN", "NFE", "SAS"))
-            for info in self.input.metadata['INFO']:
-                match = re.search(r'''^AF_([A-Z]+)$''', info)
-                if match and match.group(1) in pops:
-                    if (self.input.metadata['INFO'][info][-1]['Number'] == 'A'
-                            and
-                            self.input.metadata['INFO'][info][-1]['Type'] ==
-                            'Float'):
-                        self.logger.info("Found gnomAD allele frequency " +
-                                          "annotation '{}'".format(info))
-                        frq_annots.append(info)
+        if not self.args.ignore_existing_annotations:
+            if self.args.freq or self.args.min_freq or get_matching:
+                for annot in sorted(self.prev_annots):
+                    match = re.search('^VASE_dbSNP|gnomAD(_\d+)?_(CAF|AF)(_\w+)?',
+                                      annot)
+                    if match:
+                        if (self.input.metadata['INFO'][annot][-1]['Number'] == 'A' and
+                            self.input.metadata['INFO'][annot][-1]['Type'] == 'Float'):
+                            self.logger.info("Found previous allele frequency " +
+                                              "annotation '{}'".format(annot))
+                            if len(match.groups()) == 3 and match.group(3) is not None:
+                                pop = match.group(3).replace("_", "")
+                                if pop.upper() not in [x.upper() for x in
+                                                       self.args.gnomad_pops]:
+                                    self.logger.info("Ignoring {} ".format(annot) +
+                                                     "annotation as not in " +
+                                                     "populations specified by " +
+                                                     "--gnomad_pops")
+                                    continue
+                            frq_annots.append(annot)
+            if self.args.max_gnomad_homozygotes is not None:
+                for annot in sorted(self.prev_annots):
+                    match = re.search('^VASE_gnomAD(_\d+)?_(Hom|Hemi)(_\w+)?',
+                                      annot)
+                    if match:
+                        if (self.input.metadata['INFO'][annot][-1]['Number'] == 'A' and
+                            self.input.metadata['INFO'][annot][-1]['Type'] == 'Integer'):
+                            self.logger.info("Found previous Hom/Hemi " +
+                                              "annotation '{}'".format(annot))
+                            if len(match.groups()) == 3 and match.group(3) is not None:
+                                pop = match.group(3).replace("_", "")
+                                if pop.upper() not in [x.upper() for x in
+                                                       self.args.gnomad_pops]:
+                                    self.logger.info("Ignoring {} ".format(annot) +
+                                                     "annotation as not in " +
+                                                     "populations specified by " +
+                                                     "--gnomad_pops")
+                                    continue
+                            hom_annots.append(annot)
+            if self.args.build or self.args.max_build or get_matching:
+                for annot in sorted(self.prev_annots):
+                    match = re.search('^VASE_dbSNP(_\d+)?_dbSNPBuildID', annot)
+                    if match:
+                        if (self.input.metadata['INFO'][annot][-1]['Number'] == 'A' and
+                          self.input.metadata['INFO'][annot][-1]['Type'] == 'Integer'):
+                            self.logger.info("Found previous dbSNP build " +
+                                              "annotation '{}'".format(annot))
+                            bld_annots.append(annot)
+            if self.args.clinvar_path or get_matching:
+                for annot in sorted(self.prev_annots):
+                    match = re.search('^VASE_dbSNP(_\d+)?_CLNSIG', annot)
+                    if match:
+                        if (self.input.metadata['INFO'][annot][-1]['Number'] == 'A' and
+                          self.input.metadata['INFO'][annot][-1]['Type'] == 'String'):
+                            self.logger.info("Found previous ClinVar " +
+                                              "annotation '{}'".format(annot))
+                            cln_annots.append(annot)
+            # if using gnomAD file for burden counting use internal annotations
+            # for frequency filtering, if specified
+            if self.args.gnomad_burden and (self.args.freq or
+                                            self.args.min_freq):
+                #check only relatively outbred pops by default
+                pops = set(("POPMAX", "AFR", "AMR", "EAS", "FIN", "NFE", "SAS"))
+                for info in self.input.metadata['INFO']:
+                    match = re.search(r'''^AF_([A-Z]+)$''', info)
+                    if match and match.group(1).upper() in pops:
+                        if (self.input.metadata['INFO'][info][-1]['Number'] == 'A'
+                                and
+                                self.input.metadata['INFO'][info][-1]['Type'] ==
+                                'Float'):
+                            self.logger.info("Found gnomAD allele frequency " +
+                                              "annotation '{}'".format(info))
+                            frq_annots.append(info)
         self.prev_freqs = tuple(frq_annots)
+        self.prev_homs = tuple(hom_annots)
         self.prev_builds = tuple(bld_annots)
         self.prev_clinvar = tuple(cln_annots)
 
