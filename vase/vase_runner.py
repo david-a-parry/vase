@@ -905,8 +905,9 @@ class VaseRunner(object):
                             frq_annots.append(annot)
             if self.args.max_gnomad_homozygotes is not None:
                 for annot in sorted(self.prev_annots):
-                    match = re.search('^VASE_gnomAD(_\d+)?_(Hom|Hemi)(_\w+)?',
-                                      annot)
+                    match =re.search(
+                        '^VASE_gnomAD(_\d+)?_(Hom|Hemi|nhomalt)(_\w+)?',
+                        annot)
                     if match:
                         if (self.input.metadata['INFO'][annot][-1]['Number'] == 'A' and
                             self.input.metadata['INFO'][annot][-1]['Type'] == 'Integer'):
