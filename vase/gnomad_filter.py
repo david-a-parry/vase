@@ -43,8 +43,9 @@ class GnomadFilter(VcfFilter):
         freq_info = ["AF_" + p for p in g_pops]
         ac_info = ["AC_" + p for p in g_pops]
         an_info = ["AN_" + p for p in g_pops]
-        hom_info = ["Hom_" + p for p in g_pops]
-        hemi_info = ["Hemi_" + p for p in g_pops]
+        hom_info = ["Hom_" + p for p in g_pops] + ["nhomalt_" + p for p in
+                                                   g_pops]
+        hemi_info = ["Hemi_" + p for p in g_pops] #v2.1 uses nhomalt for hemi
         super().__init__(vcf=vcf, prefix=prefix, freq=freq, min_freq=min_freq,
                          freq_fields=freq_info, ac_fields=ac_info,
                          an_fields=an_info, annotations=hom_info+hemi_info,
