@@ -1248,7 +1248,7 @@ if __name__ == '__main__':
     vase_args = parser.parse_args()
     if vase_args.filter_novel and vase_args.filter_known:
         parser.print_usage()
-        sys.stderr.write("vase.py: error: --filter_known and --filter_novel " +
+        sys.stderr.write("vase: error: --filter_known and --filter_novel " +
                          "arguments can not be used together.\n")
         sys.exit(2)
     vase_runner = VaseRunner(vase_args)
