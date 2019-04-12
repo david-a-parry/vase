@@ -1,4 +1,5 @@
 import sys
+import io
 import re
 import logging
 import xlsxwriter
@@ -50,7 +51,7 @@ class VaseReporter(object):
     ''' Read a VASE annotated VCF and output XLSX format summary of
         segregating variants. '''
 
-    def __init__(self, vcf, ped, out, families=[], all_features=False,
+    def __init__(self, vcf, out, ped=None, singletons=[], families=[], all_features=False,
                  rest_lookups=False, grch37=False, ddg2p=None, blacklist=None,
                  recessive_only=False, dominant_only=False, de_novo_only=False,
                  filter_non_ddg2p=False, allelic_requirement=False,
@@ -60,7 +61,15 @@ class VaseReporter(object):
                  hide_empty=False):
         self._set_logger(quiet, debug)
         self.vcf = VcfReader(vcf)
-        self.ped = PedFile(ped)
+        if ped:
+            self.ped = PedFile(ped)
+            if singletons:
+                self._add_singletons(singletons)
+        elif singletons:
+            p_string = ''
+            for s in singletons:
+                p_string += str.join("\t", (s, s, "0", "0", "0", "2")) + "\n"
+            self.ped = PedFile(io.StringIO(p_string))
         self.families = families
         self.all_features = all_features
         self.recessive_only = recessive_only
@@ -170,6 +179,16 @@ class VaseReporter(object):
                 except KeyError:
                     annots.append('.')
         return annots
+
+    def _add_singletons(self, singletons):
+        for s in singletons:
+            try:
+                indv = Individual(s, s, 0, 0, 0, 2)
+                self.ped.add_individual(indv)
+            except PedError:
+                raise RuntimeError("Sample '{}' ".format(s) + "specified" +
+                                   " by --singletons already exists " +
+                                   "in PED file {}" .format(self.ped.filename))
 
     def _get_seg_fields(self):
         inheritance_fields = dict()
