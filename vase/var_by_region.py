@@ -50,13 +50,13 @@ class RegionFinder(object):
         hits = []
         if i > -1:
             for j in range(i-1, -1, -1):
-                if start <= regions[j].end and end >= regions[j].start:
+                if start <= regions[j].end and end > regions[j].start:
                     hits.append(regions[j])
                 elif regions[j].end < start:
                     break
             hits.reverse()
             for j in range(i, len(regions)):
-                if start <= regions[j].end and end >= regions[j].start:
+                if start <= regions[j].end and end > regions[j].start:
                     hits.append(regions[j])
                 elif regions[j].start > end:
                     break
