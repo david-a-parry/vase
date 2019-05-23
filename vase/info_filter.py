@@ -22,7 +22,7 @@ class InfoFilter(object):
             Args:
                 vcf:    VcfReader object from parse_vcf.py
 
-                filters: 
+                filters:
                         iterable of tuples of field names, operands and
                         values for filtering.
 
@@ -34,7 +34,7 @@ class InfoFilter(object):
     def _parse_filters(self, filters):
         '''
             Args:
-                filters: 
+                filters:
                     iterable of tuples of field names, operands and
                     values for filtering.
         '''
@@ -45,8 +45,8 @@ class InfoFilter(object):
             except KeyError:
                 raise ValueError("Unrecognised operand '{}'".format(operand))
             if field not in self.vcf.metadata['INFO']:
-                raise ValueError("INFO field '{}' not in VCF ".format(field) + 
-                                 "header - can not be used for INFO field " + 
+                raise ValueError("INFO field '{}' not in VCF ".format(field) +
+                                 "header - can not be used for INFO field " +
                                  "filtering.")
             else:
                 ftype = self.vcf.metadata['INFO'][field][-1]['Type']
@@ -59,8 +59,8 @@ class InfoFilter(object):
                     try:
                         value = coerc(value)
                     except ValueError:
-                        raise ValueError("Filter value for INFO field " + 
-                                         "'{}' could not be ".format(field) + 
+                        raise ValueError("Filter value for INFO field " +
+                                         "'{}' could not be ".format(field) +
                                          "converted to {}, but ".format(ftype)+
                                          "field Type is {} in ".format(ftype) +
                                          "VCF header.")
@@ -73,8 +73,8 @@ class InfoFilter(object):
                         raise ValueError("INFO field '{}' is ".format(field) +
                                          "a Flag but value passed in filter " +
                                          "expression ('{}') ".format(value) +
-                                         "can not be interpreted as a " + 
-                                         "boolean. Supported values are " + 
+                                         "can not be interpreted as a " +
+                                         "boolean. Supported values are " +
                                          "'True', 'False', '1' or '0'.")
                     if op != operator.eq and op != operator.ne:
                         raise ValueError("INFO field '{}' is ".format(field) +
