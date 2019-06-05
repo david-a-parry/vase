@@ -198,6 +198,27 @@ AC < than this value will be filtered.
 ''')
 
     filter_args.add_argument(
+'--info_filters', nargs='+', help=
+'''Custom filter expressions for filtering on fields
+in the INFO field of each record. Must be in the
+format '<INFO_FIELD> <comparator> <value>'.
+Variants will be retained if they meet the given
+criteria. For example, to only keep records with a
+QD score greater than 4, you would pass the
+expression "QD > 4". To only keep records with the
+"DB" flag present you would pass the expression
+"DB == True".
+
+Standard python style operators (">", "<", ">=",
+"<=", "==", "!=") are supported. Comparisons will
+be performed using the types specified for the
+given field in the VCF header (e.g. Float, Integer
+or String) or as booleans for Flags.
+
+''')
+
+
+    filter_args.add_argument(
 '-c', '--csq', nargs='*', help=
 '''One or more VEP consequence classes to retain.
 Variants which do not result in one of these VEP

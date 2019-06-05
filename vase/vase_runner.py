@@ -17,6 +17,7 @@ from .var_by_region import VarByRegion
 from .region_iter import RegionIter
 from .gt_annotator import GtAnnotator
 from .spliceai_filter import SpliceAiFilter, filter_on_splice_ai
+from .info_filter import InfoFilter
 
 
 class VaseRunner(object):
@@ -34,6 +35,7 @@ class VaseRunner(object):
         if args.exclude_filters:
             self.exclude_filters = set(args.exclude_filters)
         self.var_types = self._parse_var_type_arg()
+        self.info_filter = self._parse_info_filters()
         self.prev_cadd_phred = False
         self.prev_cadd_raw = False
         self.prev_splice_ai = False
@@ -398,6 +400,13 @@ class VaseRunner(object):
         for i in range(1, len(record.ALLELES)):
             if record.ALLELES[i] == '*':
                 remove_alleles[i-1] = True
+        #filter on provided INFO field filters
+        if self.info_filter:
+            r_alts = self.info_filter.filter(record)
+            self._set_to_true_if_true(remove_alleles, r_alts)
+            if (sum(remove_alleles) == len(remove_alleles)):
+                # bail out now if no valid allele and not keeping clinvar
+                return remove_alleles, remove_csq
         #check VCF's internal AF
         if self.args.af or self.args.min_af:
             r_alts = self.filter_on_af(record)
@@ -1081,6 +1090,21 @@ class VaseRunner(object):
             self.family_filter.inheritance_patterns[s].append('dominant')
         for s in set(self.args.singleton_recessive):
             self.family_filter.inheritance_patterns[s].append('recessive')
+
+    def _parse_info_filters(self):
+        if not self.args.info_filters:
+            return None
+        ifilters = []
+        for expression in self.args.info_filters:
+            exp = expression.split()
+            if len(exp) != 3:
+                raise ValueError("--info_filters must consist of three quoted"+ 
+                                 " values separated by whitespace - for " +
+                                 "example: 'QD > 4' The provided expression " +
+                                 " '{}' is invalid.".format(expression))
+            ifilters.append(exp)
+        return InfoFilter(vcf=self.input, filters=ifilters)
+
 
     def _parse_var_type_arg(self):
         if not self.args.var_types:
