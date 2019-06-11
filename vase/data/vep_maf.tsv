@@ -15,6 +15,8 @@ gnomAD_FIN_AF
 gnomAD_NFE_AF
 gnomAD_OTH_AF
 gnomAD_SAS_AF
+# below are fields added if following VEP instructions for gnomAD and ExAC WGS
+# frequency here https://www.ensembl.org/info/docs/tools/vep/script/vep_example.html
 gnomADg_AF_AFR
 gnomADg_AF_AMR
 gnomADg_AF_ASJ
@@ -22,3 +24,39 @@ gnomADg_AF_EAS
 gnomADg_AF_FIN
 gnomADg_AF_NFE
 gnomADg_AF_OTH
+gnomADg_AF_SAS
+# below are the custom fields as you would probably expect them logically if
+# using the same pattern as the exome fields when adding them with VEP
+gnomADg_AFR_AF
+gnomADg_AMR_AF
+gnomADg_ASJ_AF
+gnomADg_EAS_AF
+gnomADg_FIN_AF
+gnomADg_NFE_AF
+gnomADg_OTH_AF
+gnomADg_SAS_AF
+#below are gnomAD v2.1 lowercase style fields 
+gnomAD_afr_af
+gnomAD_amr_AF
+gnomAD_asj_AF
+gnomAD_eas_AF
+gnomAD_fin_AF
+gnomAD_nfe_AF
+gnomAD_oth_AF
+gnomAD_sas_AF
+gnomADg_AF_afr
+gnomADg_AF_amr
+gnomADg_AF_asj
+gnomADg_AF_eas
+gnomADg_AF_fin
+gnomADg_AF_nfe
+gnomADg_AF_oth
+gnomADg_AF_sas
+gnomADg_afr_af
+gnomADg_amr_AF
+gnomADg_asj_AF
+gnomADg_eas_AF
+gnomADg_fin_AF
+gnomADg_nfe_AF
+gnomADg_oth_AF
+gnomADg_sas_AF
