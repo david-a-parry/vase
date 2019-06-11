@@ -18,6 +18,8 @@ SUPPORTED_OUTPUT = ['json', 'xlsx']
 
 vcf_output_columns = ['CHROM', 'POS', 'ID', 'REF', 'ALT', 'QUAL', 'FILTER',]
 
+MG_FIELDS = ['entrezgene', 'name', 'summary', 'go', 'MIM', 'generif']
+
 feat_annots = { 'VASE_biallelic_families': 'VASE_biallelic_features',
                 'VASE_dominant_families' : 'VASE_dominant_features',
                 'VASE_de_novo_families'  : 'VASE_de_novo_features',}
@@ -97,7 +99,7 @@ class VaseReporter(object):
                  grch37=False, ddg2p=None, blacklist=None,
                  recessive_only=False, dominant_only=False, de_novo_only=False,
                  filter_non_ddg2p=False, allelic_requirement=False,
-                 mutation_requirement=False,
+                 mutation_requirement=False, mygene_lookups=False,
                  info_fields=[], gnomad_constraint=None,
                  choose_transcript=False, prog_interval=None, timeout=2.0,
                  max_retries=2, quiet=False, debug=False, force=False,
@@ -171,9 +173,20 @@ class VaseReporter(object):
                                                    max_retries=max_retries,
                                                    log_level=self.logger.level)
         self.rest_cache = dict()
+        self.mygene_lookups = False
+        if mygene_lookups:
+            try:
+                import mygene
+                self.mg = mygene.MyGeneInfo()
+                self.mygene_lookups = True
+            except ModuleNotFoundError:
+                logger.warn("Error importing mygene - please install mygene " +
+                            " (e.g. pip3 install mygene) to use the " +
+                            "--mygene_lookups option.")
+                logger.warn("Continuing without mygene lookups")
         if prog_interval is not None:
             self.prog_interval = prog_interval
-        elif self.rest_lookups:
+        elif self.rest_lookups or self.mygene_lookups:
             self.prog_interval = 100
         else:
             self.prog_interval = 1000
@@ -356,6 +369,9 @@ class VaseReporter(object):
         if self.rest_lookups:
             header.extend(["ENTREZ", "Full_Name", "GO", "REACTOME",
                            "MOUSE_TRAITS", "MIM_MORBID"])
+        if self.mygene_lookups:
+            header.extend(["ENTREZ_ID", "Name", "Summary", "GO_BP", "GO_CC",
+                           "GO_MF", "MIM", "GeneRIFs"])
         if self.ddg2p:
             header.extend(["DDG2P_disease", "DDG2P_Category",
                            "DDG2P_Allelic_Requirement", "DDG2P_consequences",
@@ -507,13 +523,55 @@ class VaseReporter(object):
                 traits = 'LOOKUP FAILED'
         return [entrez, full_name, go, reactome, traits, mim]
 
+    def get_mygene_data(self, csq):
+        if csq['Gene']:
+            results = self.mg.query(csq['Gene'], score='ensembgene,entrezgene',
+                                    species=9606, fields=",".join(MG_FIELDS))
+            if len(results['hits']) == 0:
+                self.logger.warn("No MyGene hits for gene {}".format(
+                    csq['GENE']))
+                return [''] * 8
+            elif len(results['hits']) > 1:
+                self.logger.warn("Multiple ({}) ".format(len(results['hits']))+
+                                 "MyGene hits for gene {}".format(csq['GENE'])+
+                                 " - will use first hit only.")
+            data = []
+            for field in MG_FIELDS:
+                if field not in results['hits'][0]:
+                    if field == 'go':
+                        data.extend(["Not found"] * 3)
+                    else:
+                        data.append("Not found")
+                elif field == 'go':
+                    for subgo in ['BP', 'CC', 'MF']:
+                        if isinstance(results['hits'][0]['go'][subgo], dict):
+                            data.append(
+                                results['hits'][0]['go'][subgo]['term'])
+                        elif isinstance(results['hits'][0]['go'][subgo], list):
+                            data.append("|".join([x['term'] for x in
+                                             results['hits'][0]['go'][subgo]]))
+                        else:
+                            data.append("Not found")
+                elif field == 'generif':
+                    data.append("|".join([x['text'] for x in
+                                          results['hits'][0]['generif']]))
+                else:
+                    data.append(results['hits'][0][field])
+            return data
+        return [''] * 8
+
     def write_row(self, worksheet, row, values, family):
         ''' Write a list of values to given worksheet and row '''
-        entrez_col = -1
-        if "ENTREZ" in self._header_columns[family]:
-            entrez_col = self._header_columns[family].index("ENTREZ")
+        entrez_cols = []
+        mim_col = -1
+        if "ENTREZ" in self._header_columns[family]: #from Ensembl REST
+            entrez_cols.append(self._header_columns[family].index("ENTREZ"))
+        if "ENTREZ_ID" in self._header_columns[family]: #from MyGene
+            entrez_cols.append(self._header_columns[family].index("ENTREZ_ID"))
+        if "MIM" in self._header_columns[family]: #from MyGene
+            mim_col =  self._header_columns[family].index("MIM")
         for col in range(len(values)):
-            if col == entrez_col: #provide link to Entrez Gene 
+            if col in (entrez_cols): #provide link to Entrez Gene 
                 m = ENTREZ_RE.match(values[col])
                 if m: #if multiple ENTREZ ids pick the most recent/largest
                     eid = max([int(x) for x in m.groups() if x and
@@ -523,6 +581,10 @@ class VaseReporter(object):
                                         str(eid), string=values[col])
                 else:
                     worksheet.write(row, col, values[col])
+            elif col == mim_col: #provide link to OMIM
+                worksheet.write_url(row, col,
+                                    'https://omim.org/entry/' +
+                                    values[col], string=values[col])
             else:
                 worksheet.write(row, col, values[col])
         return col
@@ -602,6 +664,8 @@ class VaseReporter(object):
                               x != 'Allele')
             if self.rest_lookups:
                 values.extend(self.get_ensembl_rest_data(csq))
+            if self.mygene_lookups:
+                values.extend(self.get_mygene_data(csq))
             if self.ddg2p:
                 values.extend(self.get_ddg2p_data(csq))
             if self.constraint:

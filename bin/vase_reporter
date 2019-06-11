@@ -59,11 +59,17 @@ def parse_args():
                         file from gnomAD. If provided, pLI, pRec, pNull, mis_z
                         and syn_z columns will be added from this file for
                         matching transcripts/genes.''')
+    parser.add_argument("-l", "--mygene_lookups", action="store_true", help=
+                        '''Add additional fields by connecting to MyGene.info
+                        service. This provides the following extra columns:
+                        ENTREZ_ID, Name, Summary, GO_BP, GO_CC, GO_MF, MIM and
+                        GeneRIFs.''')
     parser.add_argument("-r", "--rest_lookups", action="store_true", help=
                         '''Add additional fields by connecting to Ensembl's
-                           REST server. Not recommended for large numbers of
-                           variants as this will cause significant
-                           slowdown.''')
+                        REST server. Not recommended for large numbers of
+                        variants as this will cause significant slowdown. The
+                        following extra columns will be added: ENTREZ,
+                        Full_Name, GO, REACTOME, MOUSE_TRAITS, MIM_MORBID.''')
     parser.add_argument("-g", "--grch37", action="store_true", help=
                         '''Use GRCh37 REST server
                            (http://grch37.rest.ensembl.org/) for REST
