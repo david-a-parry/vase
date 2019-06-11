@@ -9,10 +9,13 @@ def parse_args():
                                   annotated VCF after running annotating for
                                   recessive, dominant or de novo variants.''',)
     parser.add_argument("vcf", help='''VASE annotated VCF file.''')
-    parser.add_argument("out", help='''Name for output XLSX file.''')
+    parser.add_argument("out", help='''Name for output XLSX/JSON file.''')
     parser.add_argument("-p", "--ped",
                         help='''PED file (same as used with VASE segregation
                                 analysis).''')
+    parser.add_argument("-o", "--output_type", default='xlsx',
+                        help='''Output format. Supported types are 'json' and
+                        'xlsx'. Default=xlsx.''')
     parser.add_argument("--singletons", nargs='+',
                         help='''One or more singletons (same as used with VASE
                         segregation analysis with either --singleton_recessive
@@ -48,6 +51,10 @@ def parse_args():
                         '''If using --filter_non_ddg2p, only output records if
                            the inheritance pattern is consistent with the
                            'allelic requirement' annotation from DDG2P.''')
+    parser.add_argument("--mutation_requirement", action='store_true', help=
+                        '''If using --filter_non_ddg2p, only output records if
+                           the variant consequence is consistent with the
+                           'mutation consequence' annotation from DDG2P.''')
     parser.add_argument("-c", "--gnomad_constraint", help='''Constraint txt
                         file from gnomAD. If provided, pLI, pRec, pNull, mis_z
                         and syn_z columns will be added from this file for
@@ -100,4 +107,4 @@ if __name__ == '__main__':
     try:
         runner.write_report()
     finally:
-        runner.workbook.close()
+        runner.out_fh.close()

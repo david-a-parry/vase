@@ -6,17 +6,21 @@ import xlsxwriter
 import os
 import gzip
 import csv
-from collections import namedtuple, OrderedDict
+import json
+from collections import namedtuple, OrderedDict, defaultdict
 from .ped_file import PedFile, Family, Individual, PedError
 from parse_vcf import VcfReader, VcfHeader, VcfRecord
 from .ensembl_rest_queries import EnsemblRestQueries
 
 ENST = re.compile(r'''^ENS\w*T\d{11}(\.\d+)?''')
+ENTREZ_RE = re.compile(r'''(\d+)(\|(\d+))*''')
+SUPPORTED_OUTPUT = ['json', 'xlsx']
+
 vcf_output_columns = ['CHROM', 'POS', 'ID', 'REF', 'ALT', 'QUAL', 'FILTER',]
 
 feat_annots = { 'VASE_biallelic_families': 'VASE_biallelic_features',
-                'VASE_dominant_families': 'VASE_dominant_features',
-                'VASE_de_novo_families': 'VASE_de_novo_features',}
+                'VASE_dominant_families' : 'VASE_dominant_features',
+                'VASE_de_novo_families'  : 'VASE_de_novo_features',}
 
 allelic_req_to_label = {'biallelic'                 : ['recessive'],
                         'digenic'                   : None,
@@ -25,9 +29,44 @@ allelic_req_to_label = {'biallelic'                 : ['recessive'],
                         'mitochondrial'             : None,
                         'monoallelic'               : ['de novo', 'dominant'],
                         'mosaic'                    : ['de novo', 'dominant'],
-                        'x-linked dominant'         : None,
-                        'x-linked over-dominance'   : None,
+                        'x-linked dominant'         : ['de novo', 'dominant'],
+                        'x-linked over-dominance'   : ['de novo', 'dominant'],
                        }
+
+mutation_consequence_to_csq = {
+    'loss of function'                   : ['frameshift_variant',
+                                           'stop_gained',
+                                           'start_lost',
+                                           'initiator_codon_variant',
+                                           'splice_acceptor_variant',
+                                           'splice_donor_variant',
+                                           'transcript_ablation',
+                                           'feature_truncation',],
+    'uncertain'                          : None,
+    'all missense/in frame'              : ['missense_variant',
+                                           'inframe_deletion',
+                                           'inframe_insertion',],
+    'dominant negative'                  : ['missense_variant',
+                                           'inframe_deletion',
+                                           'inframe_insertion',],
+    'activating'                         : ['missense_variant',
+                                           'inframe_deletion',
+                                           'inframe_insertion',],
+    'cis-regulatory or promotor mutation': ['regulatory_region_ablation',
+                                           'regulatory_region_amplification',
+                                           'regulatory_region_variant',
+                                           'TFBS_ablation',
+                                           'TFBS_amplification',
+                                           'TF_binding_site_variant',],
+    'part of contiguous gene duplication': [],
+    'increased gene dosage'              : [],
+    'gain of function'                   : ['missense_variant',
+                                           'inframe_deletion',
+                                           'inframe_insertion',],
+    '5_prime or 3_prime UTR mutation'    : ['3_prime_UTR_variant',
+                                           '5_prime_UTR_variant',],
+}
+
 impact_order = dict((k,n) for n,k in enumerate(['HIGH', 'MODERATE', 'LOW',
                                               'MODIFIER']))
 
@@ -48,18 +87,27 @@ def csv_to_dict(f, index, fieldnames, delimiter=','):
 
 
 class VaseReporter(object):
-    ''' Read a VASE annotated VCF and output XLSX format summary of
-        segregating variants. '''
+    '''
+        Read a VASE annotated VCF and output XLSX or JSON summary of
+        segregating variants.
+    '''
 
-    def __init__(self, vcf, out, ped=None, singletons=[], families=[], all_features=False,
-                 rest_lookups=False, grch37=False, ddg2p=None, blacklist=None,
+    def __init__(self, vcf, out, ped=None, singletons=[], families=[],
+                 output_type='xlsx', all_features=False, rest_lookups=False,
+                 grch37=False, ddg2p=None, blacklist=None,
                  recessive_only=False, dominant_only=False, de_novo_only=False,
                  filter_non_ddg2p=False, allelic_requirement=False,
+                 mutation_requirement=False,
                  info_fields=[], gnomad_constraint=None,
                  choose_transcript=False, prog_interval=None, timeout=2.0,
                  max_retries=2, quiet=False, debug=False, force=False,
                  hide_empty=False):
         self._set_logger(quiet, debug)
+        self.output_type = output_type.lower()
+        if self.output_type not in SUPPORTED_OUTPUT:
+            raise ValueError("Unsupported output type: {}\n".format(
+                self.output_type) + "Supported types are:\n" + "\n\t".join(
+                    SUPPORTED_OUTPUT))
         self.vcf = VcfReader(vcf)
         if ped:
             self.ped = PedFile(ped)
@@ -78,22 +126,20 @@ class VaseReporter(object):
         self.choose_transcript = choose_transcript
         self.seg_fields = self._get_seg_fields()
         self.info_annotations = self._get_info_fields(info_fields)
-        if not out.endswith(".xlsx"):
-            out = out + ".xlsx"
+        if not out.endswith(".{}".format(output_type)):
+            out = out + ".{}".format(output_type)
         if os.path.exists(out) and not force:
             sys.exit("Output file '{}' already exists - ".format(out) +
                      "choose another name or use --force to overwrite.")
         self.out = out
         self.sample_orders = dict() #key is fam id, value is list of samples
-        self.workbook = xlsxwriter.Workbook(out)
-        self.bold = self.workbook.add_format({'bold': True})
-        self.worksheets = dict()
-        self.rows = dict()
-        self.hide_empty = hide_empty
+        self._header_columns = dict() #key is fam id, value is list of columns
+        self.out_fh = self._get_output_handle()
         self.rest_lookups = rest_lookups
         self.require_ddg2p = filter_non_ddg2p
         self.ddg2p = None
         self.allelic_requirement = allelic_requirement
+        self.mutation_requirement = mutation_requirement
         if ddg2p:
             self.ddg2p = self._read_ddg2p_csv(ddg2p)
         elif self.require_ddg2p:
@@ -109,19 +155,16 @@ class VaseReporter(object):
         if not families:
             families = sorted(self.ped.families.keys())
         fams_with_samples = []
+        self._fam_order = list()
         for f in families:#respect the order of families provided before converting to set
             if f not in self.ped.families:
                 raise RuntimeError("Family '{}' not found in ped ".format(f) +
                                    "'{}'.".format(ped))
-            if f in self.worksheets:
+            if f in self._fam_order:
                 logger.warn("Duplicate family '{}' specified".format(f))
             else:
-                w = self._initialize_worksheet(f)
-                if w is not None:
-                    self.worksheets[f] = w
-                    self.rows[f] = 1
-                    fams_with_samples.append(f)
-        self.families = set(fams_with_samples)
+                self._fam_order.append(f)
+        self.families = set(self._fam_order)
         if self.rest_lookups:
             self.ensembl_rest = EnsemblRestQueries(use_grch37_server=grch37,
                                                    timeout=timeout,
@@ -134,6 +177,44 @@ class VaseReporter(object):
             self.prog_interval = 100
         else:
             self.prog_interval = 1000
+        self.hide_empty = hide_empty
+        if self.output_type == 'xlsx':
+            self._intialize_workbook()
+        elif self.output_type == 'json':
+            self.json_dict = defaultdict(list)
+        else:
+            raise RuntimeError("Unsupported output: {}".format(
+                self.output_type))
+
+    def _finish_up(self):
+        if self.output_type == 'xlsx':
+            if self.hide_empty:
+                for family in self.worksheets.keys():
+                    if self.rows[family] < 2:
+                        self.worksheets[family].hide()
+        elif self.output_type == 'json':
+            json.dump(self.json_dict, self.out_fh, indent=2,)
+        self.out_fh.close()
+
+    def _intialize_workbook(self):
+        self.bold = self.out_fh.add_format({'bold': True})
+        self.worksheets = dict()
+        self.rows = dict()
+        for f in self._fam_order:
+            w = self._initialize_worksheet(f)
+            if w is not None:
+                self.worksheets[f] = w
+                self.rows[f] = 1
+
+    def _get_output_handle(self):
+        '''
+            Returns xlsxwriter.Workbook or plain filehandle depending on
+            value of self.output_type.
+        '''
+        if self.output_type == 'xlsx':
+            return xlsxwriter.Workbook(self.out)
+        else:
+            return open(self.out, 'wt')
 
     def _set_logger(self, quiet=False, debug=False):
         self.logger = logging.getLogger("VASE Reporter")
@@ -249,12 +330,14 @@ class VaseReporter(object):
         if header is None:
             return None
         sheet_name = re.sub(r'[\[\]\:\*\?\/]', '_', family)
-        worksheet = self.workbook.add_worksheet(sheet_name)
+        worksheet = self.out_fh.add_worksheet(sheet_name)
         for i in range(len(header)):
             worksheet.write(0, i, header[i], self.bold)
         return worksheet
 
     def _get_header_columns(self, family=None):
+        if family in self._header_columns:
+            return self._header_columns[family]
         header = ['INHERITANCE'] + vcf_output_columns + ['ALLELE', 'AC', 'AN',
                                                          'FORMAT']
         if family is not None:
@@ -271,7 +354,7 @@ class VaseReporter(object):
             header.append(inf)
         header.extend(x for x in self.vcf.header.csq_fields if x != 'Allele')
         if self.rest_lookups:
-            header.extend(["ENTREZ", "Full_Name", "GO", "REACTOME", 
+            header.extend(["ENTREZ", "Full_Name", "GO", "REACTOME",
                            "MOUSE_TRAITS", "MIM_MORBID"])
         if self.ddg2p:
             header.extend(["DDG2P_disease", "DDG2P_Category",
@@ -280,6 +363,7 @@ class VaseReporter(object):
         if self.constraint:
             header.extend(["pLI", "pRec", "pNull", "mis_z", "syn_z",
                            "constraint_issues"])
+        self._header_columns[family] = header #None is key for default header
         return header
 
 
@@ -423,26 +507,35 @@ class VaseReporter(object):
                 traits = 'LOOKUP FAILED'
         return [entrez, full_name, go, reactome, traits, mim]
 
-    def write_row(self, worksheet, row, values):
+    def write_row(self, worksheet, row, values, family):
         ''' Write a list of values to given worksheet and row '''
-        col = 0
-        for x in values:
-            worksheet.write(row, col, x)
-            col += 1
+        entrez_col = -1
+        if "ENTREZ" in self._header_columns[family]:
+            entrez_col = self._header_columns[family].index("ENTREZ")
+        for col in range(len(values)):
+            if col == entrez_col: #provide link to Entrez Gene 
+                m = ENTREZ_RE.match(values[col])
+                if m: #if multiple ENTREZ ids pick the most recent/largest
+                    eid = max([int(x) for x in m.groups() if x and
+                               "|" not in x])
+                    worksheet.write_url(row, col,
+                                        'https://www.ncbi.nlm.nih.gov/gene/' +
+                                        str(eid), string=values[col])
+                else:
+                    worksheet.write(row, col, values[col])
+            else:
+                worksheet.write(row, col, values[col])
         return col
 
-    def write_ddg2p_data(self, worksheet, row, col, csq):
+    def get_ddg2p_data(self, csq):
         d = [''] * 5
         if csq['SYMBOL'] in self.ddg2p:
             d = [self.ddg2p[csq['SYMBOL']][f] for f in
                  ['disease name', 'DDD category', 'allelic requirement',
                   'mutation consequence', 'organ specificity list']]
-        for x in d:
-            worksheet.write(row, col, x)
-            col += 1
-        return col
+        return d
 
-    def write_constraint_data(self, worksheet, row, col, csq):
+    def get_constraint_data(self, csq):
         constraint_cols = ["pLI", "pRec", "pNull", "mis_z", "syn_z",
                            "gene_issues"]
         cons = [''] * 5
@@ -453,24 +546,7 @@ class VaseReporter(object):
             k = csq['SYMBOL']
         if k is not None:
             cons = [self.constraint[k][f] for f in constraint_cols]
-        for x in cons:
-            worksheet.write(row, col, x)
-            col += 1
-        return col
-
-
-    def write_rest_data(self, worksheet, row, col, csq):
-        entrez, *rest = (self.get_ensembl_rest_data(csq))
-        if entrez:
-            worksheet.write_url(row, col, 'https://www.ncbi.nlm.nih.gov/gene/'+
-                                entrez, string=entrez)
-        else:
-            worksheet.write(row, col, entrez)
-        col += 1
-        for x in rest:
-            worksheet.write(row, col, x)
-            col += 1
-        return col
+        return cons
 
     def write_records(self, record, family, inheritance, allele, features):
         for csq in (x for x in record.CSQ if x['Feature'] in features and
@@ -481,10 +557,26 @@ class VaseReporter(object):
                 if csq['SYMBOL'] not in self.ddg2p:
                     continue
                 if self.allelic_requirement:
+                    inh_ok = False
                     req = self.ddg2p[csq['SYMBOL']]['allelic requirement']
-                    if req and allelic_req_to_label[req] is not None:
-                        if inheritance not in allelic_req_to_label[req]:
-                            continue
+                    if req:
+                        for r in req.split(","):
+                            if allelic_req_to_label[r] is not None:
+                                if inheritance in allelic_req_to_label[req]:
+                                    inh_ok = True
+                                    break
+                    if not inh_ok:
+                        continue
+                if self.mutation_requirement:
+                    csq_ok = False
+                    req = self.ddg2p[csq['SYMBOL']]['mutation consequence']
+                    if req == 'uncertain':
+                        csq_ok = True
+                    elif any(x in csq['Consequence'].split('&') for x in
+                             mutation_consequence_to_csq[req]):
+                        csq_ok = True
+                    if not csq_ok:
+                        continue
             if self.blacklist:
                 if csq['Feature'] in self.blacklist:
                     continue
@@ -508,24 +600,25 @@ class VaseReporter(object):
             values.extend(self._add_info_annotations(record, allele))
             values.extend(csq[x] for x in self.vcf.header.csq_fields if
                               x != 'Allele')
-            col = self.write_row(self.worksheets[family], self.rows[family],
-                                 values)
             if self.rest_lookups:
-                col = self.write_rest_data(self.worksheets[family],
-                                           self.rows[family],
-                                           col,
-                                           csq)
+                values.extend(self.get_ensembl_rest_data(csq))
             if self.ddg2p:
-                col = self.write_ddg2p_data(self.worksheets[family],
-                                            self.rows[family],
-                                            col,
-                                            csq)
+                values.extend(self.get_ddg2p_data(csq))
             if self.constraint:
-                col = self.write_constraint_data(self.worksheets[family],
-                                                 self.rows[family],
-                                                 col,
-                                                 csq)
-            self.rows[family] += 1
+                values.extend(self.get_constraint_data(csq))
+            if self.output_type == 'xlsx':
+                col = self.write_row(self.worksheets[family],
+                                     self.rows[family],
+                                     values,
+                                     family)
+                self.rows[family] += 1
+            elif self.output_type == 'json':
+                jrow = dict((k,v) for k,v in zip(
+                    self._get_header_columns(family), values))
+                self.json_dict[family].append(jrow)
+            else:
+                self.out_fh.write("\t".join([family] + values) + "\n")
+
 
     def pick_transcript(self, features, allele, csq):
         '''
@@ -549,7 +642,7 @@ class VaseReporter(object):
         return features[0]
 
     def write_report(self):
-        ''' Write a line for every segregating allele in VCF to XLSX'''
+        '''Write an entry for every segregating allele in VCF'''
         self.logger.info("Reading variants and writing report")
         n = 0
         w = 0
@@ -578,8 +671,4 @@ class VaseReporter(object):
             if n % self.prog_interval == 0:
                 self.logger.info("Parsed {:,} records".format(n))
         self.logger.info("Finished parsing {:,} records".format(n))
-        if self.hide_empty:
-            for family in self.worksheets.keys():
-                if self.rows[family] < 2:
-                    self.worksheets[family].hide()
-        self.workbook.close()
+        self._finish_up()
