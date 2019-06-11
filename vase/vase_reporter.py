@@ -96,9 +96,9 @@ class VaseReporter(object):
 
     def __init__(self, vcf, out, ped=None, singletons=[], families=[],
                  output_type='xlsx', all_features=False, rest_lookups=False,
-                 grch37=False, ddg2p=None, blacklist=None,
+                 grch37=False, g2p=None, blacklist=None,
                  recessive_only=False, dominant_only=False, de_novo_only=False,
-                 filter_non_ddg2p=False, allelic_requirement=False,
+                 filter_non_g2p=False, allelic_requirement=False,
                  mutation_requirement=False, mygene_lookups=False,
                  info_fields=[], gnomad_constraint=None,
                  choose_transcript=False, prog_interval=None, timeout=2.0,
@@ -138,15 +138,15 @@ class VaseReporter(object):
         self._header_columns = dict() #key is fam id, value is list of columns
         self.out_fh = self._get_output_handle()
         self.rest_lookups = rest_lookups
-        self.require_ddg2p = filter_non_ddg2p
-        self.ddg2p = None
+        self.require_g2p = filter_non_g2p
+        self.g2p = None
         self.allelic_requirement = allelic_requirement
         self.mutation_requirement = mutation_requirement
-        if ddg2p:
-            self.ddg2p = self._read_ddg2p_csv(ddg2p)
-        elif self.require_ddg2p:
-            raise RuntimeError("--filter_non_ddg2p option requires a DDG2P " +
-                               "CSV to be supplied with the --ddg2p argument")
+        if g2p:
+            self.g2p = self._read_g2p_csv(g2p)
+        elif self.require_g2p:
+            raise RuntimeError("--filter_non_g2p option requires a G2P " +
+                               "CSV to be supplied with the --g2p argument")
         self.constraint = None
         if gnomad_constraint:
             self.constraint = self._read_gnomad_constraint(gnomad_constraint)
@@ -372,10 +372,10 @@ class VaseReporter(object):
         if self.mygene_lookups:
             header.extend(["ENTREZ_ID", "Name", "Summary", "GO_BP", "GO_CC",
                            "GO_MF", "MIM", "GeneRIFs"])
-        if self.ddg2p:
-            header.extend(["DDG2P_disease", "DDG2P_Category",
-                           "DDG2P_Allelic_Requirement", "DDG2P_consequences",
-                           "DDG2P_organs"])
+        if self.g2p:
+            header.extend(["G2P_disease", "G2P_Category",
+                           "G2P_Allelic_Requirement", "G2P_consequences",
+                           "G2P_organs"])
         if self.constraint:
             header.extend(["pLI", "pRec", "pNull", "mis_z", "syn_z",
                            "constraint_issues"])
@@ -417,11 +417,11 @@ class VaseReporter(object):
                 biotype_order[cols[0]] = int(cols[2])
         return biotype_order
 
-    def _read_ddg2p_csv(self, ddg2p):
+    def _read_g2p_csv(self, g2p):
         required_fields = ['gene symbol', 'disease name', 'DDD category',
                            'allelic requirement', 'mutation consequence',
                            'organ specificity list', 'prev symbols']
-        g2p = csv_to_dict(ddg2p, 'gene symbol', required_fields)
+        g2p = csv_to_dict(g2p, 'gene symbol', required_fields)
         prev_symbol_d = dict()
         for row in g2p.values():
             if row['prev symbols']:
@@ -589,10 +589,10 @@ class VaseReporter(object):
                 worksheet.write(row, col, values[col])
         return col
 
-    def get_ddg2p_data(self, csq):
+    def get_g2p_data(self, csq):
         d = [''] * 5
-        if csq['SYMBOL'] in self.ddg2p:
-            d = [self.ddg2p[csq['SYMBOL']][f] for f in
+        if csq['SYMBOL'] in self.g2p:
+            d = [self.g2p[csq['SYMBOL']][f] for f in
                  ['disease name', 'DDD category', 'allelic requirement',
                   'mutation consequence', 'organ specificity list']]
         return d
@@ -615,12 +615,12 @@ class VaseReporter(object):
                     x['alt_index'] == allele):
             #column order is: Inheritance, vcf_output_columns, allele, AC, AN,
             #                 GTS, VEP fields
-            if self.require_ddg2p:
-                if csq['SYMBOL'] not in self.ddg2p:
+            if self.require_g2p:
+                if csq['SYMBOL'] not in self.g2p:
                     continue
                 if self.allelic_requirement:
                     inh_ok = False
-                    req = self.ddg2p[csq['SYMBOL']]['allelic requirement']
+                    req = self.g2p[csq['SYMBOL']]['allelic requirement']
                     if req:
                         for r in req.split(","):
                             if allelic_req_to_label[r] is not None:
@@ -631,7 +631,7 @@ class VaseReporter(object):
                         continue
                 if self.mutation_requirement:
                     csq_ok = False
-                    req = self.ddg2p[csq['SYMBOL']]['mutation consequence']
+                    req = self.g2p[csq['SYMBOL']]['mutation consequence']
                     if req == 'uncertain':
                         csq_ok = True
                     elif any(x in csq['Consequence'].split('&') for x in
@@ -666,8 +666,8 @@ class VaseReporter(object):
                 values.extend(self.get_ensembl_rest_data(csq))
             if self.mygene_lookups:
                 values.extend(self.get_mygene_data(csq))
-            if self.ddg2p:
-                values.extend(self.get_ddg2p_data(csq))
+            if self.g2p:
+                values.extend(self.get_g2p_data(csq))
             if self.constraint:
                 values.extend(self.get_constraint_data(csq))
             if self.output_type == 'xlsx':

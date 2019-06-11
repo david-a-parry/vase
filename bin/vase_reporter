@@ -10,9 +10,8 @@ def parse_args():
                                   recessive, dominant or de novo variants.''',)
     parser.add_argument("vcf", help='''VASE annotated VCF file.''')
     parser.add_argument("out", help='''Name for output XLSX/JSON file.''')
-    parser.add_argument("-p", "--ped",
-                        help='''PED file (same as used with VASE segregation
-                                analysis).''')
+    parser.add_argument("-p", "--ped", help='''PED file (same as used with VASE
+                        segregation analysis).''')
     parser.add_argument("-o", "--output_type", default='xlsx',
                         help='''Output format. Supported types are 'json' and
                         'xlsx'. Default=xlsx.''')
@@ -22,7 +21,7 @@ def parse_args():
                         or singleton_dominant).''')
     parser.add_argument("-f", "--families", nargs='+',
                         help='''One or more families to report variants
-                                for.''')
+                        for.''')
     parser.add_argument("--recessive_only", action="store_true", help=
                         '''Only output variants with recessive annotations. Can
                         be combined with --dominant_only or --de_novo_only
@@ -42,19 +41,19 @@ def parse_args():
                         highest impact transcript will be chosen with canonical
                         and protein coding transcripts preferred where impacts
                         are the same.''')
-    parser.add_argument("-d", "--ddg2p", help='''DDG2P CSV file - if provided
-                        additional fields will be added for DDG2P genes.''')
-    parser.add_argument("--filter_non_ddg2p", action='store_true', help=
-                        '''If using a DDG2P file, only output records for genes
-                        present in DDG2P.''')
+    parser.add_argument("-g", "--g2p", help='''G2P CSV file - if provided
+                        additional fields will be added for G2P genes.''')
+    parser.add_argument("--filter_non_g2p", action='store_true', help=
+                        '''If using a G2P file, only output records for genes
+                        present in the G2P file.''')
     parser.add_argument("--allelic_requirement", action='store_true', help=
-                        '''If using --filter_non_ddg2p, only output records if
-                           the inheritance pattern is consistent with the
-                           'allelic requirement' annotation from DDG2P.''')
+                        '''If using --filter_non_g2p, only output records if
+                        the inheritance pattern is consistent with the
+                        'allelic requirement' annotation from G2P.''')
     parser.add_argument("--mutation_requirement", action='store_true', help=
-                        '''If using --filter_non_ddg2p, only output records if
-                           the variant consequence is consistent with the
-                           'mutation consequence' annotation from DDG2P.''')
+                        '''If using --filter_non_g2p, only output records if
+                        the variant consequence is consistent with the
+                        'mutation consequence' annotation from G2P.''')
     parser.add_argument("-c", "--gnomad_constraint", help='''Constraint txt
                         file from gnomAD. If provided, pLI, pRec, pNull, mis_z
                         and syn_z columns will be added from this file for
@@ -70,29 +69,28 @@ def parse_args():
                         variants as this will cause significant slowdown. The
                         following extra columns will be added: ENTREZ,
                         Full_Name, GO, REACTOME, MOUSE_TRAITS, MIM_MORBID.''')
-    parser.add_argument("-g", "--grch37", action="store_true", help=
+    parser.add_argument("--grch37", action="store_true", help=
                         '''Use GRCh37 REST server
-                           (http://grch37.rest.ensembl.org/) for REST
-                           lookups.''')
+                        (http://grch37.rest.ensembl.org/) for REST lookups.''')
     parser.add_argument("-i", "--info_fields", nargs='+', default=[], help=
                         '''Additional INFO field(s) to add as a column in your
-                           output. Fields that are annotated per allele
-                           (Number=A or Number=R) will be annotated for the
-                           relevant allele otherwise the whole INFO field will
-                           be added.''')
+                        output. Fields that are annotated per allele
+                        (Number=A or Number=R) will be annotated for the
+                        relevant allele otherwise the whole INFO field will be
+                        added.''')
     parser.add_argument("-t", "--timeout", type=float, default=2.0, help=
                         '''Timeout (in seconds) for REST lookups.
-                           Default=2.0''')
+                        Default=2.0''')
     parser.add_argument("-m", "--max_retries", type=int, default=2, help=
                         '''Number of reattempts for REST lookups that fail.
-                           Default=2''')
+                        Default=2''')
     parser.add_argument("--prog_interval", type=int, metavar="N", help=
                         '''Report progress every N variants. Defaults to 1000
-                           unless using --rest_lookups in which case it
-                           defaults to 100.''')
+                        unless using --rest_lookups in which case it defaults
+                        to 100.''')
     parser.add_argument('--hide_empty', action='store_true', help=
                         '''Hide worksheets that do not contain any variants in
-                           the output.''')
+                        the output.''')
     parser.add_argument('--quiet', action='store_true', help=
                         '''Do not output progress information to STDERR.''')
     parser.add_argument('--debug', action='store_true', help=
