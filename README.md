@@ -59,37 +59,53 @@ or:
 
 ## USAGE/OPTIONS
 
-    
     usage: vase -i VCF [-o OUTPUT] [-r REPORT_PREFIX]
                 [-burden_counts BURDEN_COUNTS] [-gnomad_burden] [-v QUAL]
                 [-p | --keep_filters KEEP_FILTERS [KEEP_FILTERS ...]]
                 [--exclude_filters EXCLUDE_FILTERS [EXCLUDE_FILTERS ...]]
                 [-t TYPE [TYPE ...]] [-max_alts MAX_ALT_ALLELES] [-af AF]
-                [-min_af MIN_AF] [-ac AC] [-min_ac MIN_AC] [-c [CSQ [CSQ ...]]]
-                [--canonical] [--flagged_features]
-                [--biotypes BIOTYPE [BIOTYPE ...]]
-                [--feature_blacklist FEATURE_BLACKLIST]
+                [-min_af MIN_AF] [-filtering_an FILTERING_AN] [-min_an MIN_AN]
+                [-ac AC] [-min_ac MIN_AC]
+                [--info_filters INFO_FILTERS [INFO_FILTERS ...]]
+                [-c [CSQ [CSQ ...]]] [--impact IMPACT [IMPACT ...]] [--canonical]
+                [--flagged_features] [--biotypes BIOTYPE [BIOTYPE ...]]
+                [--feature_blacklist FEATURE_BLACKLIST] [--loftee]
                 [-m MISSENSE_FILTERS [MISSENSE_FILTERS ...]]
-                [--filter_unpredicted] [--keep_if_any_damaging] [--no_vep_freq]
-                [--vep_af VEP_AF [VEP_AF ...]] [--region REGION [REGION ...] |
-                --bed BED | --gene_bed BED] [--cadd_files FILE [FILE ...]]
-                [-cadd_dir DIR] [--cadd_phred FLOAT] [--cadd_raw FLOAT]
-                [-d VCF [VCF ...]] [-g VCF [VCF ...]]
+                [--filter_unpredicted] [--keep_if_any_damaging]
+                [--splice_filters SPLICE_FILTERS [SPLICE_FILTERS ...]]
+                [--splice_filter_unpredicted] [--splice_keep_if_any_damaging]
+                [--retain_labels Label=Value [Label=Value ...]] [--no_vep_freq]
+                [--vep_af VEP_AF [VEP_AF ...]] [--pathogenic] [--no_conflicted]
+                [--region REGION [REGION ...] | --bed BED | --gene_bed BED]
+                [--stream] [--exclude_regions] [--cadd_files FILE [FILE ...]]
+                [-cadd_dir DIR] [--missing_cadd_scores FILE] [--cadd_phred FLOAT]
+                [--cadd_raw FLOAT] [-d VCF [VCF ...]] [-g VCF [VCF ...]]
+                [--gnomad_pops POP [POP ...]]
                 [--vcf_filter VCF,ID[,INFO_FIELD ...] [VCF,ID[,INFO_FIELD ...]
                 ...]] [--dng_vcf DNG_VCF [DNG_VCF ...]] [-f FREQ]
-                [--min_freq MIN_FREQ] [-b dbSNP_build] [--max_build dbSNP_build]
-                [--filter_known] [--filter_novel] [--clinvar_path]
-                [-ignore_existing] [--cases SAMPLE_ID [SAMPLE_ID ...]]
+                [--min_freq MIN_FREQ]
+                [--max_gnomad_homozygotes MAX_GNOMAD_HOMOZYGOTES] [-b dbSNP_build]
+                [--max_build dbSNP_build] [--filter_known] [--filter_novel]
+                [--clinvar_path] [-ignore_existing]
+                [--splice_ai_vcfs VCF [VCF ...]] [--splice_ai_min_delta DELTA]
+                [--splice_ai_max_delta DELTA] [--missing_splice_ai_scores FILE]
+                [--cases SAMPLE_ID [SAMPLE_ID ...]]
                 [--controls SAMPLE_ID [SAMPLE_ID ...]] [-ped PED] [-gq GQ]
-                [-dp DP] [-het_ab AB] [-hom_ab AB] [-con_gq CONTROL_GQ]
-                [-con_dp CONTROL_DP] [-con_het_ab AB] [-con_hom_ab AB]
-                [-con_ref_ab AB] [--n_cases N_CASES] [--n_controls N_CONTROLS]
-                [--biallelic] [--de_novo] [--dominant]
+                [-dp DP] [-max_dp MAX_DP] [-het_ab AB] [-hom_ab AB]
+                [-con_gq CONTROL_GQ] [-con_dp CONTROL_DP]
+                [-con_max_dp CONTROL_MAX_DP] [-con_het_ab AB] [-con_hom_ab AB]
+                [-con_ref_ab AB] [-sv_gq SV_GQ] [-sv_dp SV_DP]
+                [-sv_max_dp SV_MAX_DP] [-sv_het_ab AB] [-sv_hom_ab AB]
+                [-sv_con_gq SV_CONTROL_GQ] [-sv_con_dp SV_CONTROL_DP]
+                [-sv_con_max_dp SV_CONTROL_MAX_DP] [-sv_con_het_ab AB]
+                [-sv_con_hom_ab AB] [-sv_con_ref_ab AB] [--n_cases N_CASES]
+                [--n_controls N_CONTROLS] [--biallelic] [--de_novo] [--dominant]
                 [--min_families MIN_FAMILIES]
                 [--singleton_recessive SAMPLE_ID [SAMPLE_ID ...]]
                 [--singleton_dominant SAMPLE_ID [SAMPLE_ID ...]]
-                [--seg_controls SAMPLE_ID [SAMPLE_ID ...]] [--prog_interval N]
-                [--log_progress] [--quiet] [--debug] [-h]
+                [--seg_controls SAMPLE_ID [SAMPLE_ID ...]] [--strict_recessive]
+                [--prog_interval N] [--log_progress] [--no_progress] [--quiet]
+                [--debug] [--no_warnings] [--silent] [-h]
 
     Variant annotation, segregation and exclusion.
 
@@ -147,6 +163,13 @@ or:
                             files with '.gz' or '.bgz' extensions will be
                             included.
                             
+      --missing_cadd_scores FILE
+                            Filename to output variants that are not found
+                            in CADD annotation files. Output will be gzip
+                            compressed and in a format suitable for uploading
+                            to https://cadd.gs.washington.edu/score for
+                            scoring (or for scoring locally).
+                            
       --cadd_phred FLOAT, -cadd_phred FLOAT
                             CADD PHRED score cutoff. Variants with a CADD
                             PHRED score below this value will be filtered.
@@ -167,11 +190,20 @@ or:
                             
       -d VCF [VCF ...], --dbsnp VCF [VCF ...], --clinvar VCF [VCF ...]
                             dbSNP or ClinVar VCF file for variant
-                            annotating/filtering
+                            annotating/filtering.
                             
       -g VCF [VCF ...], --gnomad VCF [VCF ...], --exac VCF [VCF ...]
                             gnomAD/ExAC file for variant annotating/filtering
-                            using population allele frequencies
+                            using population allele frequencies. By default
+                            allele frequencies from AFR, AMR, EAS, FIN, NFE
+                            and SAS populations are used. Populations to use
+                            can be chosen with the --gnomad_pops argument.
+                            
+      --gnomad_pops POP [POP ...]
+                            Populations to use for annotating/filtering from
+                            gnomAD VCFs. The default are AFR, AMR, EAS, FIN,
+                            NFE and SAS. Any combination of these plus "ASJ"
+                            and "POPMAX" can be chosen.
                             
       --vcf_filter VCF,ID[,INFO_FIELD ...] [VCF,ID[,INFO_FIELD ...] ...], -vcf_filter VCF,ID[,INFO_FIELD ...] [VCF,ID[,INFO_FIELD ...] ...]
                             VCF file(s) and name(s) to use in INFO fields
@@ -200,9 +232,10 @@ or:
                             an allele frequency equal to or greater than
                             this value in these sources will be filtered
                             from your input. VEP annotated allele frequencies
-                            will also be used for filtering if '--csq' option
-                            is used (VEP v90 or higher required). This can be
-                            disabled with the --no_vep_freq option.
+                            will also be used for filtering if '--csq' or
+                            '--impact' options are used (annotations from VEP
+                            v90 or higher required). This can be disabled with
+                            the --no_vep_freq option.
                             
       --min_freq MIN_FREQ, -min_freq MIN_FREQ
                             Minimum allele frequency cutoff (between 0 and 1).
@@ -213,6 +246,11 @@ or:
                             for filtering if '--csq' option is used (VEP v90
                             or higher required). This can be disabled with the
                             --no_vep_freq option.
+                            
+      --max_gnomad_homozygotes MAX_GNOMAD_HOMOZYGOTES
+                            Filter alleles if the total number of homozygotes
+                            or hemizygotes in any provided gnomAD VCF is equal
+                            to or greater than this value.
                             
       -b dbSNP_build, --build dbSNP_build
                             dbSNP build version cutoff. For use with --dbsnp
@@ -253,6 +291,41 @@ or:
                             input VCF. Default behaviour is to use these
                             annotations for filtering if present and the
                             relevant arguments (e.g. --freq) are given.
+                            
+      --splice_ai_vcfs VCF [VCF ...], -splice_ai_vcfs VCF [VCF ...]
+                            One or more tabix indexed VCFs containing SpliceAI
+                            delta scores with which to filter or annotate
+                            records. SpliceAI INFO fields must be present in
+                            the format produced for pre-scored variants as
+                            downloaded from Jaganathan et al. Cell (2018) or
+                            else as generated by the SpliceAI program
+                            (https://github.com/Illumina/SpliceAI).
+                            Alleles/variants can be retained on these scores
+                            using the --splice_ai_min_delta or
+                            --splice_ai_max_delta options.
+                            
+      --splice_ai_min_delta DELTA, -splice_ai_min_delta DELTA
+                            Retain alleles/consequences with a SpliceAI delta
+                            score equal to or greater than this threshold. If
+                            using filtering on VEP consequence (--csq or
+                            --impact options) VEP consequences for genes
+                            with symbols matching the SpliceAI gene symbol
+                            annotation will be marked for retention also (e.g.
+                            if using segregation filtering). Note that allele
+                            frequency filters will still be applied.
+                            
+      --splice_ai_max_delta DELTA, -splice_ai_max_delta DELTA
+                            Same as --splice_ai_min_delta but
+                            alleles/consequences will be retained only if
+                            SpliceAI delta scores are equal to or below this
+                            threshold.
+                            
+      --missing_splice_ai_scores FILE
+                            Filename to output variants that are not found in
+                            SpliceAI annotation files. Output will be gzip
+                            compressed VCFs suitable for scoring with the
+                            SpliceAI program
+                            (https://github.com/Illumina/SpliceAI).
                             
 
     Variant Filtering Arguments:
@@ -300,7 +373,8 @@ or:
                             Filter variants at sites with more than this
                             many ALT alleles. For example, using
                             '--max_alt_alleles 1' would retain biallelic sites
-                            only.
+                            only ('*' alleles are not counted for this
+                            purpose).
                             
       -af AF, --af AF       Maximum AF value in input VCF. Any allele with an
                             AF > than this value will be filtered.
@@ -309,12 +383,44 @@ or:
                             Minimum AF value in input VCF. Any allele with an
                             AF < than this value will be filtered.
                             
+      -filtering_an FILTERING_AN, --filtering_an FILTERING_AN
+                            Require at least this number of allele calls
+                            before filtering with --af or --min_af options.
+                            Useful to avoid filtering at sites with many
+                            uncalled genotpyes. If AN field is missing from a
+                            record and this value is > 0, --af/--min_af
+                            filtering will not occur for that record.
+                            Default=0.
+                            
+      -min_an MIN_AN, --min_an MIN_AN
+                            Minimum number of allele calls as given by the
+                            'AN' INFO field. Variants with an AN value below
+                            this threshold or a missing AN field will be
+                            filtered. Default=0.
+                            
       -ac AC, --ac AC       Maximum AC value in input VCF. Any allele with an
                             AC > than this value will be filtered.
                             
       -min_ac MIN_AC, --min_ac MIN_AC
                             Minimum AC value in input VCF. Any allele with an
                             AC < than this value will be filtered.
+                            
+      --info_filters INFO_FILTERS [INFO_FILTERS ...]
+                            Custom filter expressions for filtering on fields
+                            in the INFO field of each record. Must be in the
+                            format '<INFO_FIELD> <comparator> <value>'.
+                            Variants will be retained if they meet the given
+                            criteria. For example, to only keep records with a
+                            QD score greater than 4, you would pass the
+                            expression "QD > 4". To only keep records with the
+                            "DB" flag present you would pass the expression
+                            "DB == True".
+                            
+                            Standard python style operators (">", "<", ">=",
+                            "<=", "==", "!=") are supported. Comparisons will
+                            be performed using the types specified for the
+                            given field in the VCF header (e.g. Float, Integer
+                            or String) or as booleans for Flags.
                             
       -c [CSQ [CSQ ...]], --csq [CSQ [CSQ ...]]
                             One or more VEP consequence classes to retain.
@@ -349,8 +455,19 @@ or:
                             annotations (e.g. allele frequency or biotype)
                             irrespective of consequence.
                             
-                            Note, that using the --csq option automaticaally
-                            turns on biotype filtering (see the --biotype
+                            Note, that using the --csq option automatically
+                            turns on biotype filtering (see the --biotypes
+                            option below).
+                            
+      --impact IMPACT [IMPACT ...]
+                            One or more VEP 'IMPACT' types to retain. Valid
+                            values are 'HIGH', 'MODERATE', 'LOW' and
+                            'MODIFIER'. Any consequence classes specified by
+                            the '--csq' argument will still be retained
+                            irrespective of values specified here.
+                            
+                            Note, that using the --impact option automatically
+                            turns on biotype filtering (see the --biotypes
                             option below).
                             
       --canonical, -canonical
@@ -415,11 +532,16 @@ or:
                             to the IDs in the 'Feature' field annotated by
                             VEP.
                             
+      --loftee              Retain LoF (stop_gained, frameshift_variant,
+                            splice_acceptor_variant and splice_donor_variant)
+                            classes only if the LoF annotation from loftee is
+                            'HC'.
+                            
       -m MISSENSE_FILTERS [MISSENSE_FILTERS ...], --missense_filters MISSENSE_FILTERS [MISSENSE_FILTERS ...]
                             A list of in silico prediction programs to use
                             for filtering missense variants (must be used in
                             conjunction with --csq argument). The programs
-                            provided her must have been annotated on the
+                            provided here must have been annotated on the
                             input VCF file either directly by VEP or via the
                             dbNSFP VEP plugin. Recognised program names and
                             default 'damaging' values are provided in the
@@ -470,16 +592,48 @@ or:
                             '--filter_unpredicted' when a prediction/score is
                             missing for any program.
                             
+      --splice_filters SPLICE_FILTERS [SPLICE_FILTERS ...]
+                            Similar to --missense_filters except only splice
+                            consequences (splice_donor_variant,
+                            splice_acceptor_variant and splice_region_variant)
+                            are checked versus the given in silico prediction
+                            programs. Currently only dbscSNV, (rf_score and
+                            ada_score), MaxEntScan and SpliceDistance
+                            (https://github.com/gantzgraf/SpliceDistance)
+                            plugins are supported.
+                            
+                            For example '--splice_filters ada_score' will
+                            filter splice region variants with a dbscSNV
+                            ada_score cutoff below the default value (0.7).
+                            Alternatively, '--splice_filters ada_score=0.9'
+                            would filter on a higher threshold of 0.9 or
+                            above.
+                            
+      --splice_filter_unpredicted
+                            Same as --filter_unpredicted but for
+                            --splice_filters only.
+                            
+      --splice_keep_if_any_damaging
+                            Same as --keep_if_any_damaging but for
+                            --splice_filters only.
+                            
+      --retain_labels Label=Value [Label=Value ...]
+                            Retain consequence annotations if there is a
+                            matching annotation for the given label. For
+                            example, to retain any consequence where there is
+                            a VEP annotation for 'FOO' matching 'BAR' use
+                            "--retain_labels FOO=BAR".
+                            
       --no_vep_freq, -no_vep_freq
                             Use this option if you want to ignore VEP
                             annotated allele frequencies when using --freq and
-                            --csq options.
+                            --csq/--impact options.
                             
       --vep_af VEP_AF [VEP_AF ...], -vep_af VEP_AF [VEP_AF ...]
                             One or more VEP allele frequency annotations to
                             use for frequency filtering. Default is to use the
-                            following (assuming --csq and --freq or --min_freq
-                            arguments are in effect):
+                            following (assuming --csq/--impact and --freq or
+                            --min_freq arguments are in effect):
                             
                                             MAX_AF
                                             AFR_AF
@@ -506,6 +660,21 @@ or:
                                             gnomADg_AF_NFE
                                             gnomADg_AF_OTH
                             
+      --pathogenic          When used in conjunction with --csq argument,
+                            retain variants flagged as pathogenic by either
+                            'CLIN_SIG' or 'clinvar_clnsig' VEP annotations
+                            even if the consequence class is not included in
+                            those selected using the --csq argument. Note that
+                            this only alters filtering as specified by --csq
+                            and --missense_filters options; frequency,
+                            canonical transcript, flagged_features and biotype
+                            filtering will still occur as normal.
+                            
+      --no_conflicted       When used in conjunction with --pathogenic
+                            argument, variants labelled as pathogenic will
+                            only be retained if there are no conflicting
+                            'benign' or 'likely benign' assertions.
+                            
 
     Region Filtering Arguments:
       Arguments for filtering variants on genomic regions. These arguments are mutually exclusive.
@@ -526,10 +695,23 @@ or:
                             should be separated with '/' characters.
                             Requires input to be annotated with VEP.
                             
+      --stream              When using region filtering arguments, read all
+                            variants in your VCF and filter out all that do
+                            overlap your regions of interest instead of
+                            index-jumping. This allows processing of unindexed
+                            VCFs and potentially speeds up processing of VCFs
+                            with large structural variants that otherwise
+                            severely slow-down tabix-style variant retrieval.
+                            
+      --exclude_regions     When using region filtering arguments, output
+                            variants that do NOT overlap regions instead of
+                            those that do. This forces streaming rather than
+                            index-jumping retrieval.
+                            
 
     Sample Based Filtering Arguments:
       Arguments for filtering variants based on presence/absence in samples and/or
-      inheritance patterns
+      inheritance patterns.
 
       --cases SAMPLE_ID [SAMPLE_ID ...], -cases SAMPLE_ID [SAMPLE_ID ...]
                             One or more sample IDs to treat as cases. Default
@@ -573,78 +755,6 @@ or:
                             affectation status can be read and dominant versus
                             recessive/de novo inheritance models can be
                             inferred.
-                            
-      -gq GQ, --gq GQ       Minimum genotype quality score threshold. Sample
-                            genotype calls with a score lower than this
-                            threshold will be treated as no-calls.
-                            Default = 20.
-                            
-      -dp DP, --dp DP       Minimum genotype depth threshold. Sample genotype
-                            calls with a read depth lower than this threshold
-                            will be treated as no-calls. Default = 0.
-                            
-      -het_ab AB, --het_ab AB
-                            Minimum genotype allele balance for heterozygous
-                            genotypes. Heterozygous sample genotype calls
-                            with a ratio of the alternate allele vs total
-                            depth lower than this threshold will be treated as
-                            no-calls. Default = 0.
-                            
-      -hom_ab AB, --hom_ab AB
-                            Minimum genotype allele balance for homozygous
-                            genotypes. Homozygous sample genotype calls
-                            with a ratio of the alternate allele vs total
-                            depth lower than this threshold will be treated as
-                            no-calls. Default = 0.
-                            
-      -con_gq CONTROL_GQ, --control_gq CONTROL_GQ
-                            Minimum genotype quality score threshold for
-                            parents/unaffecteds/controls when filtering
-                            variants. Defaults to the same value as --gq but
-                            you may wish to set this to a lower value if, for
-                            example, you require less evidence from
-                            controls/unaffected in order to filter a variant
-                            or from parental genotype calls when confirming
-                            a potential de novo variant.
-                            
-      -con_dp CONTROL_DP, --control_dp CONTROL_DP
-                            Minimum depth threshold for
-                            parents/unaffecteds/controls when filtering
-                            variants. Defaults to the same value as --dp but
-                            you may wish to set this to a lower value if, for
-                            example, you require less evidence from
-                            controls/unaffected in order to filter a variant
-                            or from parental genotype calls when confirming
-                            a potential de novo variant.
-                            
-      -con_het_ab AB, --control_het_ab AB
-                            Minimum genotype allele balance for heterozygous
-                            genotypes. Heterozygous sample genotype calls
-                            with a ratio of the alternate allele vs total
-                            depth lower than this threshold will be treated as
-                            no-calls. Defaults to the same as --het_ab but
-                            you may wish to set this to a lower value if, for
-                            example, you require less evidence from
-                            controls/unaffected in order to filter a variant.
-                            
-      -con_hom_ab AB, --control_hom_ab AB
-                            Minimum genotype allele balance for homozygous
-                            genotypes. Homozygous sample genotype calls
-                            with a ratio of the alternate allele vs total
-                            depth lower than this threshold will be treated as
-                            no-calls. Defaults to the same as --hom_ab but
-                            you may wish to set this to a lower value if, for
-                            example, you require less evidence from
-                            controls/unaffected in order to filter a variant.
-                            
-      -con_ref_ab AB, --control_max_ref_ab AB
-                            Maximum genotype allele balance for
-                            parents/unaffecteds/controls with reference (0/0)
-                            genotypes when filtering variants. If you wish to
-                            count/exclude variants where controls/unaffecteds
-                            are called as homozygous reference but still have a
-                            low proportion of ALT alleles specify a suitable
-                            cutoff here.
                             
       --n_cases N_CASES, -n_cases N_CASES
                             Instead of requiring a variant to be present in
@@ -709,6 +819,201 @@ or:
                             necessary if your unaffected samples are already
                             present in your PED file specified with --ped.
                             
+      --strict_recessive    When using the --biallelic/--recessive option,
+                            for any affected sample with parents, require
+                            confirmation of parental genotypes. If either
+                            parent genotype is a no-call or fails genotype
+                            filters then a potential biallelic variant will be
+                            ignored.
+                            
+
+    Genotype Filtering Arguments:
+      Arguments for filtering genotypes when using 'Sample Based Filtering
+      Arguments' to filter on presence/absence in samples and/or inheritance
+      patterns.
+
+      -gq GQ, --gq GQ       Minimum genotype quality score threshold. Sample
+                            genotype calls with a score lower than this
+                            threshold will be treated as no-calls.
+                            Default = 20.
+                            
+      -dp DP, --dp DP       Minimum genotype depth threshold. Sample genotype
+                            calls with a read depth lower than this threshold
+                            will be treated as no-calls. Default = 0.
+                            
+      -max_dp MAX_DP, --max_dp MAX_DP
+                            Maximum genotype depth threshold. Sample genotype
+                            calls with a read depth higher than this threshold
+                            will be treated as no-calls. Default = 0 (i.e. not
+                            used).
+                            
+      -het_ab AB, --het_ab AB
+                            Minimum genotype allele balance for heterozygous
+                            genotypes. Heterozygous sample genotype calls
+                            with a ratio of the alternate allele vs total
+                            depth lower than this threshold will be treated as
+                            no-calls. Default = 0.
+                            
+      -hom_ab AB, --hom_ab AB
+                            Minimum genotype allele balance for homozygous
+                            genotypes. Homozygous sample genotype calls
+                            with a ratio of the alternate allele vs total
+                            depth lower than this threshold will be treated as
+                            no-calls. Default = 0.
+                            
+      -con_gq CONTROL_GQ, --control_gq CONTROL_GQ
+                            Minimum genotype quality score threshold for
+                            parents/unaffecteds/controls when filtering
+                            variants. Defaults to the same value as --gq but
+                            you may wish to set this to a lower value if, for
+                            example, you require less evidence from
+                            controls/unaffected in order to filter a variant
+                            or from parental genotype calls when confirming
+                            a potential de novo variant.
+                            
+      -con_dp CONTROL_DP, --control_dp CONTROL_DP
+                            Minimum depth threshold for
+                            parents/unaffecteds/controls when filtering
+                            variants. Defaults to the same value as --dp but
+                            you may wish to set this to a lower value if, for
+                            example, you require less evidence from
+                            controls/unaffected in order to filter a variant
+                            or from parental genotype calls when confirming
+                            a potential de novo variant.
+                            
+      -con_max_dp CONTROL_MAX_DP, --control_max_dp CONTROL_MAX_DP
+                            Maximum depth threshold for
+                            parents/unaffecteds/controls when filtering
+                            variants. Defaults to the same value as --max_dp.
+                            
+      -con_het_ab AB, --control_het_ab AB
+                            Minimum genotype allele balance for heterozygous
+                            genotypes. Heterozygous sample genotype calls
+                            with a ratio of the alternate allele vs total
+                            depth lower than this threshold will be treated as
+                            no-calls. Defaults to the same as --het_ab but
+                            you may wish to set this to a lower value if, for
+                            example, you require less evidence from
+                            controls/unaffected in order to filter a variant.
+                            
+      -con_hom_ab AB, --control_hom_ab AB
+                            Minimum genotype allele balance for homozygous
+                            genotypes. Homozygous sample genotype calls
+                            with a ratio of the alternate allele vs total
+                            depth lower than this threshold will be treated as
+                            no-calls. Defaults to the same as --hom_ab but
+                            you may wish to set this to a lower value if, for
+                            example, you require less evidence from
+                            controls/unaffected in order to filter a variant.
+                            
+      -con_ref_ab AB, --control_max_ref_ab AB
+                            Maximum genotype allele balance for
+                            parents/unaffecteds/controls with reference (0/0)
+                            genotypes when filtering variants. If you wish to
+                            count/exclude variants where controls/unaffecteds
+                            are called as homozygous reference but still have a
+                            low proportion of ALT alleles specify a suitable
+                            cutoff here.
+                            
+
+    Structural Variant Genotype Filtering Arguments:
+      Arguments for filtering genotypes for Structural Variant calls when using
+      'Sample Based Filtering Arguments' to filter on presence/absence in samples
+      and/or inheritance patterns. Only output from Manta currently supported.
+
+      -sv_gq SV_GQ, --sv_gq SV_GQ
+                            Minimum genotype quality score threshold for
+                            structural variants. Sample genotype calls with a
+                            score lower than this threshold will be treated as
+                            no-calls. Default = 20.
+                            
+      -sv_dp SV_DP, --sv_dp SV_DP
+                            Minimum genotype 'depth' threshold for structural
+                            variants. Sample genotype calls with fewer than
+                            this nunmber of supporting reads will be treated
+                            as no-calls. Default = 0.
+                            
+      -sv_max_dp SV_MAX_DP, --sv_max_dp SV_MAX_DP
+                            Maximum genotype 'depth' threshold for structural
+                            variants. Sample genotype calls with more than
+                            this nunmber of supporting reads will be treated
+                            as no-calls. Default = 0 (i.e. not used).
+                            
+      -sv_het_ab AB, --sv_het_ab AB
+                            Minimum genotype allele balance for heterozygous
+                            genotypes for structural variants. Heterozygous
+                            sample genotype calls with a ratio of reads
+                            supporting the alternate allele vs total
+                            supporting reads lower than this threshold will
+                            be treated as no-calls. Default = 0.
+                            
+      -sv_hom_ab AB, --sv_hom_ab AB
+                            Minimum genotype allele balance for homozygous
+                            genotypes for structural variants. Homozygous
+                            sample genotype calls with a ratio of reads
+                            supporting the alternate allele vs total
+                            supporting reads lower than this threshold will be
+                            treated as no-calls. Default = 0.
+                            
+      -sv_con_gq SV_CONTROL_GQ, --sv_control_gq SV_CONTROL_GQ
+                            Minimum genotype quality score threshold for
+                            parents/unaffecteds/controls when filtering
+                            structural variants. Defaults to the same value as
+                            --sv_gq but you may wish to set this to a lower
+                            value if, for example, you require less evidence
+                            from controls/unaffected in order to filter a
+                            variant or from parental genotype calls when
+                            confirming a potential de novo variant.
+                            
+      -sv_con_dp SV_CONTROL_DP, --sv_control_dp SV_CONTROL_DP
+                            Minimum supporting read threshold for
+                            parents/unaffecteds/controls when filtering
+                            structural variants. Defaults to the same value as
+                            --sv_dp but you may wish to set this to a lower
+                            value if, for example, you require less evidence
+                            from controls/unaffected in order to filter a
+                            variant or from parental genotype calls when
+                            confirming a potential de novo variant.
+                            
+      -sv_con_max_dp SV_CONTROL_MAX_DP, --sv_control_max_dp SV_CONTROL_MAX_DP
+                            Maximum supporting read threshold for
+                            parents/unaffecteds/controls when filtering
+                            structural variants. Defaults to the same value as
+                            --sv_max_dp.
+                            
+      -sv_con_het_ab AB, --sv_control_het_ab AB
+                            Minimum genotype allele balance for heterozygous
+                            genotypes for structural variants. Heterozygous
+                            sample genotype calls with a ratio of the
+                            reads supporting the alternate allele vs total
+                            supporting reads depth lower than this threshold
+                            will be treated as no-calls. Defaults to the same
+                            as --sv_het_ab but you may wish to set this to a
+                            lower value if, for example, you require less
+                            evidence from controls/unaffected in order to
+                            filter a variant.
+                            
+      -sv_con_hom_ab AB, --sv_control_hom_ab AB
+                            Minimum genotype allele balance for homozygous
+                            genotypes for structural variants. Homozygous
+                            sample genotype calls with a ratio of the
+                            reads supporting the alternate allele vs total
+                            supporting reads depth lower than this threshold
+                            will be treated as no-calls. Defaults to the same
+                            as --sv_hom_ab but you may wish to set this to a
+                            lower value if, for example, you require less
+                            evidence from controls/unaffected in order to
+                            filter a variant.
+                            
+      -sv_con_ref_ab AB, --sv_control_max_ref_ab AB
+                            Maximum genotype allele balance for
+                            parents/unaffecteds/controls with reference (0/0)
+                            genotypes when filtering structural variants. If
+                            you wish to count/exclude variants where
+                            controls/unaffecteds are called as homozygous
+                            reference but still have a low proportion of ALT
+                            alleles specify a suitable cutoff here.
+                            
 
     Help/Logging Arguments:
       --prog_interval N, -prog_interval N
@@ -719,12 +1024,22 @@ or:
                             Use logging output for progress rather than wiping
                             progress line after each update.
                             
-      --quiet               Do not output progress information to STDERR.
+      --no_progress         Do not output progress information to STDERR.
                             
-      --debug               Output debugging information to STDERR.
+      --quiet               Do not output INFO messages to STDERR. Warnings
+                            will still be shown.
+                            
+      --debug               Output debugging level information to STDERR.
+                            
+      --no_warnings         Do not output INFO or WARN messages to
+                            STDERR. Only program ending errors will appear.
+                            
+      --silent              Equivalent to specifying both '--no_progress' and
+                            '--no_warnings' options.
                             
       -h, --help            Show this help message and exit
-                        
+                            
+
 
 ## AUTHOR
 
