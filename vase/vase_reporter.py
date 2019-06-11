@@ -173,6 +173,7 @@ class VaseReporter(object):
                                                    max_retries=max_retries,
                                                    log_level=self.logger.level)
         self.rest_cache = dict()
+        self.mygene_cache = dict()
         self.mygene_lookups = False
         if mygene_lookups:
             try:
@@ -525,15 +526,25 @@ class VaseReporter(object):
 
     def get_mygene_data(self, csq):
         if csq['Gene']:
-            results = self.mg.query(csq['Gene'], score='ensembgene,entrezgene',
+            if csq['Gene'] in self.mygene_cache:
+                return self.mygene_cache[csq['Gene']]
+            results = self.mg.query(csq['Gene'],
+                                    scopes='ensemblgene,entrezgene',
                                     species=9606, fields=",".join(MG_FIELDS))
             if len(results['hits']) == 0:
-                self.logger.warn("No MyGene hits for gene {}".format(
-                    csq['GENE']))
+                results = self.mg.query(csq['SYMBOL'],
+                                        scopes='symbol',
+                                        species=9606,
+                                        fields=",".join(MG_FIELDS))
+            if len(results['hits']) == 0:
+                self.logger.warn("No MyGene hits for gene {}/{}".format(
+                    csq['Gene'], csq['SYMBOL']))
+                self.mygene_cache[csq['Gene']] = [''] * 8
                 return [''] * 8
             elif len(results['hits']) > 1:
                 self.logger.warn("Multiple ({}) ".format(len(results['hits']))+
-                                 "MyGene hits for gene {}".format(csq['GENE'])+
+                                 "MyGene hits for gene {}/{}".format(
+                                     csq['Gene'], csq['SYMBOL']) +
                                  " - will use first hit only.")
             data = []
             for field in MG_FIELDS:
@@ -544,7 +555,9 @@ class VaseReporter(object):
                         data.append("Not found")
                 elif field == 'go':
                     for subgo in ['BP', 'CC', 'MF']:
-                        if isinstance(results['hits'][0]['go'][subgo], dict):
+                        if subgo not in results['hits'][0]['go']:
+                            data.append("Not found")
+                        elif isinstance(results['hits'][0]['go'][subgo], dict):
                             data.append(
                                 results['hits'][0]['go'][subgo]['term'])
                         elif isinstance(results['hits'][0]['go'][subgo], list):
@@ -557,6 +570,7 @@ class VaseReporter(object):
                                           results['hits'][0]['generif']]))
                 else:
                     data.append(results['hits'][0][field])
+                self.mygene_cache[csq['Gene']] = data
             return data
         return [''] * 8
 
