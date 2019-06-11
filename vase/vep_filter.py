@@ -387,8 +387,8 @@ class VepFilter(object):
                 benign.extend(('benign' in x for x in assertions))
                 path.extend(('pathogenic' in x for x in assertions))
         if self.no_conflicted:
-            return sum(path) and not sum(benign)
-        return sum(path)
+            return any(path) and not any(benign)
+        return any(path)
 
     def _read_csq_file(self):
         data_file = os.path.join(os.path.dirname(__file__),
