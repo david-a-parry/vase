@@ -67,7 +67,7 @@ class VepFilter(object):
                         splice_region_variants rather than missense.
                         Currently only dbscSNV (rf_score and ada_score),
                         MaxEntScan and SpliceDistance
-                        (https://github.com/gantzgraf/SpliceDistance)
+                        (https://github.com/david-a-parry/SpliceDistance)
                         annotations are supported. This option can be
                         used to, for example, retain
                         splice region variants that are have
