@@ -464,7 +464,7 @@ class VaseReporter(object):
         if csq['Feature'] not in self.rest_cache:
             if not ENST.match(csq['Feature']):
                 self.logger.warn("Skipping REST lookup of non-Ensembl " +
-                                 "transcript feature" +
+                                 "transcript feature " +
                                  "'{}'".format(csq['Feature']))
                 self.rest_cache[csq['Feature']] = [''] * 5
             else:
