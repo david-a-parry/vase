@@ -18,7 +18,7 @@ made by calling all of your samples simultaneously (e.g. using the [GATK
 joint-calling workflow](https://gatkforums.broadinstitute.org/gatk/discussion/3893/calling-variants-on-cohorts-of-samples-using-the-haplotypecaller-in-gvcf-mode)).
 
 Detailed instructions and examples to follow in the VASE
-[wiki](https://github.com/gantzgraf/vase/wiki).
+[wiki](https://github.com/david-a-parry/vase/wiki).
 
 ## INSTALLATION
 
@@ -30,14 +30,19 @@ which is required if you want to write directly to bgzipped output.
 To install the vase script to $HOME/.local/bin (or possibly on Mac OS
 /Users/$USER/Library/Python/3.\*/bin/) the simplest way is to use pip:
 
-    pip3 install git+git://github.com/gantzgraf/vase.git --user
+    pip3 install git+git://github.com/david-a-parry/vase.git --user
+
+To install with the extra moduls required for bgzip output and vase_reporter
+functionality (recommended) use the following:
+
+    pip3 install git+git://github.com/david-a-parry/vase.git#egg=project[BGZIP,REPORTER,MYGENE] --user
 
 To install system-wide remove the --user flag and ensure you have root 
 priveleges (e.g. using sudo).
 
 Alternatively, you may first clone this repository:
 
-    git clone https://github.com/gantzgraf/vase.git
+    git clone https://github.com/david-a-parry/vase.git
 
 Alternatively use the 'Clone or download' button above. From the newly created 
 vase directory you may install either by running the setup.py script as 
@@ -47,7 +52,12 @@ follows:
 
 or by using pip, if installed:
 
+    #without extras
     pip3 install . --user
+
+    #with extras (recommended)
+    pip3 install .[BGZIP,REPORTER,MYGENEINFO] --user
+
 
 If you have root privileges you can install system wide as follows:
 
@@ -56,6 +66,7 @@ If you have root privileges you can install system wide as follows:
 or:
 
     sudo pip3 install .
+
 
 ## USAGE/OPTIONS
 
@@ -599,7 +610,7 @@ or:
                             are checked versus the given in silico prediction
                             programs. Currently only dbscSNV, (rf_score and
                             ada_score), MaxEntScan and SpliceDistance
-                            (https://github.com/gantzgraf/SpliceDistance)
+                            (https://github.com/david-a-parry/SpliceDistance)
                             plugins are supported.
                             
                             For example '--splice_filters ada_score' will
