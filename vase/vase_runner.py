@@ -522,10 +522,11 @@ class VaseRunner(object):
                 verdict.append(False)
             elif remove_alleles[i]:
                 verdict.append(True)
+            elif self.args.filter_known and matched_alleles[i]:
+                verdict.append(True)
             elif self.vcf_filters:
-                if self.args.filter_known and matched_alleles[i]:
-                    verdict.append(True)
-                elif self.args.filter_novel and not matched_alleles[i]:
+                #only apply filter_novel if we have supplied an external vcf
+                if self.args.filter_novel and not matched_alleles[i]:
                     verdict.append(True)
                 else:
                     verdict.append(False)
