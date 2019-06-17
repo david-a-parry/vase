@@ -430,7 +430,7 @@ class GtFilter(object):
         if ad == (None,): #no AD values - assume OK?
             return True
         al_dp = ad[allele]
-        dp = sum(ad)
+        dp = sum(filter(None, ad))
         if dp > 0 and al_dp is not None:
             ab = float(al_dp)/dp
             if ab > self.ref_ab_filter:
@@ -442,7 +442,7 @@ class GtFilter(object):
         aos = gts['AO'][sample]
         ro = gts['RO'][sample]
         if aos is not None and ro is not None:
-            dp = sum(aos) + ro
+            dp = sum(filter(None, aos)) + ro
             if dp > 0:
                 ao = aos[allele-1]
                 ab = float(ao)/ro
@@ -455,7 +455,7 @@ class GtFilter(object):
         if ad == (None,): #no AD values - assume OK?
             return True
         al_dp = ad[allele]
-        dp = sum(ad)
+        dp = sum(filter(None, ad))
         is_hom_alt = False
         is_het_alt = False
         if len(set(gts['GT'][sample])) == 1:
@@ -482,7 +482,7 @@ class GtFilter(object):
         elif allele in gts['GT'][sample]:
                 is_het_alt = True
         if aos is not None and ro is not None and (is_hom_alt or is_het_alt):
-            dp = sum(aos) + ro
+            dp = sum(filter(None, aos)) + ro
             if allele > 0:
                 ao = aos[allele-1]
             else:
