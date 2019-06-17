@@ -722,6 +722,9 @@ class VaseRunner(object):
                 return True
         if self.args.min_an and self.an_under_minimum(record):
             return True
+        if self.args.filter_asterisk_only_calls:
+            if len(record.ALLELES) == 2 and record.ALLELES[1] == '*':
+                return True
         return False
 
     def get_cadd_filter(self):

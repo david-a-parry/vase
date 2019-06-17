@@ -149,6 +149,12 @@ purpose).
 ''')
 
     filter_args.add_argument(
+'--filter_asterisk_only_calls', action='store_true', help=
+'''Filter variants where the only ALT allele is '*'.
+
+''')
+
+    filter_args.add_argument(
 '-af', '--af', type=float, help=
 '''Maximum AF value in input VCF. Any allele with an
 AF > than this value will be filtered.
