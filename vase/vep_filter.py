@@ -67,7 +67,7 @@ class VepFilter(object):
                         splice_region_variants rather than missense.
                         Currently only dbscSNV (rf_score and ada_score),
                         MaxEntScan and SpliceDistance
-                        (https://github.com/gantzgraf/SpliceDistance)
+                        (https://github.com/david-a-parry/SpliceDistance)
                         annotations are supported. This option can be
                         used to, for example, retain
                         splice region variants that are have
@@ -387,8 +387,8 @@ class VepFilter(object):
                 benign.extend(('benign' in x for x in assertions))
                 path.extend(('pathogenic' in x for x in assertions))
         if self.no_conflicted:
-            return sum(path) and not sum(benign)
-        return sum(path)
+            return any(path) and not any(benign)
+        return any(path)
 
     def _read_csq_file(self):
         data_file = os.path.join(os.path.dirname(__file__),

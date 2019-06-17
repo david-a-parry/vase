@@ -53,7 +53,10 @@ Default = STDOUT
 
     output_args.add_argument(
 '-r', '--report_prefix', help=
-'''Prefix for segregation summary report output
+'''DEPRECATED - use the 'vase_reporter' program
+provided alongside vase instead.
+
+Prefix for segregation summary report output
 files. If either --biallelic, --de_novo or
 --dominant options are in effect this option will
 write summaries for segregating variants to files
@@ -433,7 +436,7 @@ splice_acceptor_variant and splice_region_variant)
 are checked versus the given in silico prediction
 programs. Currently only dbscSNV, (rf_score and
 ada_score), MaxEntScan and SpliceDistance
-(https://github.com/gantzgraf/SpliceDistance)
+(https://github.com/david-a-parry/SpliceDistance)
 plugins are supported.
 
 For example '--splice_filters ada_score' will
@@ -557,8 +560,12 @@ for the provided gene/transcript/protein
 identifiers. The fourth column of the provided BED
 file should contain gene symbols and/or Ensembl
 gene/transcript/protein identifiers (multiple IDs
-should be separated with '/' characters.
+should be separated with '/' characters).
 Requires input to be annotated with VEP.
+
+A suitably formatted BED can be created using the
+'coordinates_from_genes' program installed with
+vase.
 
 ''')
 
@@ -750,7 +757,10 @@ builds later than this version will be filtered.
 files supplied to --gnomad, --dbsnp or
 --vcf_filter arguments, or if using '--csq' if any
 allele frequency is recorded for any of VEP's AF
-annotations.
+annotations. This will also filter
+alleles/variants if an annotation from --gnomad or
+--dbsnp is present from a previous run unless the
+--ignore_existing_annotations option is given.
 
 ''')
     file_args.add_argument(
