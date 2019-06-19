@@ -381,13 +381,18 @@ class InheritanceFilter(object):
 
     def check_g2p(self, record, ignore_csq, inheritance):
         if self.family_filter.g2p:
-            wrong_inherit = (not x for x in
-                             self.family_filter.g2p.allelic_requirement_met(
-                                 record, inheritance))
-            if ignore_csq:
-                ignore_csq = [x or y for x,y in zip(ignore_csq, wrong_inherit)]
+            if self.family_filter.check_g2p_consequences:
+                fail = (not x for x in
+                        self.family_filter.g2p.csq_and_allelic_requirement_met(
+                            record, inheritance))
             else:
-                ignore_csq = list(wrong_inherit)
+                fail = (not x for x in
+                        self.family_filter.g2p.allelic_requirement_met(
+                                     record, inheritance))
+            if ignore_csq:
+                ignore_csq = [x or y for x,y in zip(ignore_csq, fail)]
+            else:
+                ignore_csq = list(fail)
         return ignore_csq
 
 
