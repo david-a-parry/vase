@@ -1082,10 +1082,11 @@ class VaseRunner(object):
             g2p = self.g2p
         else:
             g2p = None
-        self.family_filter = FamilyFilter(ped=self.ped, vcf=self.input,
-                                          infer_inheritance=infer, g2p=g2p,
-                                          logging_level=self.logger.level)
-
+        self.family_filter = FamilyFilter(
+                        ped=self.ped, vcf=self.input,
+                        infer_inheritance=infer, g2p=g2p,
+                        check_g2p_consequence=self.args.check_g2p_consequence,
+                        logging_level=self.logger.level)
         for s in self.args.seg_controls:
             indv = Individual(s, s, 0, 0, 0, 1)
             try:
