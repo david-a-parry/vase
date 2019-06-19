@@ -11,6 +11,8 @@ from collections import namedtuple, OrderedDict, defaultdict
 from .ped_file import PedFile, Family, Individual, PedError
 from parse_vcf import VcfReader, VcfHeader, VcfRecord
 from .ensembl_rest_queries import EnsemblRestQueries
+from .utils import csv_to_dict
+from .g2p import G2P
 
 ENST = re.compile(r'''^ENS\w*T\d{11}(\.\d+)?''')
 ENTREZ_RE = re.compile(r'''(\d+)(\|(\d+))*''')
@@ -72,21 +74,6 @@ mutation_consequence_to_csq = {
 impact_order = dict((k,n) for n,k in enumerate(['HIGH', 'MODERATE', 'LOW',
                                               'MODIFIER']))
 
-def csv_to_dict(f, index, fieldnames, delimiter=','):
-    d = dict()
-    method = open
-    if f.endswith(".gz") or f.endswith(".bgz"):
-        method = gzip.open
-    with method(f, 'rt', newline='') as csvfile:
-        reader = csv.DictReader(csvfile, delimiter=delimiter)
-        for x in fieldnames:
-            if x not in reader.fieldnames:
-                raise RuntimeError("Missing '{}' ".format(x) + "field in" +
-                                   " file '{}'".format(f))
-        for row in reader:
-            d[row[index]] = row
-    return d
-
 
 class VaseReporter(object):
     '''
@@ -143,7 +130,7 @@ class VaseReporter(object):
         self.allelic_requirement = allelic_requirement
         self.mutation_requirement = mutation_requirement
         if g2p:
-            self.g2p = self._read_g2p_csv(g2p)
+            self.g2p = G2P(g2p)
         elif self.require_g2p:
             raise RuntimeError("--filter_non_g2p option requires a G2P " +
                                "CSV to be supplied with the --g2p argument")
@@ -418,26 +405,12 @@ class VaseReporter(object):
                 biotype_order[cols[0]] = int(cols[2])
         return biotype_order
 
-    def _read_g2p_csv(self, g2p):
-        required_fields = ['gene symbol', 'disease name', 'DDD category',
-                           'allelic requirement', 'mutation consequence',
-                           'organ specificity list', 'prev symbols']
-        g2p = csv_to_dict(g2p, 'gene symbol', required_fields)
-        prev_symbol_d = dict()
-        for row in g2p.values():
-            if row['prev symbols']:
-                for prev in row['prev symbols'].split(';'):
-                    if prev not in g2p:
-                        prev_symbol_d[prev] = row
-        g2p.update(prev_symbol_d)
-        return g2p
-
     def _read_gnomad_constraint(self, constraint_file):
         required_fields = ["gene", "transcript", "canonical", "mis_z", "syn_z",
                            "pLI", "pRec", "pNull", "gene_issues"]
         d = csv_to_dict(constraint_file, 'transcript', required_fields,
-                        delimiter='\t')
-        #in case we transcript ref differs, also index on gene name
+                        delimiter='\t', keys_are_unique=True)
+        #in case our transcript ref differs, also index on gene name
         gene_d = dict()
         for v in d.values():
             if v["gene"] not in d and v["canonical"] == 'true':
@@ -605,8 +578,8 @@ class VaseReporter(object):
 
     def get_g2p_data(self, csq):
         d = [''] * 5
-        if csq['SYMBOL'] in self.g2p:
-            d = [self.g2p[csq['SYMBOL']][f] for f in
+        if csq['SYMBOL'] in self.g2p.g2p:
+            d = ["|".join(x[f] for x in self.g2p.g2p[csq['SYMBOL']]) for f in
                  ['disease name', 'DDD category', 'allelic requirement',
                   'mutation consequence', 'organ specificity list']]
         return d
@@ -630,12 +603,12 @@ class VaseReporter(object):
             #column order is: Inheritance, vcf_output_columns, allele, AC, AN,
             #                 GTS, VEP fields
             if self.require_g2p:
-                if csq['SYMBOL'] not in self.g2p:
+                if csq['SYMBOL'] not in self.g2p.g2p:
                     continue
                 if self.allelic_requirement:
                     inh_ok = False
-                    req = self.g2p[csq['SYMBOL']]['allelic requirement']
-                    if req:
+                    for req in (x['allelic requirement'] for x in
+                                self.g2p.g2p[csq['SYMBOL']]):
                         for r in req.split(","):
                             if allelic_req_to_label[r] is not None:
                                 if inheritance in allelic_req_to_label[req]:
@@ -644,14 +617,8 @@ class VaseReporter(object):
                     if not inh_ok:
                         continue
                 if self.mutation_requirement:
-                    csq_ok = False
-                    req = self.g2p[csq['SYMBOL']]['mutation consequence']
-                    if req == 'uncertain':
-                        csq_ok = True
-                    elif any(x in csq['Consequence'].split('&') for x in
-                             mutation_consequence_to_csq[req]):
-                        csq_ok = True
-                    if not csq_ok:
+                    if not self.g2p.csq_matches_requirement(csq,
+                                                            keep_uncertain=True):
                         continue
             if self.blacklist:
                 if csq['Feature'] in self.blacklist:
