@@ -12,7 +12,7 @@ class FamilyFilter(object):
 
     '''
 
-    def __init__(self, ped, vcf, infer_inheritance=True,
+    def __init__(self, ped, vcf, infer_inheritance=True, g2p=None,
                  force_inheritance=None, logging_level=logging.WARNING):
         '''
             Initialize with Family object from ped_file.py and a
@@ -37,6 +37,9 @@ class FamilyFilter(object):
                         (keys are families, values are lists of
                         inheritance patterns).
 
+                g2p:    G2P object from vase.g2p for filtering on
+                        presence and/or requirements from a G2P file.
+
                 force_inheritance:
                         Optionally specify an inheritance pattern to
                         test for each family - either 'dominant' or
@@ -55,6 +58,7 @@ class FamilyFilter(object):
         self.obligate_carriers = dict()
         self.ped = ped
         self.vcf = vcf
+        self.g2p = g2p
         if not self.affected:
             raise RuntimeError("No affected individuals found in PED file '{}'"
                                .format(ped.filename))
@@ -375,6 +379,17 @@ class InheritanceFilter(object):
         header +=  "\tCHROM\tPOS\tID\tREF\tALT\tALLELE\tQUAL\tFILTER"
         self.report_file.write(header + "\n")
 
+    def check_g2p(self, record, ignore_csq, inheritance):
+        if self.family_filter.g2p:
+            wrong_inherit = (not x for x in
+                             self.family_filter.g2p.allelic_requirement_met(
+                                 record, inheritance))
+            if ignore_csq:
+                ignore_csq = [x or y for x,y in zip(ignore_csq, wrong_inherit)]
+            else:
+                ignore_csq = list(wrong_inherit)
+        return ignore_csq
+
 
 class RecessiveFilter(InheritanceFilter):
     '''
@@ -596,7 +611,6 @@ class RecessiveFilter(InheritanceFilter):
             Args:
                 record: VcfRecord from parse_vcf.py
 
-
                 ignore_alleles:
                         List of booleans indicating for each ALT in
                         order whether it should be ignored in relation
@@ -616,6 +630,9 @@ class RecessiveFilter(InheritanceFilter):
         '''
         stored = False
         self._check_sorted(record)
+        ignore_csq = self.check_g2p(record, ignore_csq, 'recessive')
+        if ignore_csq and sum(ignore_csq) == len(ignore_csq):
+            return False
         if record.IS_SV:
             gts = record.parsed_gts(fields=self._sv_gt_fields,
                                     samples=self.samples)
@@ -1087,6 +1104,9 @@ class DominantFilter(InheritanceFilter):
         '''
         dom_alleles = ([[] for i in range(len(record.ALLELES) - 1)])
         fam_alleles = ([[] for i in range(len(record.ALLELES) - 1)])
+        ignore_csq = self.check_g2p(record, ignore_csq, 'dominant')
+        if ignore_csq and sum(ignore_csq) == len(ignore_csq):
+            return False
         if self.min_families > 1:
             self._check_sorted(record)
         for i in range(len(record.ALLELES) - 1):
@@ -1471,6 +1491,9 @@ class DeNovoFilter(InheritanceFilter):
         '''
         if self.min_families > 1:
             self._check_sorted(record)
+        ignore_csq = self.check_g2p(record, ignore_csq, 'de novo')
+        if ignore_csq and sum(ignore_csq) == len(ignore_csq):
+            return False
         denovo_alleles = ([[] for i in range(len(record.ALLELES) - 1)])
         fam_alleles = ([[] for i in range(len(record.ALLELES) - 1)])
         for i in range(len(record.ALLELES) - 1):
