@@ -3,10 +3,10 @@ from collections import defaultdict
 from .utils import csv_to_dict
 
 allelic_req_to_label = {'biallelic'                 : ['recessive'],
-                        'digenic'                   : None,
+                        'digenic'                   : [],
                         'hemizygous'                : ['recessive'],
-                        'imprinted'                 : None,
-                        'mitochondrial'             : None,
+                        'imprinted'                 : [],
+                        'mitochondrial'             : [],
                         'monoallelic'               : ['de novo', 'dominant'],
                         'mosaic'                    : ['de novo', 'dominant'],
                         'x-linked dominant'         : ['de novo', 'dominant'],
@@ -142,6 +142,45 @@ class G2P(object):
                         'recessive', 'dominant' or 'de novo'.
 
         '''
-        return (any(inheritance in
-                    allelic_req_to_label[x['allelic requirement']] for
-                    x in  self.g2p[csq['SYMBOL']]) for csq in record.CSQ)
+        return (any(inheritance in allelic_req_to_label[y] for x in
+                    g2p.g2p[csq['SYMBOL']] for y in
+                    x['allelic requirement'].split(',')) for csq in record.CSQ)
+
+    def csq_and_allelic_requirement_met(self, record, inheritance,
+                                        keep_uncertain=True):
+        '''
+            Return True or False for each CSQ annotation in a record
+            indicating whether the consequence affects a gene in the G2P
+            data associated with the given inheritance pattern with a
+            matching consequence type.
+
+            Args:
+                record: VcfRecord object with VEP annotations.
+
+                inheritance:
+                        Inheritance patten to check - i.e. one of
+                        'recessive', 'dominant' or 'de novo'.
+
+                keep_uncertain:
+                        If True return True for any consequence for G2P
+                        genes with a value of 'uncertain' or '' in the
+                        'mutation consequence' column. If False return
+                        False for these consequences.
+        '''
+        met = []
+        for csq in record.CSQ:
+            verdict = False
+            for d in self.g2p[csq['SYMBOL']]:
+                req = d['allelic requirement']
+                if any(inheritance in allelic_req_to_label[r] for r in
+                       req.split(',')):
+                    if mutation_to_csq[d['mutation consequence']] is None:
+                        if keep_uncertain:
+                            verdict = True
+                            break
+                    elif any(x in csq['Consequence'].split('&') for x in
+                           mutation_to_csq[d['mutation consequence']]):
+                        verdict = True
+                        break
+            met.append(verdict)
+        return met
