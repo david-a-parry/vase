@@ -536,9 +536,7 @@ only be retained if there are no conflicting
 '''A G2P CSV file for filtering variants based on G2P
 annotations. Requires your VCF to be annotated
 with VEP. Only variants with consequences
-affecting genes in this file will be retained. A
-VASE_G2P annotation will be added to the INFO
-field of your output.
+affecting genes in this file will be retained.
 
 ''')
 
