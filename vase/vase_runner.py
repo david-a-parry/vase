@@ -18,7 +18,7 @@ from .region_iter import RegionIter
 from .gt_annotator import GtAnnotator
 from .spliceai_filter import SpliceAiFilter, filter_on_splice_ai
 from .info_filter import InfoFilter
-
+from .g2p import G2P
 
 class VaseRunner(object):
 
@@ -49,6 +49,7 @@ class VaseRunner(object):
         if args.ped:
             self.ped = PedFile(args.ped)
         self.csq_filter = None
+        self.g2p = None
         self.gene_filter = None
         self.retrieving_by_region = False
         #region, bed and gene_bed args are mutually exclusive (handled by parser)
@@ -80,7 +81,10 @@ class VaseRunner(object):
             self.var_stream = self.gene_filter
             self.retrieving_by_region = True
             self.logger.info("Finished processing intervals.")
-        if args.csq is not None or args.impact is not None:
+        if args.g2p is not None:
+            self.g2p = G2P(args.g2p)
+        if (args.csq is not None or args.impact is not None or self.args.g2p is
+            not None):
             if args.no_vep_freq:
                 if args.vep_af:
                     self.logger.warn("Ignoring --vep_af argument because " +
@@ -116,6 +120,8 @@ class VaseRunner(object):
                     blacklist=args.feature_blacklist,
                     pathogenic=args.pathogenic,
                     no_conflicted=args.no_conflicted,
+                    g2p=self.g2p,
+                    check_g2p_consequence=self.args.check_g2p_consequence,
                     logging_level=self.logger.level)
         self.sample_filter = None
         self.burden_counter = None
@@ -174,6 +180,13 @@ class VaseRunner(object):
             seg_info.extend(self._get_recessive_filter())
         if args.dominant or args.singleton_dominant:
             seg_info.extend(self._get_dominant_filter())
+        if args.check_g2p_inheritance:
+            if (not self.dominant_filter and not self.recessive_filter and
+                    not self.de_novo_filter):
+                raise RuntimeError("--check_g2p_inheritance option requires " +
+                                   "at least one segregation option (e.g. " +
+                                   "--recessive, --dominant or --de_novo) " + 
+                                   "to be selected.")
         self._check_got_inherit_filter()
         self._set_seg_annot_cleanup(seg_info)
         self.var_written = 0
@@ -1065,8 +1078,12 @@ class VaseRunner(object):
                 self.ped = self._make_ped_io()
                 no_ped = True
                 infer = False
+        if self.args.check_g2p_inheritance:
+            g2p = self.g2p
+        else:
+            g2p = None
         self.family_filter = FamilyFilter(ped=self.ped, vcf=self.input,
-                                          infer_inheritance=infer,
+                                          infer_inheritance=infer, g2p=g2p,
                                           logging_level=self.logger.level)
 
         for s in self.args.seg_controls:

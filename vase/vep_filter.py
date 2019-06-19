@@ -18,6 +18,7 @@ class VepFilter(object):
                  filter_flagged_features=False, freq=None, min_freq=None,
                  afs=[], gene_filter=None, blacklist=None,filter_known=False,
                  filter_novel=False, pathogenic=False, no_conflicted=False,
+                 g2p=None, check_g2p_consequence=False,
                  logging_level=logging.WARNING):
         '''
             Args:
@@ -142,6 +143,15 @@ class VepFilter(object):
                         consequences if there are no conflicting
                         'benign' or 'likely benign' assertions.
 
+                g2p:
+                        G2P object from vase.g2p for filtering on
+                        presence and/or requirements from a G2P file.
+
+                check_g2p_consequence:
+                        If a G2P object is provided above, require that
+                        that the observed consequence matches the
+                        'mutation consequence' in the G2P file.
+
                 logging_level:
                         Logging level to use. Default=logging.WARNING.
 
@@ -246,6 +256,8 @@ class VepFilter(object):
         self.blacklist = self._read_blacklist(blacklist)
         self.pathogenic = pathogenic
         self.no_conflicted = no_conflicted
+        self.g2p = g2p
+        self.check_g2p_consequence = check_g2p_consequence
         if pathogenic:
             self.path_fields = self._get_path_fields(vcf)
 
@@ -284,6 +296,9 @@ class VepFilter(object):
             if self.gene_filter:
                 if not self.gene_filter.target_in_csq(c):
                     continue
+            if self.g2p:
+                if c['SYMBOL'] not in self.g2p.g2p:
+                    continue
             if self.blacklist and c['Feature'] in self.blacklist:
                 continue
             if (self.freq or self.min_freq or self.filter_known or
@@ -316,7 +331,8 @@ class VepFilter(object):
                     filter_af[alt_i] = True
                 if filter_af[alt_i]:
                     continue
-            if self.csq is None and self.impact is None:
+            if (self.csq is None and self.impact is None and
+                    not self.check_g2p_consequence):
                 #if only using biotypes/MAF for filtering
                 filter_alleles[alt_i] = False
                 filter_csq[i] = False
@@ -329,9 +345,12 @@ class VepFilter(object):
                 filter_alleles[alt_i] = False
                 filter_csq[i] = False
                 continue
-            consequence = [x.lower() for x in c['Consequence'].split('&')]
-            for s_csq in consequence:
-                if ((self.csq is not None and s_csq in self.csq) or
+            if self.check_g2p_consequence and self.g2p:
+                filt_csq = self.g2p.consequences_from_gene(c['SYMBOL'])
+            else:
+                filt_csq = self.csq
+            for s_csq in [x.lower() for x in c['Consequence'].split('&')]:
+                if ((filt_csq is not None and s_csq in filt_csq) or
                     (self.impact is not None and c['IMPACT'] in self.impact)):
                     if self.in_silico and s_csq == 'missense_variant':
                         do_filter = self.in_silico.filter(c)

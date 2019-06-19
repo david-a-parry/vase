@@ -531,6 +531,37 @@ only be retained if there are no conflicting
 
 ''')
 
+    filter_args.add_argument(
+'--g2p', help=
+'''A G2P CSV file for filtering variants based on G2P
+annotations. Requires your VCF to be annotated
+with VEP. Only variants with consequences
+affecting genes in this file will be retained. A
+VASE_G2P annotation will be added to the INFO
+field of your output.
+
+''')
+
+    filter_args.add_argument(
+'--check_g2p_consequence', action='store_true', help=
+'''If using --g2p option, use this flag to require
+that the observed consequence matches the
+'mutation consequence' in the specified G2P file.
+
+''')
+
+    filter_args.add_argument(
+'--check_g2p_inheritance', action='store_true', help=
+'''If using --g2p option, use this flag to require
+that the observed inheritance or
+hetero/hemi/homozygosity of alleles match the
+requirement specified in the specified G2P file.
+Requires at least one of --recessive/--de_novo/
+--dominant/singleton_recessive/singleton_dominant
+arguments.
+
+''')
+
     #args for specifying files for annotations/filtering
     bed_args.add_argument(
 '--region', metavar='REGION', nargs='+', help=
