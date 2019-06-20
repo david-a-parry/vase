@@ -11,6 +11,7 @@ allelic_req_to_label = {'biallelic'                 : ['recessive'],
                         'mosaic'                    : ['de novo', 'dominant'],
                         'x-linked dominant'         : ['de novo', 'dominant'],
                         'x-linked over-dominance'   : ['de novo', 'dominant'],
+                        ''                          : [],
                        }
 
 mutation_to_csq = {
@@ -23,6 +24,7 @@ mutation_to_csq = {
                                            'transcript_ablation',
                                            'feature_truncation',],
     'uncertain'                          : None,
+    ''                                   : None,
     'all missense/in frame'              : ['missense_variant',
                                            'inframe_deletion',
                                            'inframe_insertion',],
@@ -143,7 +145,7 @@ class G2P(object):
 
         '''
         return (any(inheritance in allelic_req_to_label[y] for x in
-                    g2p.g2p[csq['SYMBOL']] for y in
+                    self.g2p[csq['SYMBOL']] for y in
                     x['allelic requirement'].split(',')) for csq in record.CSQ)
 
     def csq_and_allelic_requirement_met(self, record, inheritance,
