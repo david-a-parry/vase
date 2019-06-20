@@ -13,7 +13,8 @@ class FamilyFilter(object):
     '''
 
     def __init__(self, ped, vcf, infer_inheritance=True, g2p=None,
-                 force_inheritance=None, logging_level=logging.WARNING):
+                 check_g2p_consequence=None, force_inheritance=None,
+                 logging_level=logging.WARNING):
         '''
             Initialize with Family object from ped_file.py and a
             VcfReader object from parse_vcf.py. You may also specify an
@@ -59,6 +60,7 @@ class FamilyFilter(object):
         self.ped = ped
         self.vcf = vcf
         self.g2p = g2p
+        self.check_g2p_consequence = check_g2p_consequence
         if not self.affected:
             raise RuntimeError("No affected individuals found in PED file '{}'"
                                .format(ped.filename))
@@ -381,7 +383,7 @@ class InheritanceFilter(object):
 
     def check_g2p(self, record, ignore_csq, inheritance):
         if self.family_filter.g2p:
-            if self.family_filter.check_g2p_consequences:
+            if self.family_filter.check_g2p_consequence:
                 fail = (not x for x in
                         self.family_filter.g2p.csq_and_allelic_requirement_met(
                             record, inheritance))
