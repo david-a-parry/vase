@@ -94,15 +94,18 @@ class G2P(object):
 
                 keep_uncertain:
                         If True return True for any consequence for G2P
-                        genes with a value of 'uncertain' in the
+                        genes with a value of 'uncertain' or '' in the
                         'mutation consequence' column. If False return
                         False for these consequences.
         '''
         if csq['SYMBOL'] in self.g2p:
             for req in (x['mutation consequence'] for x in
                         self.g2p[csq['SYMBOL']]):
-                if keep_uncertain and req == 'uncertain':
-                    return True
+                if mutation_to_csq[req] is None:
+                    if keep_uncertain:
+                        return True
+                    else:
+                        return False
                 elif any(x in csq['Consequence'].split('&') for x in
                          mutation_to_csq[req]):
                     return True
