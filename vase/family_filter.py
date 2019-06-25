@@ -39,7 +39,17 @@ class FamilyFilter(object):
                         inheritance patterns).
 
                 g2p:    G2P object from vase.g2p for filtering on
-                        presence and/or requirements from a G2P file.
+                        presence and inheritance requirements from a G2P
+                        file.
+
+                check_g2p_consequence:
+                        If using a G2P object for gene filtering, also
+                        filter on consequence type as described for each
+                        gene. Note that the mapping of mutation
+                        consequence to consequence type is quite crude
+                        and should be used with caution (see the
+                        mutation_to_csq dict in vase/g2p.py for the
+                        mappings used).
 
                 force_inheritance:
                         Optionally specify an inheritance pattern to
