@@ -148,7 +148,7 @@ class G2P(object):
 
         '''
         return (any(inheritance in allelic_req_to_label[y] for x in
-                    g2p.g2p[csq['SYMBOL']] for y in
+                    self.g2p[csq['SYMBOL']] for y in
                     self.g2p[csq['SYMBOL']] for y in
                     x['allelic requirement'].split(',')) for csq in record.CSQ)
 
