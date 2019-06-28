@@ -3,7 +3,7 @@ import re
 import logging
 import io
 from parse_vcf import VcfReader, VcfHeader, VcfRecord
-from .dbsnp_filter import dbSnpFilter
+from .dbsnp_filter import dbSnpFilter, clinvar_path_annot
 from .gnomad_filter import GnomadFilter
 from .vcf_filter import VcfFilter
 from .vep_filter import VepFilter
@@ -709,8 +709,8 @@ class VaseRunner(object):
                 if parsed[annot][i] is not None:
                     matched[i] = True
                     if self.args.clinvar_path:
-                        if ([i for i in ['4', '5'] if i in
-                            parsed[annot][i].split('|')]):
+                        if any(x for x in clinvar_path_annot if x in
+                                parsed[annot][i].split('|')):
                                 keep[i] = True
         return keep,matched
 
@@ -1043,9 +1043,9 @@ class VaseRunner(object):
         return fh
 
     def get_report_filehandles(self):
-        fhs = {'recessive' : None,
-               'dominant' : None,
-               'de_novo' : None,}
+        fhs = {'recessive': None,
+               'dominant':  None,
+               'de_novo':   None,}
         if self.args.report_prefix is not None:
             if self.args.biallelic or self.args.singleton_recessive:
                 f = self.args.report_prefix + ".recessive.report.tsv"
