@@ -214,15 +214,15 @@ class dbSnpFilter(VcfFilter):
         # if no build fields if filtering on build, but let lack of ClinVar
         # fields slide as clinvar filtering may be occuring with a separate
         # ClinVar file
-        if not self.freq_fields and (self.freq is not None or
-                                     self.min_freq is not None):
+        if not self.freq_fields and not self.clinvar_path and (
+                self.freq is not None or self.min_freq is not None):
             raise RuntimeError("ERROR: no frequency fields identified in " +
                                "dbSNP VCF header for file '{}'." .format(
                                self.vcf.filename) + " Unable to use freq/" +
                                "min_freq arguments for variant filtering.")
 
-        if not self.build_fields and (self.build is not None or
-                                     self.max_build is not None):
+        if not self.build_fields and not self.clinvar_path and (
+                self.build is not None or self.max_build is not None):
             raise RuntimeError("ERROR: no dbSNPBuildID field identified in " +
                                "dbSNP VCF header for file '{}'. "
                                .format(self.vcf.filename) +
