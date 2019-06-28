@@ -259,9 +259,9 @@ class VcfFilter(object):
             name = an.replace("AN", "AF", 1)
             ac = an.replace("AN", "AC", 1)
             desc = ('"{} INFO field parsed by {} object. '.format(
-                    name, type(self).__name__) + "Calculated from {} and {} "
-                    .format(ac, an) + "from file {}.".format(self.vcf.filename)
-                   )
+                    name, type(self).__name__) + 'Calculated from {} and {} '
+                    .format(ac, an) + 'from file {}."'.format(
+                        self.vcf.filename))
             self.added_info[self.prefix + "_" + name] = {'Number' : 'A',
                                                          'Type' : 'Float',
                                                          'Description' : desc }
