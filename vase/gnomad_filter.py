@@ -61,7 +61,7 @@ class GnomadFilter(VcfFilter):
 
     def filter_including_homozygotes(self, record):
         filt, keep, matched = super().annotate_and_filter_record(record)
-        if sum(filt) == len(filt):
+        if all(filt):
             #no need to check homozygotes - filtering anyway
             return filt, keep, matched
         hom_info = record.parsed_info_fields(self.hom_annots)

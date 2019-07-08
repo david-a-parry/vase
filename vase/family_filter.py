@@ -648,7 +648,7 @@ class RecessiveFilter(InheritanceFilter):
         stored = False
         self._check_sorted(record)
         ignore_csq = self.check_g2p(record, ignore_csq, 'recessive')
-        if ignore_csq and sum(ignore_csq) == len(ignore_csq):
+        if ignore_csq and all(ignore_csq):
             return False
         if record.IS_SV:
             gts = record.parsed_gts(fields=self._sv_gt_fields,
@@ -1122,7 +1122,7 @@ class DominantFilter(InheritanceFilter):
         dom_alleles = ([[] for i in range(len(record.ALLELES) - 1)])
         fam_alleles = ([[] for i in range(len(record.ALLELES) - 1)])
         ignore_csq = self.check_g2p(record, ignore_csq, 'dominant')
-        if ignore_csq and sum(ignore_csq) == len(ignore_csq):
+        if ignore_csq and all(ignore_csq):
             return False
         if self.min_families > 1:
             self._check_sorted(record)
@@ -1509,7 +1509,7 @@ class DeNovoFilter(InheritanceFilter):
         if self.min_families > 1:
             self._check_sorted(record)
         ignore_csq = self.check_g2p(record, ignore_csq, 'de novo')
-        if ignore_csq and sum(ignore_csq) == len(ignore_csq):
+        if ignore_csq and all(ignore_csq):
             return False
         denovo_alleles = ([[] for i in range(len(record.ALLELES) - 1)])
         fam_alleles = ([[] for i in range(len(record.ALLELES) - 1)])

@@ -241,13 +241,13 @@ class VaseRunner(object):
         if self.var_types:
             filter_alleles = [x.var_type not in self.var_types for x in
                               record.DECOMPOSED_ALLELES]
-            if sum(filter_alleles) == len(filter_alleles):
+            if all(filter_alleles):
                 #no ALT matches any variant type asked for
                 self.var_filtered += 1
                 return
         filter_alleles, filter_csq = self.filter_alleles_external(record,
                                                                 filter_alleles)
-        if sum(filter_alleles) == len(filter_alleles):
+        if all(filter_alleles):
             #all alleles should be filtered
             self.var_filtered += 1
             return
@@ -256,7 +256,7 @@ class VaseRunner(object):
                 r = self.sample_filter.filter(record, i)
                 if r:
                     filter_alleles[i-1] = True
-                if sum(filter_alleles) == len(filter_alleles):
+                if all(filter_alleles):
                     #all alleles should be filtered
                     self.var_filtered += 1
                     return
@@ -324,7 +324,7 @@ class VaseRunner(object):
             else:
                 self.var_filtered += 1
         else:
-            if sum(filter_alleles) == len(filter_alleles):
+            if all(filter_alleles):
                 self.var_filtered += 1
                 return
             if self.burden_counter:
@@ -417,15 +417,14 @@ class VaseRunner(object):
         if self.info_filter:
             r_alts = self.info_filter.filter(record)
             self._set_to_true_if_true(remove_alleles, r_alts)
-            if (sum(remove_alleles) == len(remove_alleles)):
+            if all(remove_alleles):
                 # bail out now if no valid allele and not keeping clinvar
                 return remove_alleles, remove_csq
         #check VCF's internal AF
         if self.args.af or self.args.min_af:
             r_alts = self.filter_on_af(record)
             self._set_to_true_if_true(remove_alleles, r_alts)
-            if (not self.args.clinvar_path and
-                sum(remove_alleles) == len(remove_alleles)):
+            if (not self.args.clinvar_path and all(remove_alleles)):
                 # bail out now if no valid allele and not keeping clinvar
                 # path variants - if using clinvar path we have to ensure we
                 # haven't got a path variant with a non-qualifying allele
@@ -434,8 +433,7 @@ class VaseRunner(object):
         if self.args.ac or self.args.min_ac:
             r_alts = self.filter_on_ac(record)
             self._set_to_true_if_true(remove_alleles, r_alts)
-            if (not self.args.clinvar_path and
-                sum(remove_alleles) == len(remove_alleles)):
+            if (not self.args.clinvar_path and all(remove_alleles)):
                 # bail out now if no valid allele and not keeping clinvar
                 return remove_alleles, remove_csq
         #check functional consequences
@@ -465,8 +463,7 @@ class VaseRunner(object):
                                       zip(remove_alleles, splice_alleles)]
                     remove_csq = [False if y else x for x,y in zip(remove_csq,
                                                                    splice_csq)]
-            if (not self.args.clinvar_path and
-                sum(remove_alleles) == len(remove_alleles)):
+            if (not self.args.clinvar_path and all(remove_alleles)):
                 # bail out now if no valid consequence
                 return remove_alleles, remove_csq
         elif (self.splice_ai_filter or self.args.splice_ai_min_delta or
@@ -498,8 +495,7 @@ class VaseRunner(object):
         if self.cadd_filter:
             r_alts = self.cadd_filter.annotate_or_filter(record)
             self._set_to_true_if_true(remove_alleles, r_alts)
-            if (not self.args.clinvar_path and
-                sum(remove_alleles) == len(remove_alleles)):
+            if (not self.args.clinvar_path and all(remove_alleles)):
                 # bail out now if no valid consequence and not keeping clinvar
                 # path variants - if using clinvar path we have to ensure we
                 # haven't got a path variant with a non-qualifying consequence

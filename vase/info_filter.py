@@ -125,7 +125,7 @@ class InfoFilter(object):
                         if x is not None and not op(x, value):
                             filter_alleles = [True] * (len(record.ALLELES) -1)
                             break
-            if sum(filter_alleles) == len(filter_alleles):
+            if all(filter_alleles):
                 #all alleles filtered
                 break
         return filter_alleles
