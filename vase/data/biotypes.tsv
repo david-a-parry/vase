@@ -31,8 +31,9 @@ sense_intronic	default	28
 sense_overlapping	default	29
 retained_intron	valid	30
 transcribed_processed_pseudogene	valid	31
-processed_pseudogene	valid	32
-transcribed_unprocessed_pseudogene	valid	33
+transcribed_unitary_pseudogene	valid	32
+transcribed_unprocessed_pseudogene	valid	32
+processed_pseudogene	valid	33
 pseudogene	valid	34
 TR_J_pseudogene	valid	35
 TR_V_pseudogene	valid	36
