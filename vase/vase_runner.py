@@ -447,10 +447,8 @@ class VaseRunner(object):
                                     max_delta=self.args.splice_ai_max_delta,
                                     check_symbol=True,
                                     canonical_csq=self.args.canonical)
-                remove_alleles = [False if y else x for x,y in
-                                  zip(remove_alleles, splice_alleles)]
-                remove_csq = [False if y else x for x,y in zip(remove_csq,
-                                                               splice_csq)]
+                self._set_to_false_if_true(remove_alleles, splice_alleles)
+                self._set_to_false_if_true(remove_csq, splice_csq)
             if self.splice_ai_filter:
                 splice_alleles, splice_csq = (
                 self.splice_ai_filter.annotate_or_filter(record,
@@ -459,10 +457,8 @@ class VaseRunner(object):
                 if (self.args.splice_ai_min_delta
                     or self.args.splice_ai_max_delta):
                     #RETAIN Alleles/csq if SpliceAI scores meet threshold
-                    remove_alleles = [False if y else x for x,y in
-                                      zip(remove_alleles, splice_alleles)]
-                    remove_csq = [False if y else x for x,y in zip(remove_csq,
-                                                                   splice_csq)]
+                    self._set_to_false_if_true(remove_alleles, splice_alleles)
+                    self._set_to_false_if_true(remove_csq, splice_csq)
             if (not self.args.clinvar_path and all(remove_alleles)):
                 # bail out now if no valid consequence
                 return remove_alleles, remove_csq
@@ -475,8 +471,7 @@ class VaseRunner(object):
                                     max_delta=self.args.splice_ai_max_delta,
                                     check_symbol=True,
                                     canonical_csq=self.args.canonical)
-                self._set_to_true_if_true(remove_alleles, [not(x) for x in
-                                                           splice_alleles])
+                self._set_to_false_if_true(remove_alleles, splice_alleles)
             else:
                 splice_alleles, splice_csq = (
                               self.splice_ai_filter.annotate_or_filter(record))
@@ -484,8 +479,7 @@ class VaseRunner(object):
                     or self.args.splice_ai_max_delta):
                     #use SpliceAI on alleles only - FILTER If threshold not met
                     #FILTER alleles if SpliceAI scores meet threshold
-                    self._set_to_true_if_true(remove_alleles, [not(x) for x in
-                                                               splice_alleles])
+                    self._set_to_false_if_true(remove_alleles, splice_alleles)
         if self.prev_cadd_phred and self.args.cadd_phred:
             r_alts = self.filter_on_existing_cadd_phred(record)
             self._set_to_true_if_true(remove_alleles, r_alts)
@@ -1059,6 +1053,10 @@ class VaseRunner(object):
             if values[i]:
                 alist[i] = True
 
+    def _set_to_false_if_true(self, alist, values):
+        for i in range(len(alist)):
+            if values[i]:
+                alist[i] = False
 
     def _get_family_filter(self):
         if self.family_filter is not None:

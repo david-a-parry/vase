@@ -207,7 +207,7 @@ class VaseReporter(object):
                 if d['Number'] == 'A':
                     i -= 1
                 try:
-                    annots.append(record.parsed_info_fields([inf])[i])
+                    annots.append(record.parsed_info_fields([inf])[inf][i])
                 except KeyError:
                     annots.append('.')
             else:
