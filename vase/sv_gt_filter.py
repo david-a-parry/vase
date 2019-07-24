@@ -123,9 +123,9 @@ class SvGtFilter(object):
         ''' Returns a tuple of SR + PR counts for a sample.'''
         pr = gts['PR'][sample]
         sr = gts['SR'][sample]
-        if pr == (None,): #no PR values - just check SR
+        if pr is None or pr == (None,): #no PR values - just check SR
             pr = (0, 0)
-        if sr == (None,): #no SR values - just check PR
+        if sr is None or sr == (None,): #no SR values - just check PR
             sr = (0, 0)
         return tuple(sum(t) for t in zip(sr, pr))
 

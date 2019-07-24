@@ -204,12 +204,12 @@ class SampleFilter(object):
                     return True
             elif control_filter.ad_over_threshold is not None:
                 #check hom ref for ALT allele counts
-                if (control_filter.ad_over_threshold(gts, s, allele) and
-                    gts['AD'][s] != (None,)):
-                    if self.n_controls:
-                        control_matches += 1
-                    else:
-                        return True
+                if control_filter.ad_over_threshold(gts, s, allele):
+                    if 'AD' not in gts or gts['AD'][s] != (None,):
+                        if self.n_controls:
+                            control_matches += 1
+                        else:
+                            return True
         if self.n_controls and control_matches >= self.n_controls:
             return True
         #check for presence in cases
