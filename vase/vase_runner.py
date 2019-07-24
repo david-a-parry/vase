@@ -1403,7 +1403,7 @@ class VariantCache(object):
         self.cache.append(CachedVariant(record, can_output))
 
     def add_cache_to_output_ready(self):
-        ''' Adds itemst in cache to output_ready and clears cache.'''
+        ''' Adds items in cache to output_ready and clears cache.'''
         self.output_ready.extend(self.cache)
         self.cache = []
 
