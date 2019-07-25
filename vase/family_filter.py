@@ -722,7 +722,7 @@ class RecessiveFilter(InheritanceFilter):
                     raise RuntimeError("Could not identify CSQ or ANN " +
                                        "fields in VCF header. Please ensure " +
                                        "your input is annotated with " +
-                                       "Ensembl'sVEP to perform recessive "+
+                                       "Ensembl's VEP to perform recessive "+
                                        "filtering")
         self._last_added = added_prs
         return stored
@@ -1821,6 +1821,7 @@ class PotentialSegregant(object):
             self.features.add(self.var_id)
         self.csqs = csqs
         self.record = record
+
     def __eq__(self, other):
         return self.alt_id == other.alt_id
 
