@@ -24,6 +24,7 @@ class VaseRunner(object):
 
     def __init__(self, args):
 
+        self._twirler = ['-', '\\', '|', '/', '-', '\\', '|', '/']
         self.args = args
         self._set_logger()
         self.input = VcfReader(self.args.input)
@@ -198,6 +199,7 @@ class VaseRunner(object):
         self.logger.info('Starting variant processing')
         self.print_header()
         var_count = 0
+        prog_updates = 0
         prog_string = ''
         for record in self.var_stream:
             self.process_record(record)
@@ -215,11 +217,13 @@ class VaseRunner(object):
                 if self.log_progress:
                     self.logger.info(n_prog_string)
                 else:
-                    n_prog_string = '\r' + n_prog_string
+                    twirl = self._twirler[prog_updates % 8]
+                    n_prog_string = '\r' + n_prog_string + ' ' + twirl
                     if len(prog_string) > len(n_prog_string):
                         sys.stderr.write('\r' + ' ' * len(prog_string) )
                     prog_string = n_prog_string
                     sys.stderr.write(prog_string)
+                prog_updates += 1
         self.finish_up()
         if prog_string:
             sys.stderr.write('\r' + '-' * len(prog_string) + '\n')
