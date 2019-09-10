@@ -161,7 +161,8 @@ class VaseRunner(object):
                                     sv_min_control_gq=args.sv_control_gq,
                                     sv_control_het_ab=args.sv_control_het_ab,
                                     sv_control_hom_ab=args.sv_control_hom_ab,
-                                    sv_con_ref_ab=args.sv_control_max_ref_ab,)
+                                    sv_con_ref_ab=args.sv_control_max_ref_ab,
+                                    confirm_missing=args.confirm_control_gts)
         self.de_novo_filter = None
         self.dominant_filter = None
         self.recessive_filter = None

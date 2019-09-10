@@ -1178,6 +1178,20 @@ least this many controls to carry a variant before
 it is filtered.
 
 ''')
+
+    sample_args.add_argument(
+'--confirm_control_gts', action='store_true', help=
+'''If using the --controls argument, also filter
+variants if any control sample is either a no-call
+or fails specified genotype quality, depth or
+allele balance thresholds. If used in conjunction
+with the --n_controls option, control samples with
+no-call genotypes or genotypes failing the above
+thresholds will be counted towards the number of
+controls with an allele/variant.
+
+''')
+
     sample_args.add_argument(
 '--biallelic', '-biallelic', '--recessive', action='store_true', help=
 '''Identify variants matching a recessive inheritance

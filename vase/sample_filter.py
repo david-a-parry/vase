@@ -191,12 +191,19 @@ class SampleFilter(object):
         for s in self.controls:
             if not control_filter.gt_is_ok(gts, s, allele):
                 if self.confirm_missing:
-                    return True
+                    if self.n_controls:
+                        control_matches += 1
+                    else:
+                        return True
                 continue
             sgt =  gts['GT'][s]
             if self.confirm_missing and sgt == (None,) * len(sgt):
                 #no-call and we require confirmed gts for controls
-                return True
+                if self.n_controls:
+                    control_matches += 1
+                    continue
+                else:
+                    return True
             if allele in sgt: #checks for presence, not whether het/hom
                 if self.n_controls:
                     control_matches += 1
