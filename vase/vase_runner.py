@@ -24,7 +24,7 @@ class VaseRunner(object):
 
     def __init__(self, args):
 
-        self._twirler = ['-', '\\', '|', '/', '-', '\\', '|', '/']
+        self._twirler = ['-', '\\', '|', '/', ]
         self.args = args
         self._set_logger()
         self.input = VcfReader(self.args.input)
@@ -217,7 +217,7 @@ class VaseRunner(object):
                 if self.log_progress:
                     self.logger.info(n_prog_string)
                 else:
-                    twirl = self._twirler[prog_updates % 8]
+                    twirl = self._twirler[prog_updates % 4]
                     n_prog_string = '\r' + n_prog_string + ' ' + twirl
                     if len(prog_string) > len(n_prog_string):
                         sys.stderr.write('\r' + ' ' * len(prog_string) )
