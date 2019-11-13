@@ -142,18 +142,17 @@ class SpliceAiFilter(object):
                 if vreader.metadata['INFO']['SpliceAI'][-1]['Number'] == '.':
                    #VCF is in SpliceAI annotated format
                    self.vcf_is_prescored[vcf] = False
-                   break
-            #not annotated by SpliceAI, check if has prescored fields
-            for f in pre_scored_fields:
-                if f not in vreader.metadata['INFO']:
-                    raise RuntimeError("ERROR: neither SpliceAI or " +
-                                       "individual delta score annotations " +
-                                       "found in SpliceAI VCF. Please " +
-                                       "ensure you are either using a VCF " +
-                                       "annotated using the SpliceAI " +
-                                       "program or in the pre-scored format " +
-                                       "from the SpliceAI paper")
-            self.vcf_is_prescored[vcf] = True
+            else:#not annotated by SpliceAI, check if has prescored fields
+                for f in pre_scored_fields:
+                    if f not in vreader.metadata['INFO']:
+                        raise RuntimeError("ERROR: neither SpliceAI or " +
+                                           "individual delta score annotations " +
+                                           "found in SpliceAI VCF. Please " +
+                                           "ensure you are either using a VCF " +
+                                           "annotated using the SpliceAI " +
+                                           "program or in the pre-scored format " +
+                                           "from the SpliceAI paper")
+                self.vcf_is_prescored[vcf] = True
 
     def get_overlapping_records(self, record):
         '''
