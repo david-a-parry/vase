@@ -1163,6 +1163,54 @@ alleles specify a suitable cutoff here.
 
 ''')
 
+    sv_gt_args.add_argument(
+'--duphold_del_dhffc', type=float, metavar='DHFFC', help=
+'''Maximum fold-change for deletion calls relative to
+flanking regions as annotated by duphold
+(https://github.com/brentp/duphold). Deletion
+calls will be filtered if the DHFFC annotation
+from duphold is greater than this value.
+
+''')
+
+    sv_gt_args.add_argument(
+'--duphold_dup_dhbfc', type=float, metavar='DHBFC', help=
+'''Minimum fold-change for duplication calls relative
+to flanking regions as annotated by duphold
+(https://github.com/brentp/duphold). Duplication
+calls will be filtered if the DHBFC annotation
+from duphold is less than this value.
+
+''')
+
+    sv_gt_args.add_argument(
+'--control_duphold_del_dhffc', type=float, metavar='DHFFC', help=
+'''Maximum fold-change for deletion calls relative to
+flanking regions as annotated by duphold for
+parent/unaffected/control sample het/homozygous
+alternative calls. Defaults to the same value as
+--duphold_del_dhffc but you may wish to set this
+to a higher value if, for example, you require
+less evidence from controls/unaffected in order to
+filter a variant or from parental genotype calls
+when confirming a potential de novo variant.
+
+''')
+
+    sv_gt_args.add_argument(
+'--control_duphold_dup_dhbfc', type=float, metavar='DHBFC', help=
+'''Minimum fold-change for duplication calls relative
+to flanking regions as annotated by duphold for
+parent/unaffected/control sample het/homozygous
+alternative calls. Defaults to the same value as
+--duphold_dup_dhbfc but you may wish to set this
+to a lower value if, for example, you require
+less evidence from controls/unaffected in order to
+filter a variant or from parental genotype calls
+when confirming a potential de novo variant.
+
+''')
+
     sample_args.add_argument(
 '--n_cases', '-n_cases', type=int, help=
 '''Instead of requiring a variant to be present in

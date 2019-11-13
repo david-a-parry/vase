@@ -70,9 +70,11 @@ class VaseRunner(object):
                             sv_control_het_ab=args.sv_control_het_ab,
                             sv_control_hom_ab=args.sv_control_hom_ab,
                             sv_con_ref_ab=args.sv_control_max_ref_ab,
-                            confirm_missing=args.confirm_control_gts,
                             del_dhffc=args.duphold_del_dhffc,
-                            dup_dhbfc=args.duphold_dup_dhbfc)
+                            dup_dhbfc=args.duphold_dup_dhbfc,
+                            control_del_dhffc=args.control_duphold_del_dhffc,
+                            control_dup_dhbfc=args.control_duphold_dup_dhbfc,
+                            )
         #region, bed and gene_bed args are mutually exclusive (handled by parser)
         if args.region is not None:
             self.var_stream = VarByRegion(self.input,
@@ -164,6 +166,7 @@ class VaseRunner(object):
                                     controls=args.controls,
                                     n_cases=args.n_cases,
                                     n_controls=args.n_controls,
+                                    confirm_missing=args.confirm_control_gts,
                                     **self.gt_args)
         self.de_novo_filter = None
         self.dominant_filter = None
@@ -1201,10 +1204,9 @@ class VaseRunner(object):
         self._get_family_filter()
         self._get_control_filter()
         self.dominant_filter = DominantFilter(
-                                       self.family_filter,
+                                       self.family_filter, self.gt_args,
                                        min_families=self.args.min_families,
-                                       report_file=self.report_fhs['dominant'],
-                                       **self.gt_args)
+                                       report_file=self.report_fhs['dominant'])
         added_info = list(self.dominant_filter.get_header_fields().keys())
         if not self.dominant_filter.affected:
             msg = ("No samples fit a dominant model - can not use dominant " +
@@ -1228,9 +1230,8 @@ class VaseRunner(object):
         self._get_family_filter()
         self._get_control_filter()
         self.de_novo_filter = DeNovoFilter(
-                                        self.family_filter,
+                                        self.family_filter, self.gt_args,
                                         min_families=self.args.min_families,
-                                        **self.gt_args,
                                         report_file=self.report_fhs['de_novo'])
         added_info = list(self.de_novo_filter.get_header_fields().keys())
         if not self.de_novo_filter.affected:
@@ -1254,10 +1255,9 @@ class VaseRunner(object):
     def _get_recessive_filter(self):
         self._get_family_filter()
         self.recessive_filter = RecessiveFilter(
-                              self.family_filter,
+                              self.family_filter, self.gt_args,
                               min_families=self.args.min_families,
                               strict=self.strict_recessive_inheritance,
-                              **self.gt_args,
                               report_file=self.report_fhs['recessive'])
         added_info = list(self.recessive_filter.get_header_fields().keys())
         if not self.recessive_filter.affected:
@@ -1280,11 +1280,10 @@ class VaseRunner(object):
     def _get_control_filter(self):
         if self.control_filter:
             return
-        self.control_filter = ControlFilter(
-                                vcf=self.input,
-                                family_filter=self.family_filter,
-                                **self.gt_args,
-                                n_controls=self.args.n_controls,)
+        self.control_filter = ControlFilter(vcf=self.input,
+                                            family_filter=self.family_filter,
+                                            n_controls=self.args.n_controls,
+                                            gt_args=self.gt_args)
 
     def _var_or_vars(self, n):
         if n == 1:

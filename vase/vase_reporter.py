@@ -361,10 +361,20 @@ class VaseReporter(object):
         return biotype_order
 
     def _read_gnomad_constraint(self, constraint_file):
+        self.constraint_cols = ["pLI", "pRec", "pNull", "mis_z", "syn_z",
+                                "gene_issues"]
         required_fields = ["gene", "transcript", "canonical", "mis_z", "syn_z",
                            "pLI", "pRec", "pNull", "gene_issues"]
-        d = csv_to_dict(constraint_file, 'transcript', required_fields,
-                        delimiter='\t', keys_are_unique=True)
+        try:
+            d = csv_to_dict(constraint_file, 'transcript', required_fields,
+                            delimiter='\t', keys_are_unique=True)
+        except ValueError:
+            required_fields.pop()
+            required_fields.append("constraint_flag")
+            d = csv_to_dict(constraint_file, 'transcript', required_fields,
+                            delimiter='\t', keys_are_unique=True)
+            self.constraint_cols.pop()
+            self.constraint_cols.append("constraint_flag")
         #in case our transcript ref differs, also index on gene name
         gene_d = dict()
         for v in d.values():
@@ -540,8 +550,6 @@ class VaseReporter(object):
         return d
 
     def get_constraint_data(self, csq):
-        constraint_cols = ["pLI", "pRec", "pNull", "mis_z", "syn_z",
-                           "gene_issues"]
         cons = [''] * 5
         k = None
         if csq['Feature'] in self.constraint:
@@ -549,7 +557,7 @@ class VaseReporter(object):
         elif csq['SYMBOL'] in self.constraint:
             k = csq['SYMBOL']
         if k is not None:
-            cons = [self.constraint[k][f] for f in constraint_cols]
+            cons = [self.constraint[k][f] for f in self.constraint_cols]
         return cons
 
     def write_records(self, record, family, inheritance, allele, features):

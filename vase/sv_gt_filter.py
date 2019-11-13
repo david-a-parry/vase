@@ -8,10 +8,10 @@ class SvGtFilter(object):
 
     __slots__ = ['gq', 'dp', 'max_dp', 'het_ab', 'hom_ab', 'gt_is_ok',
                  'ab_filter', 'ref_ab_filter', 'ad_over_threshold', 'fields',
-                 'enough_support']
+                 'enough_support', 'del_dhffc', 'dup_dhbfc', 'duphold_filter']
 
     def __init__(self, vcf, gq=0, dp=0, max_dp=0, het_ab=0., hom_ab=0.,
-                 ref_ab_filter=None):
+                 ref_ab_filter=None, del_dhffc=None, dup_dhbfc=None):
         '''
             Args:
                 vcf:    Input VCF, which will be checked to ensure any
@@ -48,6 +48,20 @@ class SvGtFilter(object):
                         (i.e. self.gt_is_ok will return False).
                         Default=None (not used).
 
+                del_dhffc:
+                        Maximum fold-change for deletion calls relative
+                        to flanking regions as annotated by duphold
+                        (https://github.com/brentp/duphold). Deletion
+                        calls will be filtered if the DHFFC annotation
+                        from duphold is greater than this value.
+
+                dup_dhbfc:
+                        Minimum fold-change for duplicaton calls relative
+                        to similar GC-content bins as annotated by
+                        duphold (https://github.com/brentp/duphold).
+                        Duplication calls will be filtered if the DHBFC
+                        annotation from duphold is less than this value.
+
         '''
         self.gq = gq
         self.dp = dp
@@ -55,12 +69,15 @@ class SvGtFilter(object):
         self.het_ab = het_ab
         self.hom_ab = hom_ab
         self.ref_ab_filter = ref_ab_filter
+        self.del_dhffc = del_dhffc
+        self.dup_dhbfc = dup_dhbfc
         self.fields = ['GT']
         self.ab_filter = None
         self.ad_over_threshold = None
         self.enough_support = None
+        self.duphold_filter = None
         ab_fields = None
-        if not gq and not dp and not het_ab and not hom_ab:
+        if not any([gq, dp, het_ab, hom_ab, del_dhffc, dup_dhbfc]):
             #if no parameters are set then every genotype passes
             self.gt_is_ok = lambda gt, smp, al: True
         else:
@@ -69,6 +86,8 @@ class SvGtFilter(object):
                 #only option now, but may support other annotations in future
                 self.ab_filter = self._ab_filter_prsr
                 self.enough_support = self._enough_support_prsr
+            if dup_dhbfc or del_dhffc:
+                self.duphold_filter = self._duphold_filter
             self.gt_is_ok = self._gt_is_ok
         if ref_ab_filter:
             if ab_fields is None:
@@ -76,6 +95,26 @@ class SvGtFilter(object):
             if ab_fields == ('PR', 'SR'):
                 #only option now, but may support other annotations in future
                 self.ad_over_threshold = self._alt_prsr_over_threshold
+
+    def _duphold_filter(self, gts, sample, allele, svtype):
+        is_hom_alt = False
+        is_het_alt = False
+        if len(set(gts['GT'][sample])) == 1:
+            if allele in gts['GT'][sample]:
+                is_hom_alt = True
+        elif allele in gts['GT'][sample]:
+            is_het_alt = True
+        if not is_hom_alt and not is_het_alt:
+            return True #do not filter
+        if svtype == 'DUP' and self.dup_dhbfc:
+            fc = gts['DHBFC'][sample]
+            if fc is not None:
+                return fc > self.dup_dhbfc
+        if svtype == 'DEL' and self.del_dhffc:
+            fc = gts['DHFFC'][sample]
+            if fc is not None:
+                return fc < self.del_dhffc
+        return True #do not filter
 
     def _alt_prsr_over_threshold(self, gts, sample, allele):
         support = self._get_pr_sr(gts, sample)
@@ -129,7 +168,7 @@ class SvGtFilter(object):
             sr = (0, 0)
         return tuple(sum(t) for t in zip(sr, pr))
 
-    def _gt_is_ok(self, gts, sample, allele):
+    def _gt_is_ok(self, gts, sample, allele, svtype):
         '''
             Returns True if genotype (from parse_vcf.py parsed_gts
             function) passes all parameters set on initialisation.
@@ -144,6 +183,9 @@ class SvGtFilter(object):
         if self.ab_filter is not None:
             if not self.ab_filter(gts, sample, allele):
                 return False
+        if self.duphold_filter:
+            if not self.duphold_filter(gts, sample, allele, svtype):
+                return False
         return True #passes all filters
 
     def _check_header_fields(self, vcf):
@@ -151,6 +193,18 @@ class SvGtFilter(object):
         #DP and GQ are common fields that may not be defined in header
         if self.gq:
             self.fields.append('GQ')
+        if self.dup_dhbfc:
+            if 'DHBFC' not in vcf.header.metadata['FORMAT']:
+                raise RuntimeError("Genotype filtering on SV duphold DHBFC " +
+                                   "annotation is set but 'DHBFC' FORMAT " +
+                                   "field is not defined in your VCF header.")
+            self.fields.append("DHBFC")
+        if self.del_dhffc:
+            if 'DHFFC' not in vcf.header.metadata['FORMAT']:
+                raise RuntimeError("Genotype filtering on SV duphold DHFFC " +
+                                   "annotation is set but 'DHFFC' FORMAT " +
+                                   "field is not defined in your VCF header.")
+            self.fields.append("DHFFC")
         if (self.dp or self.max_dp or self.het_ab or self.hom_ab
             or self.ref_ab_filter):
             if ('PR' in vcf.header.metadata['FORMAT'] and

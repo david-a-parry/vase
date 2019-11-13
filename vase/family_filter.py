@@ -242,69 +242,101 @@ class InheritanceFilter(object):
         object.
     '''
 
-    def __init__(self, family_filter, gq=0, dp=0, max_dp=0, het_ab=0.,
-                 hom_ab=0., min_control_dp=None, max_control_dp=None,
-                 min_control_gq=None, control_het_ab=None, control_hom_ab=None,
-                 con_ref_ab=None, sv_gq=0, sv_dp=0, sv_max_dp=None,
-                 sv_het_ab=0., sv_hom_ab=0., sv_min_control_dp=None,
-                 sv_max_control_dp=None, sv_min_control_gq=None,
-                 sv_control_het_ab=None, sv_control_hom_ab=None,
-                 sv_con_ref_ab=None, min_families=1, report_file=None):
+    def __init__(self, family_filter, gt_args, min_families=1,
+                 report_file=None):
+        '''
+            Create genotype filter objects and initialise family filtering
+            arguments.
+
+            Args:
+                family_filter:
+                        Parent FamilyFilter object, initialized with
+                        VCF and PED files.
+
+                gt_args:
+                        A dict of arguments to use for filtering
+                        genotypes. These should all correspond to
+                        arguments to provide to SampleFilter objects.
+
+                min_families:
+                        Require at least this many families to have
+                        qualifying alleles in a feature before
+                        outputting. Default=1.
+
+                report_file:
+                        Deprecated. Use vase_reporter to after
+                        inheritance filtering to process VCFs instead.
+        '''
+
         self.family_filter = family_filter
         self.min_families = min_families
         self.ped = family_filter.ped
         self.samples = family_filter.vcf_samples
         self.unaffected = family_filter.vcf_unaffected
-        self.gt_filter = GtFilter(family_filter.vcf, gq=gq, dp=dp,
-                                  max_dp=max_dp, het_ab=het_ab, hom_ab=hom_ab)
+        self.gt_filter = GtFilter(family_filter.vcf, gq=gt_args['gq'],
+                                  dp=gt_args['dp'], max_dp=gt_args['max_dp'],
+                                  het_ab=gt_args['het_ab'],
+                                  hom_ab=gt_args['hom_ab'])
         self._gt_fields = set(self.gt_filter.fields)
-        if min_control_gq is None:
-            min_control_gq = gq
-        if min_control_dp is None:
-            min_control_dp = dp
-        if max_control_dp is None:
-            max_control_dp = max_dp
-        if control_het_ab is None:
-            control_het_ab = het_ab
-        if control_hom_ab is None:
-            control_hom_ab = hom_ab
-        self.con_gt_filter = GtFilter(family_filter.vcf, gq=min_control_gq,
-                                      dp=min_control_dp, max_dp=max_control_dp,
-                                      het_ab=control_het_ab,
-                                      hom_ab=control_hom_ab,
-                                      ref_ab_filter=con_ref_ab)
+        if gt_args['min_control_gq'] is None:
+            gt_args['min_control_gq'] = gt_args['gq']
+        if gt_args['min_control_dp'] is None:
+            gt_args['min_control_dp'] = gt_args['dp']
+        if gt_args['max_control_dp'] is None:
+            gt_args['max_control_dp'] = gt_args['max_dp']
+        if gt_args['control_het_ab'] is None:
+            gt_args['control_het_ab'] = gt_args['het_ab']
+        if gt_args['control_hom_ab'] is None:
+            gt_args['control_hom_ab'] = gt_args['hom_ab']
+        self.con_gt_filter = GtFilter(family_filter.vcf,
+                                      gq=gt_args['min_control_gq'],
+                                      dp=gt_args['min_control_dp'],
+                                      max_dp=gt_args['max_control_dp'],
+                                      het_ab=gt_args['control_het_ab'],
+                                      hom_ab=gt_args['control_hom_ab'],
+                                      ref_ab_filter=gt_args['con_ref_ab'])
         self._gt_fields.update(self.con_gt_filter.fields)
-        if sv_gq is None:
-            sv_gq = gq
-        if sv_dp is None:
-            sv_dp = dp
-        if sv_max_dp is None:
-            sv_max_dp = max_dp
-        if sv_het_ab is None:
-            sv_het_ab = het_ab
-        if sv_hom_ab is None:
-            sv_hom_ab = hom_ab
-        if sv_min_control_gq is None:
-            sv_min_control_gq = sv_gq
-        if sv_min_control_dp is None:
-            sv_min_control_dp = sv_dp
-        if sv_max_control_dp is None:
-            sv_max_control_dp = sv_max_dp
-        if sv_control_het_ab is None:
-            sv_control_het_ab = sv_het_ab
-        if sv_control_hom_ab is None:
-            sv_control_hom_ab = sv_hom_ab
-        self.sv_gt_filter = SvGtFilter(family_filter.vcf, gq=sv_gq, dp=sv_dp,
-                                       max_dp=sv_max_dp, het_ab=sv_het_ab,
-                                       hom_ab=sv_hom_ab)
+        if gt_args['sv_gq'] is None:
+            gt_args['sv_gq'] = gt_args['gq']
+        if gt_args['sv_dp'] is None:
+            gt_args['sv_dp'] = gt_args['dp']
+        if gt_args['sv_max_dp'] is None:
+            gt_args['sv_max_dp'] = gt_args['max_dp']
+        if gt_args['sv_het_ab'] is None:
+            gt_args['sv_het_ab'] = gt_args['het_ab']
+        if gt_args['sv_hom_ab'] is None:
+            gt_args['sv_hom_ab'] = gt_args['hom_ab']
+        if gt_args['sv_min_control_gq'] is None:
+            gt_args['sv_min_control_gq'] = gt_args['sv_gq']
+        if gt_args['sv_min_control_dp'] is None:
+            gt_args['sv_min_control_dp'] = gt_args['sv_dp']
+        if gt_args['sv_max_control_dp'] is None:
+            gt_args['sv_max_control_dp'] = gt_args['sv_max_dp']
+        if gt_args['sv_control_het_ab'] is None:
+            gt_args['sv_control_het_ab'] = gt_args['sv_het_ab']
+        if gt_args['sv_control_hom_ab'] is None:
+            gt_args['sv_control_hom_ab'] = gt_args['sv_hom_ab']
+        if gt_args['control_del_dhffc'] is None:
+            gt_args['control_del_dhffc'] = gt_args['del_dhffc']
+        if gt_args['control_dup_dhbfc'] is None:
+            gt_args['control_dup_dhbfc'] = gt_args['dup_dhbfc']
+        self.sv_gt_filter = SvGtFilter(family_filter.vcf, gq=gt_args['sv_gq'],
+                                       dp=gt_args['sv_dp'],
+                                       max_dp=gt_args['sv_max_dp'],
+                                       het_ab=gt_args['sv_het_ab'],
+                                       hom_ab=gt_args['sv_hom_ab'],
+                                       del_dhffc=gt_args['del_dhffc'],
+                                       dup_dhbfc=gt_args['dup_dhbfc'])
         self._sv_gt_fields = set(self.sv_gt_filter.fields)
         self.sv_con_gt_filter = SvGtFilter(family_filter.vcf,
-                                           gq=sv_min_control_gq,
-                                           dp=sv_min_control_dp,
-                                           max_dp=sv_max_control_dp,
-                                           het_ab=sv_control_het_ab,
-                                           hom_ab=sv_control_hom_ab,
-                                           ref_ab_filter=sv_con_ref_ab)
+                                           gq=gt_args['sv_min_control_gq'],
+                                           dp=gt_args['sv_min_control_dp'],
+                                           max_dp=gt_args['sv_max_control_dp'],
+                                           het_ab=gt_args['sv_control_het_ab'],
+                                           hom_ab=gt_args['sv_control_hom_ab'],
+                                           ref_ab_filter=gt_args['sv_con_ref_ab'],
+                                           del_dhffc=gt_args['control_del_dhffc'],
+                                           dup_dhbfc=gt_args['control_dup_dhbfc'])
         self._sv_gt_fields.update(self.sv_con_gt_filter.fields)
         self._prev_coordinate = (None, None)  # to ensure records are processed
         self._processed_contigs = set()       # in coordinate order
@@ -414,129 +446,17 @@ class RecessiveFilter(InheritanceFilter):
         genetic cause of disease. It will not cope with phenocopies,
         pseudodominance or other more complicated inheritance patterns.
     '''
-    def __init__(self, family_filter, gq=0, dp=0, max_dp=0, het_ab=0.,
-                 hom_ab=0., min_control_dp=None, max_control_dp=None,
-                 min_control_gq=None, control_het_ab=None, control_hom_ab=None,
-                 con_ref_ab=None, sv_gq=0, sv_dp=0, sv_max_dp=0,
-                 sv_het_ab=0., sv_hom_ab=0., sv_min_control_dp=None,
-                 sv_max_control_dp=0, sv_min_control_gq=None,
-                 sv_control_het_ab=None, sv_control_hom_ab=None,
-                 sv_con_ref_ab=None, min_families=1, strict=False,
+    def __init__(self, family_filter, gt_args, min_families=1, strict=False,
                  exclude_denovo=False, report_file=None):
         '''
             Args:
                 family_filter:
                         FamilyFilter object
 
-                gq:     Minimum genotype quality score. Genotype
-                        calls with a GQ lower than this value will
-                        be treated as no-calls. Input without GQ
-                        data can be used if gq=0. Default=0.
-
-                dp:     Minimum sample depth (DP) at genotype site.
-                        Genotype calls with a DP lower than this value
-                        will be treated as no-calls. Input without DP
-                        data can be used if dp=0. Default=0.
-
-                max_dp: Maximum sample depth (DP) at genotype site.
-                        Genotype calls with a DP higher than this value
-                        will be treated as no-calls. Input without DP
-                        data can be used if max_dp=0. Default=0 (i.e. not
-                        used).
-
-                het_ab: Minimum genotype allele balance for heterozygous
-                        calls. Genotype calls with an allele balance
-                        lower than this value will be treated as
-                        no-calls. The allele balance is calculated using
-                        'AD' fields if present, otherwise 'AO' and 'RO'
-                        fields (e.g. from freebayes). If none of these
-                        fields are present in the VCF header and ab is
-                        not 0.0 a RuntimeError will be thrown.
-                        Default=0.0.
-
-                hom_ab: As above but for homozygous genotype calls.
-
-                min_control_gq:
-                        Same as 'gq' but specific to control samples.
-                        Defaults to the same as 'gq'.
-
-                min_control_dp:
-                        Same as 'dp' but specific to control samples.
-                        Defaults to the same as 'dp'.
-
-                max_control_dp:
-                        Same as 'max_dp' but specific to control samples.
-                        Defaults to the same as 'max_dp'.
-
-                control_het_ab:
-                        Same as 'het_ab' but specific to control samples.
-                        Defaults to the same as 'het_ab'.
-
-                control_hom_ab:
-                        Same as 'hom_ab' but specific to control samples.
-                        Defaults to the same as 'hom_ab'.
-
-                con_ref_ab:
-                        If a control sample has an ALT allele balance
-                        equal to or greater than this value, consider
-                        this control sample as carrying this allele
-                        despite being called as 0/0.
-
-                sv_gq:  Minimum genotype quality score (GQ) for
-                        structural variants only. Defaults to the same
-                        value as 'gq'.
-
-                sv_dp:  Minimum number of supporting reads (SR + PR) for
-                        structural variant calls. Genotype calls with
-                        a fewer supporting reads than this value will be
-                        treated as no-calls. Defaults to same as 'dp'.
-
-                sv_max_dp:
-                        Maximum number of supporting reads (SR + PR) for
-                        structural variant calls. Genotype calls with
-                        a fewer supporting reads than this value will be
-                        treated as no-calls. Default=0 (not used).
-
-                sv_het_ab:
-                        Minimum allele balance for heterozygous
-                        genotypefor structural variants. This is
-                        calculated using SR + PR FORMAT fields, such as
-                        provided by Manta. Defaults to the same as
-                        het_ab.
-
-                sv_hom_ab:
-                        Minimum allele balance for homozygous
-                        genotypes for structural variants. This is
-                        calculated using SR + PR FORMAT fields, such as
-                        provided by Manta. Defaults to the same as
-                        hom_ab.
-
-                sv_min_control_gq:
-                        Same as 'sv_gq' but specific to control samples.
-                        Defaults to the same as 'sv_gq'.
-
-                sv_min_control_dp:
-                        Same as 'sv_dp' but specific to control samples.
-                        Defaults to the same as 'sv_dp'.
-
-                sv_max_control_dp:
-                        Same as 'sv_max_dp' but specific to control samples.
-                        Defaults to the same as 'sv_max_dp'.
-
-                sv_control_het_ab:
-                        Same as 'sv_het_ab' but specific to control
-                        samples. Defaults to the same as 'sv_het_ab'.
-
-                sv_control_hom_ab:
-                        Same as 'sv_hom_ab' but specific to control
-                        samples. Defaults to the same as 'sv_hom_ab'.
-
-                sv_con_ref_ab:
-                        If a control sample has an ALT allele balance
-                        equal to or greater than this value (as
-                        calculated using SR + PR FORMAT fields),
-                        consider this control sample as carrying this
-                        allele despite being called as 0/0.
+                gt_args:
+                        A dict of arguments to use for filtering
+                        genotypes. These should all correspond to
+                        arguments to provide to SampleFilter objects.
 
                 strict: If True, for any affected sample with
                         parents, require confirmation of parental
@@ -579,22 +499,7 @@ class RecessiveFilter(InheritanceFilter):
         self.annot_fields = ('homozygous', 'compound_het', 'de_novo',
                             'families', 'features')
         self.report_file = report_file
-        super().__init__(family_filter, gq=gq, dp=dp, max_dp=max_dp,
-                         het_ab=het_ab, hom_ab=hom_ab,
-                         min_control_dp=min_control_dp,
-                         max_control_dp=max_control_dp,
-                         min_control_gq=min_control_gq,
-                         control_het_ab=control_het_ab,
-                         control_hom_ab=control_hom_ab, con_ref_ab=con_ref_ab,
-                         sv_gq=sv_gq, sv_dp=sv_dp, sv_max_dp=sv_max_dp,
-                         sv_het_ab=sv_het_ab, sv_hom_ab=sv_hom_ab,
-                         sv_min_control_dp=sv_min_control_dp,
-                         sv_max_control_dp=sv_max_control_dp,
-                         sv_min_control_gq=sv_min_control_gq,
-                         sv_control_het_ab=sv_control_het_ab,
-                         sv_control_hom_ab=sv_control_hom_ab,
-                         sv_con_ref_ab=sv_con_ref_ab,
-                         min_families=min_families,
+        super().__init__(family_filter, gt_args, min_families=min_families,
                          report_file=report_file,)
         self.families = tuple(x for x in self.family_filter.inheritance_patterns
                              if 'recessive' in
@@ -883,14 +788,8 @@ class DominantFilter(InheritanceFilter):
         given families.
     '''
 
-    def __init__(self, family_filter, gq=0, dp=0, max_dp=0, het_ab=0.,
-                 hom_ab=0., min_control_dp=None, max_control_dp=None,
-                 min_control_gq=None, control_het_ab=None, control_hom_ab=None,
-                 con_ref_ab=None, sv_gq=0, sv_dp=0, sv_max_dp=0,
-                 sv_het_ab=0., sv_hom_ab=0., sv_min_control_dp=None,
-                 sv_max_control_dp=0, sv_min_control_gq=None,
-                 sv_control_het_ab=None, sv_control_hom_ab=None,
-                 sv_con_ref_ab=None, min_families=1, report_file=None):
+    def __init__(self, family_filter, gt_args, min_families=1,
+                 report_file=None):
         '''
             Initialize with parent IDs, children IDs and VcfReader
             object.
@@ -899,122 +798,10 @@ class DominantFilter(InheritanceFilter):
                 family_filter:
                         FamilyFilter object
 
-                gq:     Minimum genotype quality score. Genotype calls
-                        with a GQ lower than this value will be treated
-                        as no-calls. Input without GQ data can be used
-                        if gq=0. Default=0.
-
-                dp:     Minimum sample depth (DP) at genotype site.
-                        Genotype calls with a DP lower than this value
-                        will be treated as no-calls. Input without DP
-                        data can be used if dp=0. Default=0.
-
-                max_dp: Maximum sample depth (DP) at genotype site.
-                        Genotype calls with a DP higher than this value
-                        will be treated as no-calls. Input without DP
-                        data can be used if max_dp=0. Default=0 (i.e. not
-                        used).
-
-                het_ab: Minimum sample ALT allele balance for
-                        heterozygous genotypes. Heterozygous genotype
-                        calls with an allele balance lower than this
-                        value will be treated as no-calls. Requires
-                        either AD or both AO and RO FORMAT fields in
-                        VCF. Default=0.0.
-
-                hom_ab: Minimum sample ALT allele balance for
-                        homozygous genotypes. Homozygous genotype
-                        calls with an allele balance lower than this
-                        value will be treated as no-calls. Requires
-                        either AD or both AO and RO FORMAT fields in
-                        VCF. Default=0.0.
-
-                min_control_gq:
-                        Same as 'gq' but for unaffected samples only.
-                        Unaffected genotypes with a GQ below this
-                        threshold will be considered no-calls.
-                        Defaults to same as 'gq'.
-
-                min_control_dp:
-                        Same as 'dp' but for unaffected samples only.
-                        Unaffected genotypes with a DP below this
-                        threshold will be considered no-calls.
-                        Defaults to same as 'dp'.
-
-                max_control_dp:
-                        Same as 'max_dp' but specific to control samples.
-                        Defaults to the same as 'max_dp'.
-
-                control_het_ab:
-                        Same as het_ab but for unaffected samples
-                        only.
-
-                control_hom_ab:
-                        Same as hom_ab but for unaffected samples
-                        only.
-
-                con_ref_ab:
-                        Maximum ALT allele fraction for homozygous
-                        reference genotype calls. Variants will be
-                        filtered if any unaffected reference calls
-                        have an ALT allele fraction over this value.
-                        Default=None (i.e. not used).
-
-                sv_gq:  Minimum genotype quality score (GQ) for
-                        structural variants only. Defaults to the same
-                        value as 'gq'.
-
-                sv_dp:  Minimum number of supporting reads (SR + PR) for
-                        structural variant calls. Genotype calls with
-                        a fewer supporting reads than this value will be
-                        treated as no-calls. Defaults to same as 'dp'.
-
-                sv_max_dp:
-                        Maximum number of supporting reads (SR + PR) for
-                        structural variant calls. Genotype calls with
-                        a fewer supporting reads than this value will be
-                        treated as no-calls. Default=0 (not used).
-
-                sv_het_ab:
-                        Minimum allele balance for heterozygous
-                        genotypefor structural variants. This is
-                        calculated using SR + PR FORMAT fields, such as
-                        provided by Manta. Defaults to the same as
-                        het_ab.
-
-                sv_hom_ab:
-                        Minimum allele balance for homozygous
-                        genotypes for structural variants. This is
-                        calculated using SR + PR FORMAT fields, such as
-                        provided by Manta. Defaults to the same as
-                        hom_ab.
-
-                sv_min_control_gq:
-                        Same as 'sv_gq' but specific to control samples.
-                        Defaults to the same as 'sv_gq'.
-
-                sv_min_control_dp:
-                        Same as 'sv_dp' but specific to control samples.
-                        Defaults to the same as 'sv_dp'.
-
-                sv_max_control_dp:
-                        Same as 'sv_max_dp' but specific to control samples.
-                        Defaults to the same as 'sv_max_dp'.
-
-                sv_control_het_ab:
-                        Same as 'sv_het_ab' but specific to control
-                        samples. Defaults to the same as 'sv_het_ab'.
-
-                sv_control_hom_ab:
-                        Same as 'sv_hom_ab' but specific to control
-                        samples. Defaults to the same as 'sv_hom_ab'.
-
-                sv_con_ref_ab:
-                        If a control sample has an ALT allele balance
-                        equal to or greater than this value (as
-                        calculated using SR + PR FORMAT fields),
-                        consider this control sample as carrying this
-                        allele despite being called as 0/0.
+                gt_args:
+                        A dict of arguments to use for filtering
+                        genotypes. These should all correspond to
+                        arguments to provide to SampleFilter objects.
 
                 min_families:
                         Require at least this many families to have a
@@ -1039,22 +826,7 @@ class DominantFilter(InheritanceFilter):
         self.annot_fields = ('samples', 'unaffected_carrier', 'families',
                              'features')
         self.report_file = report_file
-        super().__init__(family_filter, gq=gq, dp=dp, max_dp=max_dp,
-                         het_ab=het_ab, hom_ab=hom_ab,
-                         min_control_dp=min_control_dp,
-                         max_control_dp=max_control_dp,
-                         min_control_gq=min_control_gq,
-                         control_het_ab=control_het_ab,
-                         control_hom_ab=control_hom_ab, con_ref_ab=con_ref_ab,
-                         sv_gq=sv_gq, sv_dp=sv_dp, sv_max_dp=sv_max_dp,
-                         sv_het_ab=sv_het_ab, sv_hom_ab=sv_hom_ab,
-                         sv_min_control_dp=sv_min_control_dp,
-                         sv_max_control_dp=sv_max_control_dp,
-                         sv_min_control_gq=sv_min_control_gq,
-                         sv_control_het_ab=sv_control_het_ab,
-                         sv_control_hom_ab=sv_control_hom_ab,
-                         sv_con_ref_ab=sv_con_ref_ab,
-                         min_families=min_families,
+        super().__init__(family_filter, gt_args, min_families=min_families,
                          report_file=report_file,)
         self.families = tuple(x for x in self.family_filter.inheritance_patterns
                              if 'dominant' in
@@ -1077,26 +849,8 @@ class DominantFilter(InheritanceFilter):
             else:
                 self.obligate_carriers = ()
             dom_filter = SampleFilter(family_filter.vcf, cases=f_aff,
-                                      controls=f_unaff, gq=gq, dp=dp,
-                                      max_dp=max_dp, het_ab=het_ab,
-                                      hom_ab=hom_ab,
-                                      min_control_gq=min_control_gq,
-                                      min_control_dp=min_control_dp,
-                                      max_control_dp=max_control_dp,
-                                      control_het_ab=control_het_ab,
-                                      control_hom_ab=control_hom_ab,
-                                      con_ref_ab=con_ref_ab,
-                                      sv_gq=sv_gq, sv_dp=sv_dp,
-                                      sv_max_dp=sv_max_dp,
-                                      sv_het_ab=sv_het_ab,
-                                      sv_hom_ab=sv_hom_ab,
-                                      sv_min_control_dp=sv_min_control_dp,
-                                      sv_max_control_dp=sv_max_control_dp,
-                                      sv_min_control_gq=sv_min_control_gq,
-                                      sv_control_het_ab=sv_control_het_ab,
-                                      sv_control_hom_ab=sv_control_hom_ab,
-                                      sv_con_ref_ab=sv_con_ref_ab,
-                                      confirm_missing=True)
+                                      controls=f_unaff, confirm_missing=True,
+                                      **gt_args)
             self.filters[fam] = dom_filter
             self.family_filter.logger.info("Analysing family {} ".format(fam) +
                                            "under a dominant model")
@@ -1262,14 +1016,7 @@ class DeNovoFilter(InheritanceFilter):
         the parents.
     '''
 
-    def __init__(self, family_filter, gq=0, dp=0, max_dp=0, het_ab=0.,
-                 hom_ab=0., min_control_dp=None, max_control_dp=None,
-                 min_control_gq=None, control_het_ab=None, control_hom_ab=None,
-                 con_ref_ab=None, sv_gq=0, sv_dp=0, sv_max_dp=0,
-                 sv_het_ab=0., sv_hom_ab=0., sv_min_control_dp=None,
-                 sv_max_control_dp=0, sv_min_control_gq=None,
-                 sv_control_het_ab=None, sv_control_hom_ab=None,
-                 sv_con_ref_ab=None, min_families=1, confirm_het=False,
+    def __init__(self, family_filter, min_families=1, confirm_het=False,
                  report_file=None):
         '''
             Initialize with parent IDs, children IDs and VcfReader
@@ -1279,127 +1026,10 @@ class DeNovoFilter(InheritanceFilter):
                 family_filter:
                         FamilyFilter object
 
-                gq:     Minimum genotype quality score. Genotype calls
-                        with a GQ lower than this value will be treated
-                        as no-calls. Input without GQ data can be used
-                        if gq=0. Default=0.
-
-                dp:     Minimum sample depth (DP) at genotype site.
-                        Genotype calls with a DP lower than this value
-                        will be treated as no-calls. Input without DP
-                        data can be used if dp=0. Default=0.
-
-                max_dp: Maximum sample depth (DP) at genotype site.
-                        Genotype calls with a DP higher than this value
-                        will be treated as no-calls. Input without DP
-                        data can be used if max_dp=0. Default=0 (i.e. not
-                        used).
-
-                het_ab: Minimum sample ALT allele balance for
-                        heterozygous genotypes. Heterozygous genotype
-                        calls with an allele balance lower than this
-                        value will be treated as no-calls. Requires
-                        either AD or both AO and RO FORMAT fields in
-                        VCF. Default=0.0.
-
-                hom_ab: Minimum sample ALT allele balance for
-                        homozygous genotypes. Homozygous genotype
-                        calls with an allele balance lower than this
-                        value will be treated as no-calls. Requires
-                        either AD or both AO and RO FORMAT fields in
-                        VCF. Default=0.0.
-
-                min_control_gq:
-                        Same as 'gq' but for Unaffected samples only.
-                        Unaffected genotypes with a GQ below this
-                        threshold will be considered no-calls. For
-                        parental genotypes this means that the site
-                        will not be considered as a confirmed de novo.
-                        Defaults to same as 'gq'.
-
-                min_control_dp:
-                        Same as 'dp' but for unaffected samples only.
-                        Unaffected genotypes with a DP below this
-                        threshold will be considered no-calls. For
-                        parental genotypes this means that the site
-                        will not be considered as a confirmed de novo.
-                        Defaults to same as 'dp'.
-
-                max_control_dp:
-                        Same as 'max_dp' but specific to control samples.
-                        Defaults to the same as 'max_dp'.
-
-
-                control_het_ab:
-                        Same as het_ab but for unaffected samples
-                        only.
-
-                control_hom_ab:
-                        Same as hom_ab but for unaffected samples
-                        only.
-
-                con_ref_ab:
-                        Maximum ALT allele fraction for homozygous
-                        reference genotype calls. Variants will be
-                        filtered if any unaffected reference calls
-                        have an ALT allele fraction over this value.
-                        Default=None (i.e. not used).
-
-                sv_gq:  Minimum genotype quality score (GQ) for
-                        structural variants only. Defaults to the same
-                        value as 'gq'.
-
-                sv_dp:  Minimum number of supporting reads (SR + PR) for
-                        structural variant calls. Genotype calls with
-                        a fewer supporting reads than this value will be
-                        treated as no-calls. Defaults to same as 'dp'.
-
-                sv_max_dp:
-                        Maximum number of supporting reads (SR + PR) for
-                        structural variant calls. Genotype calls with
-                        a fewer supporting reads than this value will be
-                        treated as no-calls. Default=0 (not used).
-
-                sv_het_ab:
-                        Minimum allele balance for heterozygous
-                        genotypefor structural variants. This is
-                        calculated using SR + PR FORMAT fields, such as
-                        provided by Manta. Defaults to the same as
-                        het_ab.
-
-                sv_hom_ab:
-                        Minimum allele balance for homozygous
-                        genotypes for structural variants. This is
-                        calculated using SR + PR FORMAT fields, such as
-                        provided by Manta. Defaults to the same as
-                        hom_ab.
-
-                sv_min_control_gq:
-                        Same as 'sv_gq' but specific to control samples.
-                        Defaults to the same as 'sv_gq'.
-
-                sv_min_control_dp:
-                        Same as 'sv_dp' but specific to control samples.
-                        Defaults to the same as 'sv_dp'.
-
-                sv_max_control_dp:
-                        Same as 'sv_max_dp' but specific to control samples.
-                        Defaults to the same as 'sv_max_dp'.
-
-                sv_control_het_ab:
-                        Same as 'sv_het_ab' but specific to control
-                        samples. Defaults to the same as 'sv_het_ab'.
-
-                sv_control_hom_ab:
-                        Same as 'sv_hom_ab' but specific to control
-                        samples. Defaults to the same as 'sv_hom_ab'.
-
-                sv_con_ref_ab:
-                        If a control sample has an ALT allele balance
-                        equal to or greater than this value (as
-                        calculated using SR + PR FORMAT fields),
-                        consider this control sample as carrying this
-                        allele despite being called as 0/0.
+                gt_args:
+                        A dict of arguments to use for filtering
+                        genotypes. These should all correspond to
+                        arguments to provide to SampleFilter objects.
 
                 min_families:
                         Require at least this many families to have a
@@ -1423,22 +1053,7 @@ class DeNovoFilter(InheritanceFilter):
                     type(self).__name__)),]
         self.annot_fields = ('samples', 'families', 'features')
         self.report_file = report_file
-        super().__init__(family_filter, gq=gq, dp=dp, max_dp=max_dp,
-                         het_ab=het_ab, hom_ab=hom_ab,
-                         min_control_dp=min_control_dp,
-                         max_control_dp=max_control_dp,
-                         min_control_gq=min_control_gq,
-                         control_het_ab=control_het_ab,
-                         control_hom_ab=control_hom_ab, con_ref_ab=con_ref_ab,
-                         sv_gq=sv_gq, sv_dp=sv_dp, sv_max_dp=sv_max_dp,
-                         sv_het_ab=sv_het_ab, sv_hom_ab=sv_hom_ab,
-                         sv_min_control_dp=sv_min_control_dp,
-                         sv_max_control_dp=sv_max_control_dp,
-                         sv_min_control_gq=sv_min_control_gq,
-                         sv_control_het_ab=sv_control_het_ab,
-                         sv_control_hom_ab=sv_control_hom_ab,
-                         sv_con_ref_ab=sv_con_ref_ab,
-                         min_families=min_families,
+        super().__init__(family_filter, gt_args, min_families=min_families,
                          report_file=report_file,)
         self.families = tuple(x for x in self.family_filter.inheritance_patterns
                              if 'de_novo' in
@@ -1462,26 +1077,8 @@ class DeNovoFilter(InheritanceFilter):
                     par_child_combos[pars].append(aff)
             for parents,children in par_child_combos.items():
                 par_filter = SampleFilter(family_filter.vcf, cases=children,
-                                          controls=parents, gq=gq, dp=dp,
-                                          max_dp=max_dp, het_ab=het_ab,
-                                          hom_ab=hom_ab,
-                                          min_control_gq=min_control_gq,
-                                          min_control_dp=min_control_dp,
-                                          max_control_dp=max_control_dp,
-                                          control_het_ab=control_het_ab,
-                                          control_hom_ab=control_hom_ab,
-                                          con_ref_ab=con_ref_ab,
-                                          sv_gq=sv_gq, sv_dp=sv_dp,
-                                          sv_max_dp=sv_max_dp,
-                                          sv_het_ab=sv_het_ab,
-                                          sv_hom_ab=sv_hom_ab,
-                                          sv_min_control_dp=sv_min_control_dp,
-                                          sv_max_control_dp=sv_max_control_dp,
-                                          sv_min_control_gq=sv_min_control_gq,
-                                          sv_control_het_ab=sv_control_het_ab,
-                                          sv_control_hom_ab=sv_control_hom_ab,
-                                          sv_con_ref_ab=sv_con_ref_ab,
-                                          confirm_missing=True)
+                                          controls=parents,
+                                          confirm_missing=True, **gt_args)
                 self.filters[fam].append(par_filter)
                 self.family_filter.logger.info(
                     "Analysing family {} parents ({}) and children ({})"
@@ -1646,15 +1243,7 @@ class DeNovoFilter(InheritanceFilter):
 class ControlFilter(SampleFilter):
     ''' Filter variants if they are present in a control sample. '''
 
-    def __init__(self, vcf, family_filter, gq=0, dp=0, max_dp=0, het_ab=0.,
-                 hom_ab=0., min_control_dp=None,  max_control_dp=None,
-                 min_control_gq=None, control_het_ab=None,
-                 control_hom_ab=None, con_ref_ab=None, sv_gq=0, sv_dp=0,
-                 sv_max_dp=0, sv_het_ab=0., sv_hom_ab=0.,
-                 sv_min_control_dp=None, sv_max_control_dp=None,
-                 sv_min_control_gq=None, sv_control_het_ab=None,
-                 sv_control_hom_ab=None, sv_con_ref_ab=None, min_families=1,
-                 n_controls=0):
+    def __init__(self, vcf, family_filter, gt_args, n_controls=0):
         '''
             Args:
                 vcf:    Input VcfReader object.
@@ -1663,11 +1252,10 @@ class ControlFilter(SampleFilter):
                         FamilyFilter object containing information on
                         which samples are controls in the input VCF.
 
-                gq:     Minimum genotype quality score. Genotype calls
-                        with a GQ lower than this value will be treated
-                        as as no-calls. Input without GQ data can be
-                        used if gq=0. Default=0.
-
+                gt_args:
+                        A dict of arguments to use for filtering
+                        genotypes. These should all correspond to
+                        arguments to provide to SampleFilter objects.
 
                 n_controls:
                         Minimum number of controls required to carry an
@@ -1678,22 +1266,9 @@ class ControlFilter(SampleFilter):
         '''
         if n_controls and n_controls > len(family_filter.vcf_unaffected):
             n_controls = len(family_filter.vcf_unaffected)
-        super().__init__(vcf, controls=family_filter.vcf_unaffected, gq=gq,
-                         het_ab=het_ab, hom_ab=hom_ab, dp=dp, max_dp=max_dp,
-                         min_control_dp=min_control_dp,
-                         max_control_dp=max_control_dp,
-                         min_control_gq=min_control_gq,
-                         control_het_ab=control_het_ab,
-                         control_hom_ab=control_hom_ab, con_ref_ab=con_ref_ab,
-                         sv_gq=sv_gq, sv_het_ab=sv_het_ab, sv_hom_ab=sv_hom_ab,
-                         sv_dp=sv_dp, sv_max_dp=sv_max_dp,
-                         sv_min_control_dp=sv_min_control_dp,
-                         sv_max_control_dp=sv_max_control_dp,
-                         sv_min_control_gq=sv_min_control_gq,
-                         sv_control_het_ab=sv_control_het_ab,
-                         sv_control_hom_ab=sv_control_hom_ab,
-                         sv_con_ref_ab=sv_con_ref_ab, n_controls=n_controls,
-                         confirm_missing=False)
+        super().__init__(vcf, controls=family_filter.vcf_unaffected,
+                         n_controls=n_controls, confirm_missing=False,
+                         **gt_args)
 
 
 class SegregatingVariant(object):
