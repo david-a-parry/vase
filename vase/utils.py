@@ -10,7 +10,7 @@ def csv_to_dict(f, index, fieldnames, delimiter=',', keys_are_unique=False):
     method = open
     if f.endswith(".gz") or f.endswith(".bgz"):
         method = gzip.open
-    with method(f, 'rt', newline='') as csvfile:
+    with method(f, 'rt', newline='', errors='replace') as csvfile:
         reader = csv.DictReader(csvfile, delimiter=delimiter)
         for x in fieldnames:
             if x not in reader.fieldnames:
