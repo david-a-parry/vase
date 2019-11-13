@@ -350,8 +350,13 @@ class VepFilter(object):
             else:
                 filt_csq = self.csq
             for s_csq in [x.lower() for x in c['Consequence'].split('&')]:
-                if ((filt_csq is not None and s_csq in filt_csq) or
-                    (self.impact is not None and c['IMPACT'] in self.impact)):
+                matches_csq = False
+                matches_impact = False
+                if filt_csq is not None and s_csq in filt_csq:
+                    matches_csq = True
+                if self.impact is not None and c['IMPACT'] in self.impact:
+                    matches_impact = True
+                if matches_csq or matches_impact:
                     if self.in_silico and s_csq == 'missense_variant':
                         do_filter = self.in_silico.filter(c)
                         if not do_filter:
@@ -366,7 +371,8 @@ class VepFilter(object):
                             filter_csq[i] = False
                             break
                         filter_csq[i] = do_filter
-                    elif self.loftee and s_csq in lof_csq:
+                    elif self.loftee and (s_csq in lof_csq or matches_impact
+                                          and c['IMPACT'] == 'HIGH'):
                         if c['LoF'] == 'HC':
                             filter_alleles[alt_i] = False
                             filter_csq[i] = False
