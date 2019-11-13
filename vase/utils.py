@@ -14,12 +14,12 @@ def csv_to_dict(f, index, fieldnames, delimiter=',', keys_are_unique=False):
         reader = csv.DictReader(csvfile, delimiter=delimiter)
         for x in fieldnames:
             if x not in reader.fieldnames:
-                raise RuntimeError("Missing '{}' ".format(x) + "field in" +
+                raise ValueError("Missing '{}' ".format(x) + "field in" +
                                    " file '{}'".format(f))
         for row in reader:
             if keys_are_unique:
                 if row[index] in d:
-                    raise RuntimeError("Duplicate value ('{}') ".format(
+                    raise ValueError("Duplicate value ('{}') ".format(
                         row[index]) + "for '{}' field ".format(index) +
                         "in file '{}'".format(f))
                 d[row[index]] = row
