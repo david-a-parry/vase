@@ -1,5 +1,3 @@
-import re
-import gzip
 import operator
 from natsort import natsorted
 from .genomic_interval import GenomicInterval

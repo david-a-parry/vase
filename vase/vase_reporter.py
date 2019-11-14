@@ -4,12 +4,10 @@ import re
 import logging
 import xlsxwriter
 import os
-import gzip
-import csv
 import json
-from collections import namedtuple, OrderedDict, defaultdict
-from .ped_file import PedFile, Family, Individual, PedError
-from parse_vcf import VcfReader, VcfHeader, VcfRecord
+from collections import OrderedDict, defaultdict
+from .ped_file import PedFile, Individual, PedError
+from parse_vcf import VcfReader
 from .ensembl_rest_queries import EnsemblRestQueries
 from .utils import csv_to_dict
 from .g2p import G2P, allelic_req_to_label
@@ -98,14 +96,13 @@ class VaseReporter(object):
             self.blacklist = self._read_blacklist(blacklist)
         if not families:
             families = sorted(self.ped.families.keys())
-        fams_with_samples = []
         self._fam_order = list()
         for f in families:#respect the order of families provided before converting to set
             if f not in self.ped.families:
                 raise RuntimeError("Family '{}' not found in ped ".format(f) +
                                    "'{}'.".format(ped))
             if f in self._fam_order:
-                logger.warn("Duplicate family '{}' specified".format(f))
+                self.logger.warn("Duplicate family '{}' specified".format(f))
             else:
                 self._fam_order.append(f)
         self.families = set(self._fam_order)
@@ -123,10 +120,10 @@ class VaseReporter(object):
                 self.mg = mygene.MyGeneInfo()
                 self.mygene_lookups = True
             except ModuleNotFoundError:
-                logger.warn("Error importing mygene - please install mygene " +
+                self.logger.warn("Error importing mygene - please install mygene " +
                             " (e.g. pip3 install mygene) to use the " +
                             "--mygene_lookups option.")
-                logger.warn("Continuing without mygene lookups")
+                self.logger.warn("Continuing without mygene lookups")
         if prog_interval is not None:
             self.prog_interval = prog_interval
         elif self.rest_lookups or self.mygene_lookups:
@@ -229,7 +226,6 @@ class VaseReporter(object):
 
     def _get_seg_fields(self):
         inheritance_fields = dict()
-        selected_fields = dict()
         seg = False
         if 'VASE_biallelic_families' in self.vcf.metadata['INFO']:
             inheritance_fields['VASE_biallelic_families'] = 'recessive'
@@ -652,7 +648,6 @@ class VaseReporter(object):
         '''Write an entry for every segregating allele in VCF'''
         self.logger.info("Reading variants and writing report")
         n = 0
-        w = 0
         for record in self.vcf.parser:
             n += 1
             info = record.parsed_info_fields(list(self.seg_fields.keys()) +

@@ -1,6 +1,6 @@
-import sys
 from collections import defaultdict
 from .utils import csv_to_dict
+from parse_vcf import HeaderError
 
 allelic_req_to_label = {'biallelic'                 : ['recessive'],
                         'digenic'                   : [],
@@ -77,7 +77,7 @@ class G2P(object):
             the gene's G2P annotations.
         '''
         try:
-            return [csq_matches_requirement(x) for x in record.CSQ]
+            return [self.csq_matches_requirement(x) for x in record.CSQ]
         except HeaderError:
             raise RuntimeError("Could not identify CSQ or ANN fields in VCF " +
                                "header. Please ensure your input is " +

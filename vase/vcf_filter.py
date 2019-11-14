@@ -1,5 +1,4 @@
-import sys
-from parse_vcf import *
+from parse_vcf import VcfReader
 
 
 class VcfFilter(object):

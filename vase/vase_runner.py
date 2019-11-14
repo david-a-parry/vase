@@ -2,14 +2,14 @@ import sys
 import re
 import logging
 import io
-from parse_vcf import VcfReader, VcfHeader, VcfRecord
+from parse_vcf import VcfReader
 from .dbsnp_filter import dbSnpFilter, clinvar_path_annot
 from .gnomad_filter import GnomadFilter
 from .vcf_filter import VcfFilter
 from .vep_filter import VepFilter
 from .cadd_filter import CaddFilter
 from .sample_filter import SampleFilter
-from .ped_file import PedFile, Family, Individual, PedError
+from .ped_file import PedFile, Individual, PedError
 from .family_filter import FamilyFilter, ControlFilter
 from .family_filter import RecessiveFilter, DominantFilter, DeNovoFilter
 from .burden_counter import BurdenCounter

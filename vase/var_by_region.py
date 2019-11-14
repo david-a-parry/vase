@@ -1,4 +1,4 @@
-from .bed_parser import BedParser, BedFormatError
+from .bed_parser import BedParser
 from collections import defaultdict
 import re
 

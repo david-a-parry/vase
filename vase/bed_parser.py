@@ -1,8 +1,4 @@
-import re
 import gzip
-import operator
-from natsort import natsorted
-from .genomic_interval import GenomicInterval
 from .interval_iter import IntervalIter
 
 class BedParser(IntervalIter):

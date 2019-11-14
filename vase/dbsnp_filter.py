@@ -1,5 +1,4 @@
-import sys
-from .vcf_filter import *
+from .vcf_filter import VcfFilter
 
 clinvar_path_annot = ['Likely_pathogenic', 'Pathogenic', '4', '5']
 

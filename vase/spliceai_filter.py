@@ -1,8 +1,7 @@
-import sys
 import gzip
 import logging
 from collections import defaultdict
-from parse_vcf import VcfReader
+from parse_vcf import VcfReader, HeaderError
 
 pre_scored_fields = ["SYMBOL", "DS_AG", "DS_AL", "DS_DG", "DS_DL", "DP_AG",
                      "DP_AL", "DP_DG", "DP_DL"]

@@ -1,8 +1,8 @@
-import sys
+import os
 import logging
 from collections import defaultdict
-from parse_vcf import *
-from .insilico_filter import *
+from parse_vcf import HeaderError
+from .insilico_filter import InSilicoFilter
 
 lof_csq = {'frameshift_variant', 'stop_gained', 'splice_acceptor_variant',
            'splice_donor_variant'}

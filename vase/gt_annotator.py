@@ -1,6 +1,4 @@
-import sys
-from parse_vcf import *
-from collections import defaultdict
+from parse_vcf import VcfReader
 
 _comp_fields = ['CHROM', 'POS', 'REF', 'ALT']
 

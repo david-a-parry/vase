@@ -1,5 +1,4 @@
-import sys
-from .vcf_filter import *
+from .vcf_filter import VcfFilter
 
 
 class GnomadFilter(VcfFilter):

@@ -1,5 +1,4 @@
-from parse_vcf import *
-from .ped_file import *
+from parse_vcf import HeaderError
 from .sample_filter import SampleFilter, GtFilter
 from .sv_gt_filter import SvGtFilter
 import logging
@@ -136,7 +135,7 @@ class FamilyFilter(object):
                                              "assuming unaffected")
                             self.vcf_samples.append(par)
                             self.vcf_unaffected.append(par)
-                            add_par = Individual(fid, par, '0', '0', '0', '1')
+                            #add_par = Individual(fid, par, '0', '0', '0', '1')
                         continue
                     parent = fam.individuals[par]
                     par_to_child = False
@@ -1016,7 +1015,7 @@ class DeNovoFilter(InheritanceFilter):
         the parents.
     '''
 
-    def __init__(self, family_filter, min_families=1, confirm_het=False,
+    def __init__(self, family_filter, gt_args, min_families=1, confirm_het=False,
                  report_file=None):
         '''
             Initialize with parent IDs, children IDs and VcfReader
