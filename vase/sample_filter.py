@@ -515,9 +515,9 @@ class GtFilter(object):
             is_het_alt = True
         if al_dp is not None and dp > 0 and (is_het_alt or is_hom_alt):
             ab = float(al_dp)/dp
-            if is_het_alt and ab < self.het_ab:
+            if is_het_alt and self.het_ab and ab < self.het_ab:
                 return False #filter
-            if is_hom_alt and ab < self.hom_ab:
+            if is_hom_alt and self.hom_ab and ab < self.hom_ab:
                 return False #filter
         return True #do not filter
 
