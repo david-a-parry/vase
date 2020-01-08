@@ -360,16 +360,18 @@ class InheritanceFilter(object):
                 return False
         return True
 
-    def _get_allele_counts(self, allele, gts, is_sv=False):
+    def _get_allele_counts(self, allele, gts, record):
         a_counts = dict()
-        if is_sv:
+        gt_filter_args = dict()
+        if record.IS_SV:
             gt_filter = self.sv_gt_filter
             control_filter = self.sv_con_gt_filter
+            gt_filter_args['svtype'] = record.INFO_FIELDS.get('SVTYPE', '')
         else:
             gt_filter = self.gt_filter
             control_filter = self.con_gt_filter
         for samp in self.unaffected:
-            if control_filter.gt_is_ok(gts, samp, allele):
+            if control_filter.gt_is_ok(gts, samp, allele, **gt_filter_args):
                 a_counts[samp] = gts['GT'][samp].count(allele)
             else:
                 a_counts[samp] = None
@@ -378,7 +380,7 @@ class InheritanceFilter(object):
                 if control_filter.ad_over_threshold(gts, samp, allele):
                     a_counts[samp] = 1
         for samp in self.affected:
-            if gt_filter.gt_is_ok(gts, samp, allele):
+            if gt_filter.gt_is_ok(gts, samp, allele, **gt_filter_args):
                 a_counts[samp] = gts['GT'][samp].count(allele)
             else:
                 a_counts[samp] = None
@@ -548,11 +550,13 @@ class RecessiveFilter(InheritanceFilter):
         ignore_csq = self.check_g2p(record, ignore_csq, 'recessive')
         if ignore_csq and all(ignore_csq):
             return False
+        gt_filter_args = dict()
         if record.IS_SV:
             gts = record.parsed_gts(fields=self._sv_gt_fields,
                                     samples=self.samples)
             gt_filter = self.sv_gt_filter
             control_filter = self.sv_con_gt_filter
+            gt_filter_args['svtype'] = record.INFO_FIELDS.get('SVTYPE', '')
         else:
             gts = record.parsed_gts(fields=self._gt_fields,
                                     samples=self.samples)
@@ -560,7 +564,7 @@ class RecessiveFilter(InheritanceFilter):
             control_filter = self.con_gt_filter
         skip_fam = set()
         added_prs = OrderedDict()
-        for i in range(len(record.ALLELES) -1):
+        for i in range(len(record.ALLELES) - 1):
             if ignore_alleles and ignore_alleles[i]:
                 continue
             alt = i + 1
@@ -568,7 +572,7 @@ class RecessiveFilter(InheritanceFilter):
             fams_with_allele = []
             for un in self.unaffected:
                 if gts['GT'][un] == (alt, alt):
-                    if control_filter.gt_is_ok(gts, un, alt):
+                    if control_filter.gt_is_ok(gts, un, alt, **gt_filter_args):
                         #hom in a control - skip allele
                         skip_allele = True
                         break
@@ -580,8 +584,8 @@ class RecessiveFilter(InheritanceFilter):
                 have_allele = set() #affecteds carrying this allele
                 for aff in self._fam_to_aff[fid]:
                     #check all affecteds carry this allele
-                    if (alt in gts['GT'][aff] and
-                        gt_filter.gt_is_ok(gts, aff, alt)):
+                    if (alt in gts['GT'][aff] and gt_filter.gt_is_ok(
+                            gts, aff, alt, **gt_filter_args)):
                         have_allele.add(aff)
                     else:
                         break
@@ -600,8 +604,7 @@ class RecessiveFilter(InheritanceFilter):
                             csqs.append(record.CSQ[j])
                     if csqs:
                         stored = True
-                        alt_counts = self._get_allele_counts(alt, gts,
-                                                             record.IS_SV)
+                        alt_counts = self._get_allele_counts(alt, gts, record)
                         pr = PotentialSegregant(record=record, allele=alt,
                                                 csqs=csqs,
                                                 allele_counts=alt_counts,
@@ -620,12 +623,12 @@ class RecessiveFilter(InheritanceFilter):
                     raise RuntimeError("Could not identify CSQ or ANN " +
                                        "fields in VCF header. Please ensure " +
                                        "your input is annotated with " +
-                                       "Ensembl's VEP to perform recessive "+
+                                       "Ensembl's VEP to perform recessive " +
                                        "filtering")
         self._last_added = added_prs
         return stored
 
-    def process_potential_recessives(self ,final=False):
+    def process_potential_recessives(self, final=False):
         '''
             Check whether stored PotentialSegregant alleles make up
             biallelic variation in the same transcript for affected
@@ -915,7 +918,7 @@ class DominantFilter(InheritanceFilter):
                 else:
                     gts = record.parsed_gts(fields=self._gt_fields,
                                             samples=self.samples)
-                a_counts = self._get_allele_counts(allele, gts, record.IS_SV)
+                a_counts = self._get_allele_counts(allele, gts, record)
                 pd = PotentialSegregant(record=record, allele=allele,
                                         csqs=csqs, allele_counts=a_counts,
                                         families=fam_alleles[i])
@@ -1151,7 +1154,7 @@ class DeNovoFilter(InheritanceFilter):
                 else:
                     gts = record.parsed_gts(fields=self._gt_fields,
                                             samples=self.samples)
-                a_counts = self._get_allele_counts(allele, gts, record.IS_SV)
+                a_counts = self._get_allele_counts(allele, gts, record)
                 pd = PotentialSegregant(record=record, allele=allele,
                                         csqs=csqs, allele_counts=a_counts,
                                         families=fam_alleles[i])
