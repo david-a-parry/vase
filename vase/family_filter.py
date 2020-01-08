@@ -511,7 +511,6 @@ class RecessiveFilter(InheritanceFilter):
         self.strict = strict
         self.exclude_denovo = exclude_denovo
         self._potential_recessives = dict()
-        self._last_added = OrderedDict()
         self._current_features = set()
         self._processed_features = set()
 
@@ -547,6 +546,8 @@ class RecessiveFilter(InheritanceFilter):
         '''
         stored = False
         self._check_sorted(record)
+        self._current_features = set(c['Feature'] for c in record.CSQ if
+                                     c['Feature'] != '')
         ignore_csq = self.check_g2p(record, ignore_csq, 'recessive')
         if ignore_csq and all(ignore_csq):
             return False
@@ -625,7 +626,6 @@ class RecessiveFilter(InheritanceFilter):
                                        "your input is annotated with " +
                                        "Ensembl's VEP to perform recessive " +
                                        "filtering")
-        self._last_added = added_prs
         return stored
 
     def process_potential_recessives(self, final=False):
@@ -639,18 +639,18 @@ class RecessiveFilter(InheritanceFilter):
 
             Clears the cache of stored PotentialSegregant alleles.
         '''
-        segregating = OrderedDict() #keys are alt_ids, values are SegregatingBiallelic
+        segregating = OrderedDict()  # keys are alt_ids, values are SegregatingBiallelic
         for feat, prs in self._potential_recessives.items():
-            if not final and feat in self._last_added:
+            if not final and feat in self._current_features:
                 continue
-            feat_segregating = [] #list of tuples of values for creating SegregatingBiallelic
-            un_hets = defaultdict(list)  #store het alleles carried by each unaffected
-            aff_hets = defaultdict(list) #store het alleles carried by each affected
-            biallelics = defaultdict(list)  #store biallelic combinations for affecteds
+            feat_segregating = []  # list of tuples of values for creating SegregatingBiallelic
+            un_hets = defaultdict(list)  # store het alleles carried by each unaffected
+            aff_hets = defaultdict(list)  # store het alleles carried by each affected
+            biallelics = defaultdict(list)  # store biallelic combinations for affecteds
             for pid,p in prs.items():
                 for un in self.unaffected:
-                    if p.allele_counts[un] == 1:  #already checked for homs when adding
-                        #store allele carried in this unaffected
+                    if p.allele_counts[un] == 1:  # already checked for homs when adding
+                        # store allele carried in this unaffected
                         un_hets[un].append(pid)
                 for aff in (x for x in self.affected
                             if self.ped.fid_from_iid(x) in p.families):
@@ -721,9 +721,11 @@ class RecessiveFilter(InheritanceFilter):
                 var_to_segregants[sb.segregant.var_id].append(sb.segregant)
             else:
                 var_to_segregants[sb.segregant.var_id] = [sb.segregant]
-        #clear the cache except for the last entry which will be a new gene
-        self._potential_recessives = self._last_added
-        self._last_added = dict()
+        # clear the cache except for the last entry which will be a new gene
+        # self._potential_recessives = self._last_added
+        self._potential_recessives = OrderedDict(
+            (k, v) for k, v in self._potential_recessives.items() if k in
+            self._current_features)
         return var_to_segregants
 
     def _check_parents(self, feat, alleles, samples):
@@ -832,6 +834,7 @@ class DominantFilter(InheritanceFilter):
         self.filters = dict()
         self._potential_dominants = dict()
         self._last_added = OrderedDict()
+        self._current_features = set()
         for fam in self.families:
             f_aff = tuple(x for x in self.ped.families[fam].get_affected()
                           if (x in self.affected or
@@ -975,7 +978,7 @@ class DominantFilter(InheritanceFilter):
                     self._potential_dominants[feat] = self._last_added[feat]
             self._last_added = OrderedDict()
         for feat, pds in self._potential_dominants.items():
-            if feat in self._last_added: #still processing this feature
+            if feat in self._current_features: #still processing this feature
                 continue
             feat_fams = set()
             feat_processed.append(feat)
@@ -1058,6 +1061,7 @@ class DeNovoFilter(InheritanceFilter):
                              self.ped.individuals[x].fid in self.families)
         self._potential_denovos = dict()
         self._last_added = OrderedDict()
+        self._current_features = set()
         self.confirm_het = confirm_het
         self.filters = defaultdict(list)
         self.prefix = "VASE_de_novo"
@@ -1205,7 +1209,7 @@ class DeNovoFilter(InheritanceFilter):
                     self._potential_denovos[feat] = self._last_added[feat]
             self._last_added = OrderedDict()
         for feat, pds in self._potential_denovos.items():
-            if feat in self._last_added: #still processing this feature
+            if feat in self._current_features: #still processing this feature
                 continue
             feat_fams = set()
             feat_processed.append(feat)
