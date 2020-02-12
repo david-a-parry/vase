@@ -29,7 +29,7 @@ class BurdenCounter(object):
             if not vcf.header.samples:
                 raise RuntimeError("No samples defined in VCF header - " +
                                    "cannot use --cases or --controls " +
-                                    "arguments.")
+                                   "arguments.")
             self.samples = cases + controls
             self.total_alleles['Cases'] = len(cases) * 2
             self.total_alleles['Controls'] = len(controls) * 2
@@ -41,8 +41,8 @@ class BurdenCounter(object):
             self.use_ac = True
         for x in cases + controls:
             if x not in vcf.header.samples:
-               raise RuntimeError("Burden counter sample '{}' not found in "
-                                  .format(x) + "VCF input.")
+                raise RuntimeError("Burden counter sample '{}' not found in "
+                                   .format(x) + "VCF input.")
         self.gnomad_pops = []
         if is_gnomad:
             self.gnomad_pops = self._check_gnomad_pops(vcf)
@@ -77,7 +77,7 @@ class BurdenCounter(object):
         self.out_fh.write(str.join("\t", cols) + "\n")
 
     def _check_gnomad_pops(self, vcf):
-        pop_ac_re = re.compile(r'''^AC_([A-Z]+)$''')
+        pop_ac_re = re.compile(r'''^AC_([A-Za-z]{3})$''')
         pops = []
         for f in self.vcf.metadata['INFO']:
             match = pop_ac_re.match(f)
