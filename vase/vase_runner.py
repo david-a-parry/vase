@@ -126,33 +126,79 @@ class VaseRunner(object):
                 vep_freq = args.freq
                 vep_min_freq = args.min_freq
                 vep_af = args.vep_af
-            self.csq_filter = VepFilter(
-                vcf=self.input,
-                csq=args.csq,
-                impact=args.impact,
-                canonical=args.canonical,
-                biotypes=args.biotypes,
-                in_silico=args.missense_filters,
-                filter_unpredicted=args.filter_unpredicted,
-                keep_any_damaging=args.keep_if_any_damaging,
-                loftee=args.loftee,
-                splice_in_silico=args.splice_filters,
-                splice_filter_unpredicted=args.splice_filter_unpredicted,
-                splice_keep_any_damaging=args.splice_keep_if_any_damaging,
-                retain_labels=args.retain_labels,
-                filter_flagged_features=args.flagged_features,
-                freq=vep_freq,
-                min_freq=vep_min_freq,
-                filter_known=self.args.filter_known,
-                filter_novel=self.args.filter_novel,
-                afs=vep_af,
-                gene_filter=self.gene_filter,
-                blacklist=args.feature_blacklist,
-                pathogenic=args.pathogenic,
-                no_conflicted=args.no_conflicted,
-                g2p=self.g2p,
-                check_g2p_consequence=self.args.check_g2p_consequence,
-                logging_level=self.logger.level)
+            if self.splice_ai_filter or (self.prev_splice_ai and
+                                         (self.args.splice_ai_min_delta
+                                          or self.args.splice_ai_max_delta)):
+                # workaround - need to VepFilter in 2 stages if using SpliceAI filtering
+                self.csq_filter = VepFilter(
+                    vcf=self.input,
+                    csq=args.csq,
+                    impact=args.impact,
+                    canonical=args.canonical,
+                    biotypes=args.biotypes,
+                    in_silico=args.missense_filters,
+                    filter_unpredicted=args.filter_unpredicted,
+                    keep_any_damaging=args.keep_if_any_damaging,
+                    loftee=args.loftee,
+                    splice_in_silico=args.splice_filters,
+                    splice_filter_unpredicted=args.splice_filter_unpredicted,
+                    splice_keep_any_damaging=args.splice_keep_if_any_damaging,
+                    retain_labels=args.retain_labels,
+                    filter_flagged_features=args.flagged_features,
+                    freq=vep_freq,
+                    min_freq=vep_min_freq,
+                    filter_known=self.args.filter_known,
+                    filter_novel=self.args.filter_novel,
+                    afs=vep_af,
+                    gene_filter=self.gene_filter,
+                    blacklist=args.feature_blacklist,
+                    pathogenic=args.pathogenic,
+                    no_conflicted=args.no_conflicted,
+                    g2p=self.g2p,
+                    check_g2p_consequence=self.args.check_g2p_consequence,
+                    logging_level=self.logger.level)
+                self.post_spliceai_csq_filter = VepFilter(
+                    vcf=self.input,
+                    csq=['all'],
+                    canonical=args.canonical,
+                    biotypes=args.biotypes,
+                    freq=vep_freq,
+                    min_freq=vep_min_freq,
+                    filter_known=self.args.filter_known,
+                    filter_novel=self.args.filter_novel,
+                    afs=vep_af,
+                    gene_filter=self.gene_filter,
+                    blacklist=args.feature_blacklist,
+                    logging_level=self.logger.level)
+            else:
+                self.csq_filter = VepFilter(
+                    vcf=self.input,
+                    csq=args.csq,
+                    impact=args.impact,
+                    canonical=args.canonical,
+                    biotypes=args.biotypes,
+                    in_silico=args.missense_filters,
+                    filter_unpredicted=args.filter_unpredicted,
+                    keep_any_damaging=args.keep_if_any_damaging,
+                    loftee=args.loftee,
+                    splice_in_silico=args.splice_filters,
+                    splice_filter_unpredicted=args.splice_filter_unpredicted,
+                    splice_keep_any_damaging=args.splice_keep_if_any_damaging,
+                    retain_labels=args.retain_labels,
+                    filter_flagged_features=args.flagged_features,
+                    freq=vep_freq,
+                    min_freq=vep_min_freq,
+                    filter_known=self.args.filter_known,
+                    filter_novel=self.args.filter_novel,
+                    afs=vep_af,
+                    gene_filter=self.gene_filter,
+                    blacklist=args.feature_blacklist,
+                    pathogenic=args.pathogenic,
+                    no_conflicted=args.no_conflicted,
+                    g2p=self.g2p,
+                    check_g2p_consequence=self.args.check_g2p_consequence,
+                    logging_level=self.logger.level)
+                self.post_spliceai_csq_filter = None
         self.sample_filter = None
         self.burden_counter = None
         if args.burden_counts:
@@ -471,9 +517,14 @@ class VaseRunner(object):
                         record, True, self.args.canonical))
                 if (self.args.splice_ai_min_delta
                         or self.args.splice_ai_max_delta):
-                    #RETAIN Alleles/csq if SpliceAI scores meet threshold
+                    # RETAIN Alleles/csq if SpliceAI scores meet threshold
                     self._set_to_false_if_true(remove_alleles, splice_alleles)
                     self._set_to_false_if_true(remove_csq, splice_csq)
+            if self.post_spliceai_csq_filter:
+                # filter with VEP annots again in case of AF/biotype failures
+                r_alts, r_csq = self.post_spliceai_csq_filter.filter(record)
+                self._set_to_true_if_true(remove_alleles, r_alts)
+                self._set_to_true_if_true(remove_csq, r_csq)
             if (not self.args.clinvar_path and all(remove_alleles)):
                 # bail out now if no valid consequence
                 return remove_alleles, remove_csq
