@@ -11,6 +11,7 @@ allelic_req_to_label = {'biallelic'                 : ['recessive'],
                         'mosaic'                    : ['de novo', 'dominant'],
                         'x-linked dominant'         : ['de novo', 'dominant'],
                         'x-linked over-dominance'   : ['de novo', 'dominant'],
+                        'uncertain'                 : [],
                         ''                          : [],
                        }
 
