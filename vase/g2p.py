@@ -2,52 +2,51 @@ from collections import defaultdict
 from .utils import csv_to_dict
 from parse_vcf import HeaderError
 
-allelic_req_to_label = {'biallelic'                 : ['recessive'],
-                        'digenic'                   : [],
-                        'hemizygous'                : ['recessive'],
-                        'imprinted'                 : [],
-                        'mitochondrial'             : [],
-                        'monoallelic'               : ['de novo', 'dominant'],
-                        'mosaic'                    : ['de novo', 'dominant'],
-                        'x-linked dominant'         : ['de novo', 'dominant'],
-                        'x-linked over-dominance'   : ['de novo', 'dominant'],
-                        'uncertain'                 : [],
-                        ''                          : [],
-                       }
+allelic_req_to_label = {'biallelic':                  ['recessive'],
+                        'digenic':                    [],
+                        'hemizygous':                 ['recessive'],
+                        'imprinted':                  [],
+                        'mitochondrial':              [],
+                        'monoallelic':                ['de novo', 'dominant'],
+                        'mosaic':                     ['de novo', 'dominant'],
+                        'x-linked dominant':          ['de novo', 'dominant'],
+                        'x-linked over-dominance':    ['de novo', 'dominant'],
+                        'uncertain':                  [],
+                        '':                           []}
 
 mutation_to_csq = {
-    'loss of function'                   : ['frameshift_variant',
-                                           'stop_gained',
-                                           'start_lost',
-                                           'initiator_codon_variant',
-                                           'splice_acceptor_variant',
-                                           'splice_donor_variant',
-                                           'transcript_ablation',
-                                           'feature_truncation',],
-    'uncertain'                          : None,
-    ''                                   : None,
-    'all missense/in frame'              : ['missense_variant',
-                                           'inframe_deletion',
-                                           'inframe_insertion',],
-    'dominant negative'                  : ['missense_variant',
-                                           'inframe_deletion',
-                                           'inframe_insertion',],
-    'activating'                         : ['missense_variant',
-                                           'inframe_deletion',
-                                           'inframe_insertion',],
+    'loss of function':                    ['frameshift_variant',
+                                            'stop_gained',
+                                            'start_lost',
+                                            'initiator_codon_variant',
+                                            'splice_acceptor_variant',
+                                            'splice_donor_variant',
+                                            'transcript_ablation',
+                                            'feature_truncation'],
+    'uncertain':                           None,
+    '':                                    None,
+    'all missense/in frame':               ['missense_variant',
+                                            'inframe_deletion',
+                                            'inframe_insertion'],
+    'dominant negative':                   ['missense_variant',
+                                            'inframe_deletion',
+                                            'inframe_insertion'],
+    'activating':                          ['missense_variant',
+                                            'inframe_deletion',
+                                            'inframe_insertion'],
     'cis-regulatory or promotor mutation': ['regulatory_region_ablation',
-                                           'regulatory_region_amplification',
-                                           'regulatory_region_variant',
-                                           'TFBS_ablation',
-                                           'TFBS_amplification',
-                                           'TF_binding_site_variant',],
+                                            'regulatory_region_amplification',
+                                            'regulatory_region_variant',
+                                            'TFBS_ablation',
+                                            'TFBS_amplification',
+                                            'TF_binding_site_variant'],
     'part of contiguous gene duplication': [],
-    'increased gene dosage'              : [],
-    'gain of function'                   : ['missense_variant',
-                                           'inframe_deletion',
-                                           'inframe_insertion',],
-    '5_prime or 3_prime UTR mutation'    : ['3_prime_UTR_variant',
-                                           '5_prime_UTR_variant',],
+    'increased gene dosage':               [],
+    'gain of function':                    ['missense_variant',
+                                            'inframe_deletion',
+                                            'inframe_insertion'],
+    '5_prime or 3_prime UTR mutation':     ['3_prime_UTR_variant',
+                                            '5_prime_UTR_variant'],
 }
 
 
@@ -186,7 +185,7 @@ class G2P(object):
                             verdict = True
                             break
                     elif any(x in csq['Consequence'].split('&') for x in
-                           mutation_to_csq[d['mutation consequence']]):
+                             mutation_to_csq[d['mutation consequence']]):
                         verdict = True
                         break
             met.append(verdict)
