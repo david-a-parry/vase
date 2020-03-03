@@ -4,6 +4,7 @@ from .sv_gt_filter import SvGtFilter
 import logging
 from collections import OrderedDict, defaultdict
 
+
 class FamilyFilter(object):
     '''
         Determine whether variants/alleles fit given inheritance
@@ -74,13 +75,13 @@ class FamilyFilter(object):
             raise RuntimeError("No affected individuals found in PED file '{}'"
                                .format(ped.filename))
         self.vcf_affected = list(x for x in self.affected
-                                  if x in self.vcf.header.samples)
+                                 if x in self.vcf.header.samples)
         if not self.vcf_affected:
             raise RuntimeError("No affected individuals in PED file '{}'"
                                .format(ped.filename) + " found in VCF " +
                                "'{}'".format(vcf.filename))
         self.vcf_unaffected = list(x for x in self.unaffected
-                                    if x in self.vcf.header.samples)
+                                   if x in self.vcf.header.samples)
         self.vcf_samples = self.vcf_affected + self.vcf_unaffected
         self.inheritance_patterns = defaultdict(list)
         if infer_inheritance:
@@ -107,26 +108,28 @@ class FamilyFilter(object):
         for fid, fam in self.ped.families.items():
             n_affected = 0
             no_parents = True
+            both_pars_unaffected = False
             dominant = False
             denovo = False
             recessive = False
             self.logger.info("Assessing inheritance pattern of family {}"
-                              .format(fid))
+                             .format(fid))
             f_aff = tuple(fam.get_affected())
             obligate_carriers = set()
             if not f_aff:
                 continue
             for iid in f_aff:
-                self.logger.info("Checking affected individual {}" .format(iid))
+                self.logger.info("Checking affected individual {}".format(iid))
                 n_affected += 1
                 indv = fam.individuals[iid]
                 if not indv.parents:
                     self.logger.info("No parents for affected individual {}"
-                                      .format(iid))
+                                     .format(iid))
                     continue
                 no_parents = False
+                p_unaff = 0
                 for par in indv.parents:
-                    #is parent affected
+                    # is parent affected
                     if par not in fam.individuals:
                         if par in self.vcf.header.samples:
                             self.logger.warn("Family '{}' parent '{}' ".format(
@@ -135,15 +138,17 @@ class FamilyFilter(object):
                                              "assuming unaffected")
                             self.vcf_samples.append(par)
                             self.vcf_unaffected.append(par)
-                            #add_par = Individual(fid, par, '0', '0', '0', '1')
+                        p_unaff += 1
                         continue
                     parent = fam.individuals[par]
                     par_to_child = False
                     gpar_to_child = False
                     if parent.is_affected():
-                        self.logger.info("Apparent vertical transmission from " +
-                                          "{} -> {}" .format(par, iid))
+                        self.logger.info("Apparent vertical transmission " +
+                                         "from {} -> {}" .format(par, iid))
                         par_to_child = True
+                    else:
+                        p_unaff += 1
                     for gpar in parent.parents:
                         if fam.individuals[gpar].is_affected():
                             gpar_to_child = True
@@ -159,9 +164,12 @@ class FamilyFilter(object):
                             self.logger.info(msg)
                     if par_to_child or gpar_to_child:
                         dominant = True
+                if p_unaff == 2:
+                    both_pars_unaffected = True
             if not dominant:
                 recessive = True
-            if no_parents:
+            if no_parents or not both_pars_unaffected:
+                # missing information on one/both parents - could be dominant
                 dominant = True
             if recessive and n_affected == 1 and not no_parents:
                 f_par = fam.individuals[f_aff[0]].parents
@@ -169,6 +177,7 @@ class FamilyFilter(object):
                     self.logger.info("Can not analyze {} under ".format(fid) +
                                      "a de novo model due to missing parents" +
                                      " in ped")
+                    dominant = True
                 elif (f_par[0] not in self.vcf.header.samples or
                       f_par[1] not in self.vcf.header.samples):
                     self.logger.info("Can not analyze {} under ".format(fid) +
@@ -185,11 +194,12 @@ class FamilyFilter(object):
                     self.logger.info("Can not analyze {} under ".format(fid) +
                                      "a de novo model due to missing parents" +
                                      " in ped")
+                    dominant = True
                 else:
                     shared_pars = set(pars)
                     for i in range(1, len(f_aff)):
                         ipars = self.ped.individuals[f_aff[i]].parents
-                        if ipars == None:
+                        if ipars is None:
                             break
                         shared_pars = shared_pars.intersection(ipars)
                         if not shared_pars:
@@ -349,8 +359,9 @@ class InheritanceFilter(object):
         '''
         hf = dict()
         for f in self.header_fields:
-            hf[f[0]] = {'Number' : 'A', 'Type' : 'String',
-                        'Description' : f[1] }
+            hf[f[0]] = {'Number': 'A',
+                        'Type': 'String',
+                        'Description': f[1]}
         return hf
 
     def confirm_heterozygous(self, record, samples):
@@ -376,7 +387,7 @@ class InheritanceFilter(object):
             else:
                 a_counts[samp] = None
             if (gts['GT'][samp] == (0, 0) and
-                  control_filter.ad_over_threshold is not None):
+                    control_filter.ad_over_threshold is not None):
                 if control_filter.ad_over_threshold(gts, samp, allele):
                     a_counts[samp] = 1
         for samp in self.affected:
@@ -415,7 +426,7 @@ class InheritanceFilter(object):
                                  self.family_filter.vcf.header.csq_fields
                                  if x != 'Allele'))
         header += "\tALT_No.\t" + str.join("\t", self.annot_fields)
-        header +=  "\tCHROM\tPOS\tID\tREF\tALT\tALLELE\tQUAL\tFILTER"
+        header += "\tCHROM\tPOS\tID\tREF\tALT\tALLELE\tQUAL\tFILTER"
         self.report_file.write(header + "\n")
 
     def check_g2p(self, record, ignore_csq, inheritance):
@@ -429,7 +440,7 @@ class InheritanceFilter(object):
                         self.family_filter.g2p.allelic_requirement_met(
                                      record, inheritance))
             if ignore_csq:
-                ignore_csq = [x or y for x,y in zip(ignore_csq, fail)]
+                ignore_csq = [x or y for x, y in zip(ignore_csq, fail)]
             else:
                 ignore_csq = list(fail)
         return ignore_csq
@@ -476,31 +487,33 @@ class RecessiveFilter(InheritanceFilter):
 
         '''
         self.prefix = "VASE_biallelic"
-        self.header_fields = [("VASE_biallelic_homozygous",
+        self.header_fields = [
+              ("VASE_biallelic_homozygous",
                '"Samples that carry homozygous biallelic changes ' +
                ' parsed by {}"' .format(type(self).__name__)),
-               ("VASE_biallelic_compound_het",
+              ("VASE_biallelic_compound_het",
                '"Samples that carry compound heterozygous biallelic changes ' +
                'parsed by {}"'.format(type(self).__name__)),
-               ("VASE_biallelic_de_novo",
+              ("VASE_biallelic_de_novo",
                '"Samples that carry biallelic alleles that appear to have ' +
                'arisen de novo"'),
-                ('VASE_biallelic_families',
-                '"Family IDs for VASE_biallelic alleles"'),
-               ("VASE_biallelic_features",
+              ('VASE_biallelic_families',
+               '"Family IDs for VASE_biallelic alleles"'),
+              ("VASE_biallelic_features",
                '"Features (e.g. transcripts) that contain qualifying ' +
                'biallelic variants parsed by {}"' .format(
-                type(self).__name__)),]
+                   type(self).__name__))]
         self.annot_fields = ('homozygous', 'compound_het', 'de_novo',
-                            'families', 'features')
+                             'families', 'features')
         self.report_file = report_file
         super().__init__(family_filter, gt_args, min_families=min_families,
                          report_file=report_file,)
-        self.families = tuple(x for x in self.family_filter.inheritance_patterns
-                             if 'recessive' in
-                             self.family_filter.inheritance_patterns[x])
+        self.families = tuple(x for x in
+                              self.family_filter.inheritance_patterns
+                              if 'recessive' in
+                              self.family_filter.inheritance_patterns[x])
         self.affected = tuple(x for x in family_filter.vcf_affected if
-                             self.ped.individuals[x].fid in self.families)
+                              self.ped.individuals[x].fid in self.families)
         self._fam_to_aff = dict()
         for fid in self.families:
             self._fam_to_aff[fid] = set(x for x in
