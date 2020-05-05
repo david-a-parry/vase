@@ -16,16 +16,16 @@ ENST = re.compile(r'''^ENS\w*T\d{11}(\.\d+)?''')
 ENTREZ_RE = re.compile(r'''(\d+)(\|(\d+))*''')
 SUPPORTED_OUTPUT = ['json', 'xlsx']
 
-vcf_output_columns = ['CHROM', 'POS', 'ID', 'REF', 'ALT', 'QUAL', 'FILTER',]
+vcf_output_columns = ['CHROM', 'POS', 'ID', 'REF', 'ALT', 'QUAL', 'FILTER']
 
 MG_FIELDS = ['entrezgene', 'name', 'summary', 'go', 'MIM', 'generif']
 
-feat_annots = { 'VASE_biallelic_families': 'VASE_biallelic_features',
-                'VASE_dominant_families' : 'VASE_dominant_features',
-                'VASE_de_novo_families'  : 'VASE_de_novo_features',}
+feat_annots = {'VASE_biallelic_families': 'VASE_biallelic_features',
+               'VASE_dominant_families': 'VASE_dominant_features',
+               'VASE_de_novo_families': 'VASE_de_novo_features'}
 
-impact_order = dict((k,n) for n,k in enumerate(['HIGH', 'MODERATE', 'LOW',
-                                              'MODIFIER']))
+impact_order = dict((k, n) for n, k in enumerate(['HIGH', 'MODERATE', 'LOW',
+                                                  'MODIFIER']))
 
 
 class VaseReporter(object):
@@ -43,14 +43,17 @@ class VaseReporter(object):
                  info_fields=[], gnomad_constraint=None,
                  choose_transcript=False, prog_interval=None, timeout=2.0,
                  max_retries=2, quiet=False, debug=False, force=False,
-                 hide_empty=False):
+                 hide_empty=False, custom_feat_annots=None):
         self._set_logger(quiet, debug)
         self.output_type = output_type.lower()
         if self.output_type not in SUPPORTED_OUTPUT:
             raise ValueError("Unsupported output type: {}\n".format(
                 self.output_type) + "Supported types are:\n" + "\n\t".join(
                     SUPPORTED_OUTPUT))
-        self.vcf = VcfReader(vcf)
+        if type(vcf) == VcfReader:
+            self.vcf = vcf
+        else:
+            self.vcf = VcfReader(vcf)
         if ped:
             self.ped = PedFile(ped)
             if singletons:
@@ -74,8 +77,8 @@ class VaseReporter(object):
             sys.exit("Output file '{}' already exists - ".format(out) +
                      "choose another name or use --force to overwrite.")
         self.out = out
-        self.sample_orders = dict() #key is fam id, value is list of samples
-        self._header_columns = dict() #key is fam id, value is list of columns
+        self.sample_orders = dict()  # key is fam id, value = list of samples
+        self._header_columns = dict()  # key is fam id, value = list of columns
         self.out_fh = self._get_output_handle()
         self.rest_lookups = rest_lookups
         self.require_g2p = filter_non_g2p
@@ -97,7 +100,7 @@ class VaseReporter(object):
         if not families:
             families = sorted(self.ped.families.keys())
         self._fam_order = list()
-        for f in families:#respect the order of families provided before converting to set
+        for f in families:  # respect fam order provided b4 converting to set
             if f not in self.ped.families:
                 raise RuntimeError("Family '{}' not found in ped ".format(f) +
                                    "'{}'.".format(ped))
@@ -120,10 +123,14 @@ class VaseReporter(object):
                 self.mg = mygene.MyGeneInfo()
                 self.mygene_lookups = True
             except ModuleNotFoundError:
-                self.logger.warn("Error importing mygene - please install mygene " +
-                            " (e.g. pip3 install mygene) to use the " +
-                            "--mygene_lookups option.")
+                self.logger.warn("Error importing mygene - please install " +
+                                 "mygene  (e.g. pip3 install mygene) to use " +
+                                 "the --mygene_lookups option.")
                 self.logger.warn("Continuing without mygene lookups")
+        if custom_feat_annots:
+            self.feat_annots = custom_feat_annots
+        else:
+            self.feat_annots = feat_annots
         if prog_interval is not None:
             self.prog_interval = prog_interval
         elif self.rest_lookups or self.mygene_lookups:
@@ -248,7 +255,7 @@ class VaseReporter(object):
 
     def _select_seg_fields(self, seg_fields):
         if (not self.recessive_only and not self.dominant_only and not
-            self.de_novo_only):
+                self.de_novo_only):
             return seg_fields
         selected = dict()
         if self.dominant_only:
@@ -296,7 +303,7 @@ class VaseReporter(object):
             samples = self._get_sample_order(family)
             if not samples:
                 self.logger.warn("No samples in VCF for family {}".format(
-                                                                        family))
+                                                                       family))
                 return None
             self.sample_orders[family] = samples
             header.extend(samples)
@@ -318,9 +325,8 @@ class VaseReporter(object):
         if self.constraint:
             header.extend(["pLI", "pRec", "pNull", "mis_z", "syn_z",
                            "constraint_issues"])
-        self._header_columns[family] = header #None is key for default header
+        self._header_columns[family] = header  # None is key for default header
         return header
-
 
     def _get_sample_order(self, family):
         if family in self.sample_orders:
@@ -371,7 +377,7 @@ class VaseReporter(object):
                             delimiter='\t', keys_are_unique=True)
             self.constraint_cols.pop()
             self.constraint_cols.append("constraint_flag")
-        #in case our transcript ref differs, also index on gene name
+        # in case our transcript ref differs, also index on gene name
         gene_d = dict()
         for v in d.values():
             if v["gene"] not in d and v["canonical"] == 'true':
@@ -386,7 +392,7 @@ class VaseReporter(object):
         '''
         if blacklist is None:
             return None
-        with open (blacklist, 'rt') as bfile:
+        with open(blacklist, 'rt') as bfile:
             features = set(line.split()[0] for line in bfile)
         self.logger.info("{:,} unique feature IDs blacklisted from {}.".format(
                          len(features), blacklist))
@@ -434,7 +440,7 @@ class VaseReporter(object):
                 entrez = str.join("|", (x['primary_id'] for x in xref_data
                                         if x['dbname'] == 'EntrezGene'))
                 full_name = str.join("|", (x['description'] for x in xref_data
-                                        if x['dbname'] == 'EntrezGene'))
+                                           if x['dbname'] == 'EntrezGene'))
                 reactome = str.join("|", (x['description'] for x in xref_data
                                           if x['dbname'] == 'Reactome_gene'))
                 mim = str.join("|", (x['description'] for x in xref_data
@@ -476,7 +482,8 @@ class VaseReporter(object):
                 self.mygene_cache[csq['Gene']] = [''] * 8
                 return [''] * 8
             elif len(results['hits']) > 1:
-                self.logger.warn("Multiple ({}) ".format(len(results['hits']))+
+                self.logger.warn("Multiple ({}) ".format(
+                                 len(results['hits'])) +
                                  "MyGene hits for gene {}/{}".format(
                                      csq['Gene'], csq['SYMBOL']) +
                                  " - will use first hit only.")
@@ -496,7 +503,7 @@ class VaseReporter(object):
                                 results['hits'][0]['go'][subgo]['term'])
                         elif isinstance(results['hits'][0]['go'][subgo], list):
                             data.append("|".join([x['term'] for x in
-                                             results['hits'][0]['go'][subgo]]))
+                                        results['hits'][0]['go'][subgo]]))
                         else:
                             data.append("Not found")
                 elif field == 'generif':
@@ -512,16 +519,16 @@ class VaseReporter(object):
         ''' Write a list of values to given worksheet and row '''
         entrez_cols = []
         mim_col = -1
-        if "ENTREZ" in self._header_columns[family]: #from Ensembl REST
+        if "ENTREZ" in self._header_columns[family]:  # from Ensembl REST
             entrez_cols.append(self._header_columns[family].index("ENTREZ"))
-        if "ENTREZ_ID" in self._header_columns[family]: #from MyGene
+        if "ENTREZ_ID" in self._header_columns[family]:  # from MyGene
             entrez_cols.append(self._header_columns[family].index("ENTREZ_ID"))
-        if "MIM" in self._header_columns[family]: #from MyGene
+        if "MIM" in self._header_columns[family]:  # from MyGene
             mim_col =  self._header_columns[family].index("MIM")
         for col in range(len(values)):
-            if col in (entrez_cols): #provide link to Entrez Gene 
+            if col in (entrez_cols):  # provide link to Entrez Gene 
                 m = ENTREZ_RE.match(values[col])
-                if m: #if multiple ENTREZ ids pick the most recent/largest
+                if m:  # if multiple ENTREZ ids pick the most recent/largest
                     eid = max([int(x) for x in m.groups() if x and
                                "|" not in x])
                     worksheet.write_url(row, col,
@@ -529,7 +536,7 @@ class VaseReporter(object):
                                         str(eid), string=values[col])
                 else:
                     worksheet.write(row, col, values[col])
-            elif col == mim_col: #provide link to OMIM
+            elif col == mim_col:  # provide link to OMIM
                 worksheet.write_url(row, col,
                                     'https://omim.org/entry/' +
                                     values[col], string=values[col])
@@ -559,8 +566,8 @@ class VaseReporter(object):
     def write_records(self, record, family, inheritance, allele, features):
         for csq in (x for x in record.CSQ if x['Feature'] in features and
                     x['alt_index'] == allele):
-            #column order is: Inheritance, vcf_output_columns, allele, AC, AN,
-            #                 GTS, VEP fields
+            # column order is: Inheritance, vcf_output_columns, allele, AC, AN,
+            #                  GTS, VEP fields
             if self.require_g2p:
                 if csq['SYMBOL'] not in self.g2p.g2p:
                     continue
@@ -575,8 +582,8 @@ class VaseReporter(object):
                     if not inh_ok:
                         continue
                 if self.mutation_requirement:
-                    if not self.g2p.csq_matches_requirement(csq,
-                                                            keep_uncertain=True):
+                    if not self.g2p.csq_matches_requirement(
+                            csq, keep_uncertain=True):
                         continue
             if self.blacklist:
                 if csq['Feature'] in self.blacklist:
@@ -600,7 +607,7 @@ class VaseReporter(object):
                     values.append('.')
             values.extend(self._add_info_annotations(record, allele))
             values.extend(csq[x] for x in self.vcf.header.csq_fields if
-                              x != 'Allele')
+                          x != 'Allele')
             if self.rest_lookups:
                 values.extend(self.get_ensembl_rest_data(csq))
             if self.mygene_lookups:
@@ -610,18 +617,17 @@ class VaseReporter(object):
             if self.constraint:
                 values.extend(self.get_constraint_data(csq))
             if self.output_type == 'xlsx':
-                col = self.write_row(self.worksheets[family],
-                                     self.rows[family],
-                                     values,
-                                     family)
+                _ = self.write_row(self.worksheets[family],
+                                   self.rows[family],
+                                   values,
+                                   family)
                 self.rows[family] += 1
             elif self.output_type == 'json':
-                jrow = dict((k,v) for k,v in zip(
+                jrow = dict((k, v) for k, v in zip(
                     self._get_header_columns(family), values))
                 self.json_dict[family].append(jrow)
             else:
                 self.out_fh.write("\t".join([family] + values) + "\n")
-
 
     def pick_transcript(self, features, allele, csq):
         '''
@@ -651,18 +657,18 @@ class VaseReporter(object):
         for record in self.vcf.parser:
             n += 1
             info = record.parsed_info_fields(list(self.seg_fields.keys()) +
-                                             list(feat_annots.values()))
-            for annot,pattern in self.seg_fields.items():
-               if annot in info:
+                                             list(self.feat_annots.values()))
+            for annot, pattern in self.seg_fields.items():
+                if annot in info:
                     for i in range(len(info[annot])):
                         if info[annot][i] is None:
                             continue
                         if self.all_features:
                             feat = list(x['Feature'] for x in record.CSQ if
                                         x['Feature'] != '' and
-                                        x['alt_index'] == i +1)
+                                        x['alt_index'] == i + 1)
                         else:
-                            feat = info[feat_annots[annot]][i].split("|")
+                            feat = info[self.feat_annots[annot]][i].split("|")
                         if self.choose_transcript:
                             feat = [self.pick_transcript(feat, i+1,
                                                          record.CSQ)]
