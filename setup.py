@@ -6,12 +6,12 @@ except ImportError:
 setup(
     name = "vase",
     packages = ["vase"],
-    version = "0.2.5-rc.1",
+    version = "0.2.5",
     description = "Variant Annotation, Segregation and Exclusion",
     author = "David A. Parry",
     author_email = "david.parry@igmm.ed.ac.uk",
     url = "https://github.com/david-a-parry/vase",
-    download_url = 'https://github.com/david-a-parry/vase/archive/0.2.5-rc.1.tar.gz',
+    download_url = 'https://github.com/david-a-parry/vase/archive/0.2.5.tar.gz',
     license='MIT',
     install_requires=[
           'pysam',
