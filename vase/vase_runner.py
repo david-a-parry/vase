@@ -2,7 +2,8 @@ import sys
 import re
 import logging
 import io
-from parse_vcf import VcfReader
+import pysam
+from .vcf_reader import VcfReader
 from .dbsnp_filter import dbSnpFilter, clinvar_path_annot
 from .gnomad_filter import GnomadFilter
 from .vcf_filter import VcfFilter
@@ -27,7 +28,7 @@ class VaseRunner(object):
         self.args = args
         self._set_logger()
         self.input = VcfReader(self.args.input)
-        self.var_stream = self.input.parser
+        self.var_stream = self.input
         self.keep_filters = None
         self.exclude_filters = None
         if args.keep_filters:
@@ -40,7 +41,6 @@ class VaseRunner(object):
         self.prev_cadd_raw = False
         self.prev_splice_ai = False
         self._get_prev_annotations()
-        self.out = self.get_output()
         self.vcf_filters = self.get_vcf_filter_classes()
         self.cadd_filter = self.get_cadd_filter()
         self.splice_ai_filter = self.get_splice_ai_filter()
@@ -129,7 +129,7 @@ class VaseRunner(object):
             if self.splice_ai_filter or (self.prev_splice_ai and
                                          (self.args.splice_ai_min_delta
                                           or self.args.splice_ai_max_delta)):
-                # workaround - need to VepFilter in 2 stages if using SpliceAI filtering
+                # workaround - need to VepFilter in 2 stages if using SpliceAI 
                 self.csq_filter = VepFilter(
                     vcf=self.input,
                     csq=args.csq,
@@ -253,53 +253,64 @@ class VaseRunner(object):
                                    "to be selected.")
         self._check_got_inherit_filter()
         self._set_seg_annot_cleanup(seg_info)
+        if self.args.output is None:
+            self.args.output = '-'
+        self.add_vase_header()
+        self.out = pysam.VariantFile(self.args.output,
+                                     mode='w',
+                                     header=self.input.header.header)
+        self.var_count = 0
         self.var_written = 0
         self.var_filtered = 0
+        self.prog_string = ''
+        self.prog_updates = 0
+
+    def update_progress(self, record):
+        if (self.args.no_progress or self.var_count % self.prog_interval):
+            return
+        s = ('{:,} variants processed, '.format(self.var_count) +
+             '{:,} filtered, '.format(self.var_filtered) +
+             '{:,} written...'.format(self.var_written) +
+             ' at pos {}:{}'.format(record.chrom, record.pos))
+        if self.retrieving_by_region and self.var_stream.region_iter:
+            s += " (processing region {}/{})".format(
+                self.var_stream.region_iter.current_index + 1,
+                len(self.var_stream.region_iter.intervals))
+        if self.log_progress:
+            self.logger.info(s)
+        else:
+            twirl = self._twirler[self.prog_updates % 4]
+            s = '\r' + s + ' ' + twirl
+            if len(self.prog_string) > len(s):
+                sys.stderr.write('\r' + ' ' * len(self.prog_string))
+            sys.stderr.write(s)
+        self.prog_string = s
+        self.prog_updates += 1
 
     def run(self):
         ''' Run VCF filtering/annotation using args from bin/vase'''
         self.logger.info('Starting variant processing')
-        self.print_header()
-        var_count = 0
-        prog_updates = 0
-        prog_string = ''
-        for record in self.var_stream:
-            self.process_record(record)
-            var_count += 1
-            if (not self.args.no_progress
-                    and var_count % self.prog_interval == 0):
-                n_prog_string = (
-                    '{:,} variants processed, '.format(var_count) +
-                    '{:,} filtered, {:,} written... at pos {}:{}'.format(
-                        self.var_filtered, self.var_written, record.CHROM,
-                        record.POS))
-                if self.retrieving_by_region and self.var_stream.region_iter:
-                    n_prog_string += " (processing region {}/{})".format(
-                        self.var_stream.region_iter.current_index + 1,
-                        len(self.var_stream.region_iter.intervals))
-                if self.log_progress:
-                    self.logger.info(n_prog_string)
-                else:
-                    twirl = self._twirler[prog_updates % 4]
-                    n_prog_string = '\r' + n_prog_string + ' ' + twirl
-                    if len(prog_string) > len(n_prog_string):
-                        sys.stderr.write('\r' + ' ' * len(prog_string))
-                    prog_string = n_prog_string
-                    sys.stderr.write(prog_string)
-                prog_updates += 1
+        self.add_vase_header()
+        with self.var_stream:
+            for vase_record in self.var_stream:
+                self.process_record(vase_record)
+                self.var_count += 1
+                self.update_progress(vase_record.record)
         self.finish_up()
-        if prog_string:
-            sys.stderr.write('\r' + '-' * len(prog_string) + '\n')
+        if self.prog_string and not self.log_progress:
+            sys.stderr.write('\r' + '-' * len(self.prog_string) + '\n')
         self.logger.info('Finished processing {:,} {}.'.format(
-            var_count, self._var_or_vars(var_count)))
+            self.var_count,
+            self._var_or_vars(self.var_count)))
         self.logger.info('{:,} {} filtered.'.format(
-            self.var_filtered, self._var_or_vars(self.var_filtered)))
+            self.var_filtered,
+            self._var_or_vars(self.var_filtered)))
         self.logger.info('{:,} {} written.'.format(
-            self.var_written, self._var_or_vars(self.var_written)))
-        if self.out is not sys.stdout:
-            self.out.close()
+            self.var_written,
+            self._var_or_vars(self.var_written)))
 
-    def process_record(self, record):
+    def process_record(self, vase_record):
+        record = vase_record.record
         if self.filter_global(record):
             self.var_filtered += 1
             return
@@ -307,21 +318,21 @@ class VaseRunner(object):
         if self.var_types:
             filter_alleles = [
                 x.var_type not in self.var_types
-                for x in record.DECOMPOSED_ALLELES
+                for x in vase_record.DECOMPOSED_ALLELES
             ]
             if all(filter_alleles):
                 # no ALT matches any variant type asked for
                 self.var_filtered += 1
                 return
         filter_alleles, filter_csq = self.filter_alleles_external(
-            record, filter_alleles)
+            vase_record, filter_alleles)
         if all(filter_alleles):
             # all alleles should be filtered
             self.var_filtered += 1
             return
         if self.sample_filter:
-            for i in range(1, len(record.ALLELES)):
-                r = self.sample_filter.filter(record, i)
+            for i in range(1, len(record.alleles)):
+                r = self.sample_filter.filter(vase_record, i)
                 if r:
                     filter_alleles[i - 1] = True
                 if all(filter_alleles):
@@ -330,7 +341,7 @@ class VaseRunner(object):
                     return
         dom_filter_alleles = list(filter_alleles)
         if self.control_filter:
-            for i in range(1, len(record.ALLELES)):
+            for i in range(1, len(record.alleles)):
                 if dom_filter_alleles[i - 1]:  # no need to filter again
                     continue
                 r = self.control_filter.filter(record, i)
@@ -342,21 +353,21 @@ class VaseRunner(object):
         recessive_hit = False
         if self.dominant_filter:
             dom_hit = self.dominant_filter.process_record(
-                record, dom_filter_alleles, filter_csq)
+                vase_record, dom_filter_alleles, filter_csq)
         if self.de_novo_filter:
             denovo_hit = self.de_novo_filter.process_record(
-                record, dom_filter_alleles, filter_csq)
+                vase_record, dom_filter_alleles, filter_csq)
         if self.recessive_filter:
             recessive_hit = self.recessive_filter.process_record(
-                record, filter_alleles, filter_csq)
+                vase_record, filter_alleles, filter_csq)
         if self.use_cache:
             if denovo_hit or dom_hit or recessive_hit:
                 keep_record_anyway = False
                 if self.args.min_families < 2:
                     keep_record_anyway = denovo_hit or dom_hit
-                self.variant_cache.add_record(record, keep_record_anyway)
+                self.variant_cache.add_record(vase_record, keep_record_anyway)
             else:
-                self.variant_cache.check_record(record)
+                self.variant_cache.check_record(vase_record)
                 self.var_filtered += 1
             if self.variant_cache.output_ready:
                 self.output_cache()
@@ -366,15 +377,20 @@ class VaseRunner(object):
                 if self.burden_counter:
                     # getting relevant alleles and feats is a bit of a fudge
                     # using annotations added by dom/denovo filter
-                    b_filt_al = [True] * (len(record.ALLELES) - 1)
-                    b_filt_csq = [[True] * len(record.CSQ)] * len(b_filt_al)
+                    b_filt_al = [True] * len(record.alts)
+                    b_filt_csq = [[True] * len(vase_record.CSQ)] * len(
+                        b_filt_al)
                     if dom_hit:
                         b_filt_al, b_filt_csq = self._seg_alleles_from_record(
-                            record, self.dominant_filter.prefix, b_filt_al,
+                            vase_record,
+                            self.dominant_filter.prefix,
+                            b_filt_al,
                             b_filt_csq)
                     if denovo_hit:
                         b_filt_al, b_filt_csq = self._seg_alleles_from_record(
-                            record, self.de_novo_filter.prefix, b_filt_al,
+                            vase_record,
+                            self.de_novo_filter.prefix,
+                            b_filt_al,
                             b_filt_csq)
                     for i in range(len(b_filt_al)):
                         if not b_filt_al[i]:
@@ -382,7 +398,7 @@ class VaseRunner(object):
                                     for j in range(len(record.CSQ))
                                     if not b_filt_csq[i][j])
                             self.burden_counter.count_samples(
-                                record, feat, i, 1)
+                                vase_record, feat, i, 1)
             else:
                 self.var_filtered += 1
         else:
@@ -390,13 +406,15 @@ class VaseRunner(object):
                 self.var_filtered += 1
                 return
             if self.burden_counter:
-                self.burden_counter.count(record, filter_alleles, filter_csq)
+                self.burden_counter.count(vase_record,
+                                          filter_alleles,
+                                          filter_csq)
             self.output_record(record)
 
     def output_record(self, record):
         for gt_anno in self.gt_annotators:
             gt_anno.annotate(record)
-        self.out.write(str(record) + '\n')
+        self.out.write(record)
         self.var_written += 1
 
     def output_cache(self, final=False):
@@ -453,7 +471,7 @@ class VaseRunner(object):
             if fh is not None:
                 fh.close()
 
-    def filter_alleles_external(self, record, remove_alleles=None):
+    def filter_alleles_external(self, vase_record, remove_alleles=None):
         '''
             Return True or False for each allele indicating whether an
             allele should be filtered based on information from VEP,
@@ -465,14 +483,15 @@ class VaseRunner(object):
         # ClinVar)
         # remove_csq indicates for each VEP CSQ whether that CSQ should be
         # ignored
+        record = vase_record.record
         if not remove_alleles:
-            remove_alleles = [False] * (len(record.ALLELES) - 1)
-        keep_alleles = [False] * (len(record.ALLELES) - 1)
-        matched_alleles = [False] * (len(record.ALLELES) - 1)
+            remove_alleles = [False] * len(record.alts)
+        keep_alleles = [False] * len(record.alts)
+        matched_alleles = [False] * len(record.alts)
         remove_csq = None
         # if allele is '*' should be set to filtered
-        for i in range(1, len(record.ALLELES)):
-            if record.ALLELES[i] == '*':
+        for i in range(1, len(record.alleles)):
+            if record.alleles[i] == '*':
                 remove_alleles[i - 1] = True
         # filter on provided INFO field filters
         if self.info_filter:
@@ -499,12 +518,12 @@ class VaseRunner(object):
                 return remove_alleles, remove_csq
         # check functional consequences
         if self.csq_filter:
-            r_alts, remove_csq = self.csq_filter.filter(record)
+            r_alts, remove_csq = self.csq_filter.filter(vase_record)
             self._set_to_true_if_true(remove_alleles, r_alts)
             if self.prev_splice_ai and (self.args.splice_ai_min_delta
                                         or self.args.splice_ai_max_delta):
                 splice_alleles, splice_csq = filter_on_splice_ai(
-                    record,
+                    vase_record,
                     min_delta=self.args.splice_ai_min_delta,
                     max_delta=self.args.splice_ai_max_delta,
                     check_symbol=True,
@@ -514,7 +533,7 @@ class VaseRunner(object):
             if self.splice_ai_filter:
                 splice_alleles, splice_csq = (
                     self.splice_ai_filter.annotate_or_filter(
-                        record, True, self.args.canonical))
+                        vase_record, True, self.args.canonical))
                 if (self.args.splice_ai_min_delta
                         or self.args.splice_ai_max_delta):
                     # RETAIN Alleles/csq if SpliceAI scores meet threshold
@@ -522,7 +541,8 @@ class VaseRunner(object):
                     self._set_to_false_if_true(remove_csq, splice_csq)
             if self.post_spliceai_csq_filter:
                 # filter with VEP annots again in case of AF/biotype failures
-                r_alts, r_csq = self.post_spliceai_csq_filter.filter(record)
+                r_alts, r_csq = self.post_spliceai_csq_filter.filter(
+                    vase_record)
                 self._set_to_true_if_true(remove_alleles, r_alts)
                 self._set_to_true_if_true(remove_csq, r_csq)
             if (not self.args.clinvar_path and all(remove_alleles)):
@@ -535,7 +555,7 @@ class VaseRunner(object):
             if self.prev_splice_ai and (self.args.splice_ai_min_delta
                                         or self.args.splice_ai_max_delta):
                 splice_alleles, splice_csq = filter_on_splice_ai(
-                    record,
+                    vase_record,
                     min_delta=self.args.splice_ai_min_delta,
                     max_delta=self.args.splice_ai_max_delta,
                     check_symbol=True,
@@ -544,7 +564,7 @@ class VaseRunner(object):
                                                               remove_alleles)]
             else:
                 splice_alleles, splice_csq = (
-                    self.splice_ai_filter.annotate_or_filter(record))
+                    self.splice_ai_filter.annotate_or_filter(vase_record))
                 if (self.args.splice_ai_min_delta
                         or self.args.splice_ai_max_delta):
                     remove_alleles = [not(x) or y for x, y in
@@ -607,11 +627,11 @@ class VaseRunner(object):
         return verdict, remove_csq
 
     def filter_on_af(self, record):
-        remove = [False] * (len(record.ALLELES) - 1)
+        remove = [False] * len(record.alts)
         if self.args.filtering_an and self.an_below_threshold(record):
             return remove
         try:
-            af = record.parsed_info_fields(fields=['AF'])['AF']
+            af = record.info['AF']
             for i in range(len(remove)):
                 if self.args.af:
                     if af[i] is not None and af[i] > self.args.af:
@@ -621,13 +641,13 @@ class VaseRunner(object):
                         remove[i] = True
         except KeyError:
             self.logger.debug("No 'AF' in INFO at {}:{}".format(
-                record.CHROM, record.POS))
-            if 'AN' not in record.parsed_info_fields(fields=['AN']):
+                record.chrom, record.pos))
+            if 'AN' not in record.info:
                 self.logger.warn("No 'AF' or 'AN' in INFO at {}:{}".format(
-                    record.CHROM, record.POS) + " - will not filter on AF")
-            elif 'AC' not in record.parsed_info_fields(fields=['AC']):
+                    record.chrom, record.pos) + " - will not filter on AF")
+            elif 'AC' not in record.info:
                 self.logger.warn("No 'AF' or 'AC' in INFO at {}:{}".format(
-                    record.CHROM, record.POS) + " - will not filter on AF")
+                    record.chrom, record.pos) + " - will not filter on AF")
             else:
                 self.logger.debug("Trying AC/AN instead")
                 return self.filter_on_ac_over_an(record)
@@ -635,28 +655,25 @@ class VaseRunner(object):
 
     def an_below_threshold(self, record):
         try:
-            return (record.parsed_info_fields(fields=['AN'])['AN'] <
-                    self.args.filtering_an)
+            return (record.info['AN'] < self.args.filtering_an)
         except KeyError:
-            self.logger.warn("No 'AN' in INFO at {}:{}".format(
-                record.CHROM, record.POS))
+            self.logger.warn("No 'AN' in INFO at {}:{}".format(record.chrom,
+                                                               record.pos))
             return True
 
     def an_under_minimum(self, record):
         try:
-            return (record.parsed_info_fields(fields=['AN'])['AN'] <
-                    self.args.min_an)
+            return (record.info['AN'] < self.args.min_an)
         except KeyError:
-            self.logger.warn("No 'AN' in INFO at {}:{}".format(
-                record.CHROM, record.POS))
+            self.logger.warn("No 'AN' in INFO at {}:{}".format(record.chrom,
+                                                               record.pos))
             return True
 
     def filter_on_ac_over_an(self, record):
-        remove = [False] * (len(record.ALLELES) - 1)
+        remove = [False] * len(record.alts)
         try:
-            info = record.parsed_info_fields(fields=['AC', 'AN'])
-            ac = info['AC']
-            an = info['AN']
+            ac = record.info['AC']
+            an = record.info['AN']
             af = [ac[i] / an if an > 0 else 0 for i in range(len(ac))]
             for i in range(len(remove)):
                 if self.args.af:
@@ -667,14 +684,14 @@ class VaseRunner(object):
                         remove[i] = True
         except KeyError:
             self.logger.warn("Missing 'AN' or 'AC' field in INFO at {}:{}".
-                             format(record.CHROM, record.POS) + " - will not"
+                             format(record.chrom, record.pos) + " - will not"
                              " filter on AF")
         return remove
 
     def filter_on_ac(self, record):
-        remove = [False] * (len(record.ALLELES) - 1)
+        remove = [False] * len(record.alts)
         try:
-            ac = record.parsed_info_fields(fields=['AC'])['AC']
+            ac = record.info['AC']
             for i in range(len(remove)):
                 if self.args.ac:
                     if ac[i] is not None and ac[i] > self.args.ac:
@@ -684,92 +701,88 @@ class VaseRunner(object):
                         remove[i] = True
         except KeyError:
             self.logger.warn("No 'AC' in INFO at {}:{}".format(
-                record.CHROM, record.POS))
+                record.chrom, record.pos))
         return remove
 
     def filter_on_existing_cadd_phred(self, record):
-        remove = [False] * (len(record.ALLELES) - 1)
-        phreds = record.parsed_info_fields(fields=['CADD_PHRED_score'])
-        if 'CADD_PHRED_score' in phreds:
+        remove = [False] * len(record.alts)
+        if 'CADD_PHRED_score' in record.info:
+            phreds = record.info['CADD_PHRED_score']
             for i in range(len(remove)):
-                if (phreds['CADD_PHRED_score'][i] is not None and
-                        phreds['CADD_PHRED_score'][i] < self.args.cadd_phred):
+                if (phreds[i] is not None and
+                        phreds[i] < self.args.cadd_phred):
                     remove[i] = True
         return remove
 
     def filter_on_existing_cadd_raw(self, record):
-        remove = [False] * (len(record.ALLELES) - 1)
-        raws = record.parsed_info_fields(fields=['CADD_raw_score'])
-        if 'CADD_raw_score' in raws:
+        remove = [False] * len(record.alts)
+        if 'CADD_raw_score' in record.info:
+            raws = record.info['CADD_raw_score']
             for i in range(len(remove)):
-                if (raws['CADD_raw_score'][i] is not None
-                        and raws['CADD_raw_score'][i] < self.args.cadd_raw):
+                if (raws[i] is not None and raws[i] < self.args.cadd_raw):
                     remove[i] = True
         return remove
 
     def filter_on_existing_freq(self, record):
-        remove = [False] * (len(record.ALLELES) - 1)
-        matched = [False] * (len(record.ALLELES) - 1)
-        parsed = record.parsed_info_fields(fields=self.prev_freqs)
-        for annot in parsed:
-            if parsed[annot] is None:
+        remove = [False] * len(record.alts)
+        matched = [False] * len(record.alts)
+        for annot in self.prev_freqs:
+            if record.info[annot] is None:
                 continue
             for i in range(len(remove)):
-                if parsed[annot][i] is not None:
+                if record.info[annot][i] is not None:
                     matched[i] = True
                     if self.args.freq:
-                        if parsed[annot][i] >= self.args.freq:
+                        if record.info[annot][i] >= self.args.freq:
                             remove[i] = True
                     if self.args.min_freq:
-                        if parsed[annot][i] < self.args.min_freq:
+                        if record.info[annot][i] < self.args.min_freq:
                             remove[i] = True
         return remove, matched
 
     def filter_on_existing_homs(self, record):
-        remove = [False] * (len(record.ALLELES) - 1)
-        matched = [False] * (len(record.ALLELES) - 1)
-        parsed = record.parsed_info_fields(fields=self.prev_homs)
-        for annot in parsed:
-            if parsed[annot] is None:
+        remove = [False] * len(record.alts)
+        matched = [False] * len(record.alts)
+        for annot in self.prev_homs:
+            if record.info[annot] is None:
                 continue
             for i in range(len(remove)):
-                if parsed[annot][i] is not None:
+                if record.info[annot][i] is not None:
                     matched[i] = True
-                    if parsed[annot][i] > self.args.max_gnomad_homozygotes:
+                    n = record.info[annot][i]
+                    if n > self.args.max_gnomad_homozygotes:
                         remove[i] = True
         return remove, matched
 
     def filter_on_existing_build(self, record):
-        remove = [False] * (len(record.ALLELES) - 1)
-        matched = [False] * (len(record.ALLELES) - 1)
-        parsed = record.parsed_info_fields(fields=self.prev_builds)
-        for annot in parsed:
-            if parsed[annot] is None:
+        remove = [False] * len(record.alts)
+        matched = [False] * len(record.alts)
+        for annot in [x for x in self.prev_builds if x in record.info]:
+            if record.info[annot] is None:
                 continue
             for i in range(len(remove)):
-                if parsed[annot][i] is not None:
+                if record.info[annot][i] is not None:
                     matched[i] = True
                     if self.args.build:
-                        if parsed[annot][i] <= self.args.build:
+                        if record.info[annot][i] <= self.args.build:
                             remove[i] = True
                     if self.args.max_build:
-                        if parsed[annot][i] > self.args.max_build:
+                        if record.info[annot][i] > self.args.max_build:
                             remove[i] = True
         return remove, matched
 
     def filter_on_existing_clnsig(self, record):
-        keep = [False] * (len(record.ALLELES) - 1)
-        matched = [False] * (len(record.ALLELES) - 1)
-        parsed = record.parsed_info_fields(fields=self.prev_clinvar)
-        for annot in parsed:
-            if parsed[annot] is None:
+        keep = [False] * len(record.alts)
+        matched = [False] * len(record.alts)
+        for annot in self.prev_clinvar:
+            if record.info[annot] is None:
                 continue
             for i in range(len(keep)):
-                if parsed[annot][i] is not None:
+                if record.info[annot][i] is not None:
                     matched[i] = True
                     if self.args.clinvar_path:
                         if any(x for x in clinvar_path_annot
-                               if x in parsed[annot][i].split('|')):
+                               if x in record.info[annot][i].split('|')):
                             keep[i] = True
         return keep, matched
 
@@ -790,13 +803,13 @@ class VaseRunner(object):
             if record.QUAL < self.args.variant_quality:
                 return True
         if self.args.max_alt_alleles is not None:
-            if (len([x for x in record.ALLELES if x != '*']) >
+            if (len([x for x in record.alleles if x != '*']) >
                     self.args.max_alt_alleles + 1):
                 return True
         if self.args.min_an and self.an_under_minimum(record):
             return True
         if self.args.filter_asterisk_only_calls:
-            if len(record.ALLELES) == 2 and record.ALLELES[1] == '*':
+            if len(record.alleles) == 2 and record.alleles[1] == '*':
                 return True
         return False
 
@@ -945,25 +958,26 @@ class VaseRunner(object):
                 gt_annos.append(g)
         return gt_annos
 
-    def _seg_alleles_from_record(self, record, prefix, filter_al, filter_csq):
+    def _seg_alleles_from_record(self, vase_record, prefix, filter_al,
+                                 filter_csq):
         ps = prefix + '_samples'
         pf = prefix + '_features'
-        info = record.parsed_info_fields(fields=[pf, ps])
         f_al = [
-            False if info[ps][i] != '.' else filter_al[i]
+            False if vase_record.record.info[ps][i] != '.' else filter_al[i]
             for i in range(len(filter_al))
         ]
         f_csq = [[
-            False if (info[pf][i] is not None
-                      and record.CSQ[j]['Feature'] in info[pf][i].split('|'))
-            else filter_csq[i][j] for j in range(len(record.CSQ))
+            False if (vase_record.info[pf][i] is not None
+                      and vase_record.CSQ[j]['Feature'] in
+                      vase_record.record.info[pf][i].split('|'))
+            else filter_csq[i][j] for j in range(len(vase_record.CSQ))
         ] for i in range(len(filter_al))]
         return f_al, f_csq
 
     def _get_prev_annotations(self):
         self.prev_annots = set()
         self.info_prefixes = set()
-        for info in self.input.metadata['INFO']:
+        for info in self.input.header.info:
             match = re.search(r'^(VASE_\w+)_\w+(_\d+)?', info)
             if match:
                 self.prev_annots.add(info)
@@ -971,18 +985,16 @@ class VaseRunner(object):
                 self.logger.debug("Identified previously annotated VASE INFO" +
                                   " field '{}'".format(info))
         self._parse_prev_vcf_filter_annotations()
-        if 'CADD_PHRED_score' in self.input.metadata['INFO']:
-            if (self.input.metadata['INFO']['CADD_PHRED_score'][-1]['Number']
-                    == 'A' and self.input.metadata['INFO']['CADD_PHRED_score']
-                    [-1]['Type'] == 'Float'):
+        if 'CADD_PHRED_score' in self.input.header.info:
+            inf = self.input.header.info['CADD_PHRED_score']
+            if (inf.number == 'A' and inf.type == 'Float'):
                 self.prev_cadd_phred = True
-        if 'CADD_raw_score' in self.input.metadata['INFO']:
-            if (self.input.metadata['INFO']['CADD_raw_score'][-1]['Number'] ==
-                    'A' and self.input.metadata['INFO']['CADD_raw_score'][-1]
-                    ['Type'] == 'Float'):
+        if 'CADD_raw_score' in self.input.header.info:
+            inf = self.input.header.info['CADD_raw_score']
+            if (inf.number == 'A' and inf.type == 'Float'):
                 self.prev_cadd_raw = True
-        if 'SpliceAI' in self.input.metadata['INFO']:
-            if self.input.metadata['INFO']['SpliceAI'][-1]['Number'] == '.':
+        if 'SpliceAI' in self.input.header.info:
+            if self.input.header.info['SpliceAI'].number == '.':
                 self.prev_splice_ai = True
 
     def _parse_prev_vcf_filter_annotations(self):
@@ -997,9 +1009,8 @@ class VaseRunner(object):
                     match = re.search(
                         r'^VASE_dbSNP|gnomAD(_\d+)?_(CAF|AF)(_\w+)?', annot)
                     if match:
-                        if (self.input.metadata['INFO'][annot][-1]['Number'] ==
-                                'A' and self.input.metadata['INFO'][annot][-1]
-                                ['Type'] == 'Float'):
+                        inf = self.input.header.info[annot]
+                        if (inf.number == 'A' and inf.type == 'Float'):
                             self.logger.info(
                                 "Found previous allele frequency " +
                                 "annotation '{}'".format(annot))
@@ -1023,13 +1034,12 @@ class VaseRunner(object):
                         r'^VASE_gnomAD(_\d+)?_(Hom|Hemi|nhomalt)(_\w+)?',
                         annot)
                     if match:
-                        if (self.input.metadata['INFO'][annot][-1]['Number'] ==
-                                'A' and self.input.metadata['INFO'][annot][-1]
-                                ['Type'] == 'Integer'):
+                        inf = self.input.header.info[annot]
+                        if (inf.number == 'A' and inf.type == 'Integer'):
                             self.logger.info("Found previous Hom/Hemi " +
                                              "annotation '{}'".format(annot))
-                            if len(match.groups()
-                                   ) == 3 and match.group(3) is not None:
+                            if (len(match.groups()) == 3 and
+                                    match.group(3) is not None):
                                 pop = match.group(3).replace("_", "")
                                 if pop.upper() not in [
                                         x.upper()
@@ -1047,9 +1057,8 @@ class VaseRunner(object):
                     match = re.search(r'^VASE_dbSNP(_\d+)?_dbSNPBuildID',
                                       annot)
                     if match:
-                        if (self.input.metadata['INFO'][annot][-1]['Number'] ==
-                                'A' and self.input.metadata['INFO'][annot][-1]
-                                ['Type'] == 'Integer'):
+                        inf = self.input.header.info[annot]
+                        if inf.number == 'A' and inf.type == 'Integer':
                             self.logger.info("Found previous dbSNP build " +
                                              "annotation '{}'".format(annot))
                             bld_annots.append(annot)
@@ -1057,9 +1066,8 @@ class VaseRunner(object):
                 for annot in sorted(self.prev_annots):
                     match = re.search(r'^VASE_dbSNP(_\d+)?_CLNSIG', annot)
                     if match:
-                        if (self.input.metadata['INFO'][annot][-1]['Number'] ==
-                                'A' and self.input.metadata['INFO'][annot][-1]
-                                ['Type'] == 'String'):
+                        inf = self.input.header.info[annot]
+                        if inf.number == 'A' and inf.type == 'String':
                             self.logger.info("Found previous ClinVar " +
                                              "annotation '{}'".format(annot))
                             cln_annots.append(annot)
@@ -1070,15 +1078,14 @@ class VaseRunner(object):
                 # check only relatively outbred pops by default
                 pops = set(
                     ("POPMAX", "AFR", "AMR", "EAS", "FIN", "NFE", "SAS"))
-                for info in self.input.metadata['INFO']:
-                    match = re.search(r'''^AF_([A-Z]+)$''', info)
+                for annot in self.input.header.info:
+                    match = re.search(r'''^AF_([A-Z]+)$''', annot)
                     if match and match.group(1).upper() in pops:
-                        if (self.input.metadata['INFO'][info][-1]['Number'] ==
-                                'A' and self.input.metadata['INFO'][info][-1]
-                                ['Type'] == 'Float'):
+                        inf = self.input.header.info[annot]
+                        if inf.number == 'A' and inf.type == 'Float':
                             self.logger.info("Found gnomAD allele frequency " +
-                                             "annotation '{}'".format(info))
-                            frq_annots.append(info)
+                                             "annotation '{}'".format(annot))
+                            frq_annots.append(annot)
         self.prev_freqs = tuple(frq_annots)
         self.prev_homs = tuple(hom_annots)
         self.prev_builds = tuple(bld_annots)
@@ -1100,7 +1107,7 @@ class VaseRunner(object):
         self.info_prefixes.add(name)
         return name
 
-    def print_header(self):
+    def add_vase_header(self):
         '''
             Write a VCF header for output that consists of the input VCF
             header data plus program arguments and any new INFO/FORMAT
@@ -1110,34 +1117,8 @@ class VaseRunner(object):
         vase_opts = []
         for k, v in vars(self.args).items():
             vase_opts.append('--{} {}'.format(k, v))
-        self.input.header.add_header_field(name="vase",
-                                           string='"' +
-                                           str.join(" ", vase_opts) + '"')
-        self.out.write(str(self.input.header))
-
-    def get_output(self):
-        '''
-            Return an output filehandle. If no output specified return
-            sys.stdout, else, if output name ends with .gz or .bgz return a
-            bgzf.BgzfWriter object and otherwise return a standard
-            filehandle.
-        '''
-
-        if isinstance(self.args.output, str):
-            if self.args.output.endswith(('.gz', '.bgz')):
-                try:
-                    from Bio import bgzf
-                except ImportError:
-                    raise RuntimeError("Can not import bgzf via " +
-                                       "biopython. Please install biopython " +
-                                       "in order to write bgzip compressed " +
-                                       "(.gz/.bgz) output.")
-                fh = bgzf.BgzfWriter(self.args.output)
-            else:
-                fh = open(self.args.output, 'w')
-        else:
-            fh = sys.stdout
-        return fh
+        self.input.header.header.add_meta(key="vase",
+                                          value=str.join(" ", vase_opts))
 
     def get_report_filehandles(self):
         fhs = {
@@ -1454,5 +1435,5 @@ class CachedVariant(object):
     def __init__(self, record, can_output=False):
         self.record = record
         self.can_output = can_output
-        self.var_id = "{}:{}-{}/{}".format(record.CHROM, record.POS,
-                                           record.REF, record.ALT)
+        self.var_id = "{}:{}-{}/{}".format(record.chrom, record.pos,
+                                           record.ref, record.alt)
