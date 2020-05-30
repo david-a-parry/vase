@@ -8,13 +8,17 @@ _common_csq_fields = ['CSQ', 'ANN', 'BCSQ', 'CQ']
 class VcfHeader(object):
     ''' Header class storing metadata and sample information for a vcf '''
 
+    __slots__ = ['vcfreader', 'header', 'formats', 'info', 'filters',
+                 '__csq_label', '__csq_fields']
+
     def __init__(self, vcfreader):
         self.vcfreader = vcfreader
         self.header = self.vcfreader.variant_file.header
         self.formats = self.header.formats
         self.info = self.header.info
         self.filters = self.header.filters
-        self.csq_fields = None
+        self.__csq_fields = None
+        self.__csq_label = None
 
     @property
     def csq_label(self):
@@ -55,7 +59,7 @@ class VcfHeader(object):
             else:
                 csq = self.__csq_label
             csq_header = self.info[csq]
-            match = self._csq_format_re.match(csq_header.description)
+            match = _csq_format_re.match(csq_header.description)
             if match:
                 self.__csq_fields = match.group(1).split('|')
             else:

@@ -14,6 +14,9 @@ class VaseRecord(object):
         VCF records.
     """
 
+    __slots__ = ['record', 'caller', 'header', '__CSQ', '__is_sv',
+                 '__DECOMPOSED_ALLELES']
+
     def __init__(self, record, vcfreader):
         """
             Create a new VaseRecord object.
@@ -27,6 +30,20 @@ class VaseRecord(object):
         self.record = record
         self.caller = vcfreader
         self.header = self.caller.header
+        self.__CSQ = None
+        self.__is_sv = None
+        self.__DECOMPOSED_ALLELES = None
+
+    @property
+    def IS_SV(self):
+        '''True if record represents a structural variant'''
+        if self.__is_sv is None:
+            self.__is_sv = 'SVTYPE' in self.record.info
+        return self.__is_sv
+
+    @IS_SV.setter
+    def IS_SV(self, is_sv):
+        self.__is_sv = is_sv
 
     @property
     def DECOMPOSED_ALLELES(self):
@@ -59,13 +76,13 @@ class VaseRecord(object):
                 ref = self.record.ref
                 pos = self.record.pos
                 while len(ref) > 1 and len(alt) > 1:
-                    if ref[-1] == alt[-1]:           #remove identical suffixes
+                    if ref[-1] == alt[-1]:  # remove identical suffixes
                         ref = ref[:-1]
                         alt = alt[:-1]
                     else:
                         break
                 while len(ref) > 1 and len(alt) > 1:
-                    if ref[0] == alt[0]:             #remove identical prefixes
+                    if ref[0] == alt[0]:  # remove identical prefixes
                         ref = ref[1:]
                         alt = alt[1:]
                         pos += 1
@@ -76,8 +93,6 @@ class VaseRecord(object):
                               pos=pos,
                               ref=ref,
                               alt=alt))
-
-
 
     @property
     def CSQ(self):
@@ -92,13 +107,12 @@ class VaseRecord(object):
         if self.__CSQ is None:
             lbl = self.header.csq_label
             try:
-                csqs = record.info[lbl]
+                csqs = self.record.info[lbl]
             except KeyError:
                 raise ValueError("Could not find '{}' label in ".format(lbl) +
                                  "INFO field of record at {}:{}"
                                  .format(self.CHROM, self.POS))
             self.__CSQ = []
-            alleleToNum = {}
             for c in csqs:
                 d = OrderedDict([(k, v) for (k, v) in zip(
                     self.header.csq_fields, c.split('|'))])
@@ -165,13 +179,13 @@ class VaseRecord(object):
                         # 'insertion' or 'duplication' alleles which VEP
                         # sometimes annotates as deletion/insertion/duplication
                         # despite presence of REF/ALT sequences
-                        if allele == 'deletion' and  len(alt) < len(ref):
+                        if allele == 'deletion' and len(alt) < len(ref):
                             self._vep_allele[allele] = i
                             return i
-                        elif allele == 'insertion' and  len(alt) > len(ref):
+                        elif allele == 'insertion' and len(alt) > len(ref):
                             self._vep_allele[allele] = i
                             return i
-                        elif allele == 'duplication' and  len(alt) > len(ref):
+                        elif allele == 'duplication' and len(alt) > len(ref):
                             self._vep_allele[allele] = i
                             return i
                     self._vep_allele[alt] = i
@@ -246,20 +260,17 @@ class VaseRecord(object):
             pgt1 = self.record.samples[sample]['PGT']
             pgt2 = other.record.samples[sample]['PGT']
         except KeyError:
-            #when joining VCFs together only some samples may have PID/PGT
+            # when joining VCFs together only some samples may have PID/PGT
             return False
         if pid1 != pid2:
             return False
-        if pgt1 == '.' or pgt2  == '.':
+        if pgt1 == '.' or pgt2 == '.':
             return False
         try:
             phase1 = pgt1.split('|').index(str(allele))
             phase2 = pgt2.split('|').index(str(other_allele))
             return phase1 == phase2
-        except ValueError: #allele might not be in phase group
-            # TODO: for some multiallelic variants I've spotted that the GT is
-            # '0/2' while the PGT is '0|1' - is this a bug in HaplotypeCaller
-            # or will the 'ALT' always be 1 in the PGT?
+        except ValueError:  # allele might not be in phase group
             return False
 
 
@@ -353,6 +364,18 @@ class AltAllele(object):
     def var_type(self, t):
         self.__var_type = t
 
+    def __str__(self):
+        if self.is_sv:
+            return "{}:{}-{}_{}/{}".format(self.CHROM,
+                                           self.POS,
+                                           self.sv_info['END'],
+                                           self.REF,
+                                           self.ALT)
+        return "{}:{}-{}_{}/{}".format(self.CHROM,
+                                       self.POS,
+                                       len(self.REF) + self.POS - 1,
+                                       self.REF,
+                                       self.ALT)
     def __eq__(self, other):
         if self.is_sv:
             return self._compare_svs(other)
@@ -387,7 +410,7 @@ class AltAllele(object):
         s_len = abs(self.sv_info['SVLEN'])
         o_len = abs(other.sv_info['SVLEN'])
         prec_margin = self.breakpoint_precision * min(s_len, o_len)
-        #check start POS are close enough to each other
+        # check start POS are close enough to each other
         if self.POS != other.POS:
             s_pos_int = (self.POS - prec_margin, self.POS + prec_margin)
             o_pos_int = (other.POS - prec_margin, other.POS + prec_margin)
@@ -401,7 +424,7 @@ class AltAllele(object):
                              prec_margin)
             if s_pos_int[0] > o_pos_int[1] or s_pos_int[1] < o_pos_int[0]:
                 return False
-        #check end POS are close enough to each other
+        # check end POS are close enough to each other
         if self.sv_info['END'] != other.sv_info['END']:
             s_end_int = (self.sv_info['END'] - prec_margin,
                          self.sv_info['END'] + prec_margin)
@@ -430,7 +453,7 @@ class AltAllele(object):
     def compare_svins(self, other):
         # for these purposes we don't care if exact insertion is the same,
         # merely whether it is of roughly equal length
-        #if _svalt_re.match(self.ALT) and _svalt_re.match(other.ALT):
+        # if _svalt_re.match(self.ALT) and _svalt_re.match(other.ALT):
         if self.sv_info['LEFT_SVINSSEQ'] is not None:
             return self.compare_svinvseq(other)
         if other.sv_info['LEFT_SVINSSEQ'] is not None:
@@ -439,8 +462,8 @@ class AltAllele(object):
             return False
         if (self.sv_info['SVLEN'] is not None and other.sv_info['SVLEN'] is not
                 None):
-            l = sorted([self.sv_info['SVLEN'], other.sv_info['SVLEN']])
-            if l[1] <= l[0] + (self.breakpoint_precision * l[0]):
+            ln = sorted([self.sv_info['SVLEN'], other.sv_info['SVLEN']])
+            if ln[1] <= ln[0] + (self.breakpoint_precision * ln[0]):
                 return True
             else:
                 return False
