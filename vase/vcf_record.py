@@ -15,7 +15,7 @@ class VaseRecord(object):
     """
 
     __slots__ = ['record', 'caller', 'header', '__CSQ', '__is_sv',
-                 '__DECOMPOSED_ALLELES']
+                 '__DECOMPOSED_ALLELES', '__SPAN']
 
     def __init__(self, record, vcfreader):
         """
@@ -33,6 +33,7 @@ class VaseRecord(object):
         self.__CSQ = None
         self.__is_sv = None
         self.__DECOMPOSED_ALLELES = None
+        self.__SPAN = None
 
     @property
     def IS_SV(self):
