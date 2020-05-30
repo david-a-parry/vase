@@ -46,6 +46,23 @@ class VaseRecord(object):
         self.__is_sv = is_sv
 
     @property
+    def SPAN(self):
+        '''
+            Returns end position of a record according to END INFO
+            field if available, or otherwise POS + len(REF) - 1.
+        '''
+        if self.__SPAN is None:
+            if 'END' in self.record.info:
+                self.__SPAN = self.record.info['END']
+            else:
+                self.__SPAN = self.record.pos + len(self.record.ref) - 1
+        return self.__SPAN
+
+    @SPAN.setter
+    def SPAN(self, end):
+        self.__SPAN = end
+
+    @property
     def DECOMPOSED_ALLELES(self):
         '''
             list of AltAllele objects, one for each ALT allele in
