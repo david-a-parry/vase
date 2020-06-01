@@ -198,26 +198,25 @@ class SampleFilter(object):
                                 con_del_dhffc=control_del_dhffc,
                                 con_dup_dhbfc=control_dup_dhbfc)
 
-    def filter(self, record, allele):
+    def filter(self, v_record, allele):
         '''
-            For a given VcfRecord and ALT allele, return True if that
+            For a given VaseRecord and ALT allele, return True if that
             allele should be filtered based on presence/absence in cases
             and controls.
         '''
+        record = v_record.record
+        gts = record.samples
         case_matches = 0
         control_matches = 0
         svtype = None
-        if record.IS_SV:
-            gts = record.parsed_gts(fields=self.sv_gt_fields,
-                                    samples=self.samples)
+        if v_record.IS_SV:
             gt_filter = self.sv_gt_filter
             control_filter = self.sv_con_gt_filter
-            svtype = record.INFO_FIELDS['SVTYPE']
+            svtype = record.info['SVTYPE']
         else:
-            gts = record.parsed_gts(fields=self.gt_fields, samples=self.samples)
             gt_filter = self.gt_filter
             control_filter = self.con_gt_filter
-        #check controls first
+        # check controls first
         for s in self.controls:
             gt_ok_args = [gts, s, allele]
             if svtype:
@@ -229,7 +228,7 @@ class SampleFilter(object):
                     else:
                         return True
                 continue
-            sgt =  gts['GT'][s]
+            sgt = gts[s]['GT']
             if self.confirm_missing and sgt == (None,) * len(sgt):
                 # no-call and we require confirmed gts for controls
                 if self.n_controls:
@@ -244,8 +243,8 @@ class SampleFilter(object):
                     return True
             elif control_filter.ad_over_threshold is not None:
                 # check hom ref for ALT allele counts
-                if control_filter.ad_over_threshold(gts, s, allele):
-                    if 'AD' not in gts or gts['AD'][s] != (None,):
+                if control_filter.ad_over_threshold(record, s, allele):
+                    if 'AD' not in record.format or gts[s]['AD'] != (None,):
                         if self.n_controls:
                             control_matches += 1
                         else:
@@ -260,7 +259,7 @@ class SampleFilter(object):
             if not gt_filter.gt_is_ok(*gt_ok_args):
                 sgt = None
             else:
-                sgt = gts['GT'][s]
+                sgt = gts[s]['GT']
             if sgt is None:
                 if self.n_cases:
                     continue
@@ -477,7 +476,7 @@ class GtFilter(object):
                 self.ad_over_threshold = self._alt_ao_over_threshold
 
     def _alt_ad_over_threshold(self, gts, sample, allele):
-        ad = gts['AD'][sample]
+        ad = gts[sample].get('AD', (None,))
         if ad == (None,):  # no AD values - assume OK?
             return True
         al_dp = ad[allele]
@@ -489,9 +488,9 @@ class GtFilter(object):
         return False
 
     def _alt_ao_over_threshold(self, gts, sample, allele):
-        aos = gts['AO'][sample]
-        ro = gts['RO'][sample]
-        if aos is not None and ro is not None:
+        aos = gts[sample].get('AO', (None,))
+        ro = gts[sample].get('RO', None)
+        if aos is not (None,) and ro is not None:
             dp = sum(filter(None, aos)) + ro
             if dp > 0:
                 ao = aos[allele-1]
@@ -501,17 +500,17 @@ class GtFilter(object):
         return False
 
     def _ab_filter_ad(self, gts, sample, allele):
-        ad = gts['AD'][sample]
+        ad = gts[sample].get('AD', (None,))
         if ad == (None,):  # no AD values - assume OK?
             return True
         al_dp = ad[allele]
         dp = sum(filter(None, ad))
         is_hom_alt = False
         is_het_alt = False
-        if len(set(gts['GT'][sample])) == 1:
-            if allele in gts['GT'][sample]:
+        if len(set(gts[sample]['GT'])) == 1:
+            if allele in gts[sample]['GT']:
                 is_hom_alt = True
-        elif allele in gts['GT'][sample]:
+        elif allele in gts[sample]['GT']:
             is_het_alt = True
         if al_dp is not None and dp > 0 and (is_het_alt or is_hom_alt):
             ab = float(al_dp)/dp
@@ -522,14 +521,16 @@ class GtFilter(object):
         return True  # do not filter
 
     def _ab_filter_ro(self, gts, sample, allele):
-        aos = gts['AO'][sample]
-        ro = gts['RO'][sample]
+        aos = gts[sample].get('AO', (None,))
+        ro = gts[sample].get('RO', None)
+        if ro is None or aos == (None,):  # no AD values - assume OK?
+            return True
         is_hom_alt = False
         is_het_alt = False
-        if len(set(gts['GT'][sample])) == 1:
-            if allele in gts['GT'][sample]:
+        if len(set(gts[sample]['GT'])) == 1:
+            if allele in gts[sample]['GT']:
                 is_hom_alt = True
-        elif allele in gts['GT'][sample]:
+        elif allele in gts[sample]['GT']:
             is_het_alt = True
         if aos is not None and ro is not None and (is_hom_alt or is_het_alt):
             dp = sum(filter(None, aos)) + ro
@@ -551,7 +552,7 @@ class GtFilter(object):
             function) passes all parameters set on initialisation.
         '''
         if self.dp or self.max_dp:
-            dp = gts['DP'][sample]
+            dp = gts[sample].get('DP', None)
             if self.dp:
                 if dp is not None and dp < self.dp:
                     return False
@@ -559,7 +560,8 @@ class GtFilter(object):
                 if dp is not None and dp > self.max_dp:
                     return False
         if self.gq:  # if GQ is None do not filter(?)
-            if gts['GQ'][sample] is not None and gts['GQ'][sample] < self.gq:
+            gq = gts[sample].get('GQ', None)
+            if gq is not None and gq < self.gq:
                 return False
         if self.ab_filter is not None:
             if not self.ab_filter(gts, sample, allele):
@@ -574,11 +576,10 @@ class GtFilter(object):
         if self.gq:
             self.fields.append('GQ')
         if self.het_ab or self.hom_ab or self.ref_ab_filter:
-            if 'AD' in vcf.header.metadata['FORMAT']:
+            if 'AD' in vcf.header.formats:
                 self.fields.append('AD')
                 return 'AD'
-            elif ('AO' in vcf.header.metadata['FORMAT'] and
-                  'RO' in vcf.header.metadata['FORMAT']):
+            elif ('AO' in vcf.header.formats and 'RO' in vcf.header.formats):
                 self.fields.append('AO')
                 self.fields.append('RO')
                 return 'RO'
