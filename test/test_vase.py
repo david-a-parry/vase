@@ -5,7 +5,6 @@ import pysam
 from nose.tools import *
 from vase.vase_runner import VaseRunner
 from argparse import Namespace
-import subprocess
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 input_prefix = os.path.join(dir_path, 'test_data', 'ex1')
@@ -120,7 +119,7 @@ all_args = {
     'strict_recessive': False,
     'prog_interval': 1000,
     'log_progress': False,
-    'no_progress': False,
+    'no_progress': True,
     'quiet': True,
     'debug': False,
     'no_warnings': False,
@@ -198,13 +197,13 @@ def test_case_control():
         cases=['Sample3', 'Sample2'],
         controls=['Sample1'],
         gq=20,
-        dp=0,
         output=get_tmp_out()
     )
-    expected_output = get_expected_out(sys._getframe().f_code.co_name)
     args = get_args(test_args)
     runner = VaseRunner(args)
     results = runner.run()
+    expected = get_expected_out(sys._getframe().f_code.co_name)
+    assert_equal(results, expected)
     os.remove(output)
 
 
