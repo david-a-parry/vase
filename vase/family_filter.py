@@ -354,7 +354,7 @@ class InheritanceFilter(object):
 
             Each INFO field must be defined in self.header_fields in
             the child class, which should be a list of tuples where
-            each tuple consists of the name and description of the
+            each tuple consists of the name anddescription of the
             field.
         '''
         hf = dict()
@@ -489,19 +489,19 @@ class RecessiveFilter(InheritanceFilter):
         self.prefix = "VASE_biallelic"
         self.header_fields = [
               ("VASE_biallelic_homozygous",
-               '"Samples that carry homozygous biallelic changes ' +
-               ' parsed by {}"' .format(type(self).__name__)),
+               'Samples that carry homozygous biallelic changes ' +
+               ' parsed by {}' .format(type(self).__name__)),
               ("VASE_biallelic_compound_het",
-               '"Samples that carry compound heterozygous biallelic changes ' +
-               'parsed by {}"'.format(type(self).__name__)),
+               'Samples that carry compound heterozygous biallelic changes ' +
+               'parsed by {}'.format(type(self).__name__)),
               ("VASE_biallelic_de_novo",
-               '"Samples that carry biallelic alleles that appear to have ' +
-               'arisen de novo"'),
+               'Samples that carry biallelic alleles that appear to have ' +
+               'arisen de novo'),
               ('VASE_biallelic_families',
-               '"Family IDs for VASE_biallelic alleles"'),
+               'Family IDs for VASE_biallelic alleles'),
               ("VASE_biallelic_features",
-               '"Features (e.g. transcripts) that contain qualifying ' +
-               'biallelic variants parsed by {}"' .format(
+               'Features (e.g. transcripts) that contain qualifying ' +
+               'biallelic variants parsed by {}' .format(
                    type(self).__name__))]
         self.annot_fields = ('homozygous', 'compound_het', 'de_novo',
                              'families', 'features')
@@ -822,17 +822,17 @@ class DominantFilter(InheritanceFilter):
         '''
         self.prefix = "VASE_dominant"
         self.header_fields = [("VASE_dominant_samples",
-                    '"Sample IDs for alleles that segregate according to a ' +
+                    'Sample IDs for alleles that segregate according to a ' +
                     'dominant inheritance pattern in an affected sample as' +
-                    ' parsed by {}"' .format(type(self).__name__)),
+                    ' parsed by {}' .format(type(self).__name__)),
                     ('VASE_dominant_unaffected_carrier',
-                    '"Sample IDs for unaffected carriers of ' +
-                    'VASE_dominant alleles"'),
+                    'Sample IDs for unaffected carriers of ' +
+                    'VASE_dominant alleles'),
                     ('VASE_dominant_families',
-                    '"Family IDs for VASE_dominant alleles"'),
+                    'Family IDs for VASE_dominant alleles'),
                     ("VASE_dominant_features",
-                    '"Features (e.g. transcripts) that contain qualifying ' +
-                    'dominant variants parsed by {}"' .format(
+                    'Features (e.g. transcripts) that contain qualifying ' +
+                    'dominant variants parsed by {}' .format(
                     type(self).__name__)),]
         self.annot_fields = ('samples', 'unaffected_carrier', 'families',
                              'features')
@@ -1055,13 +1055,13 @@ class DeNovoFilter(InheritanceFilter):
         '''
         self.prefix = "VASE_de_novo"
         self.header_fields = [("VASE_de_novo_samples",
-                   '"Samples that carry alleles occurring de novo parsed by ' +
-                   '{}"' .format(type(self).__name__)),
+                   'Samples that carry alleles occurring de novo parsed by ' +
+                   '{}' .format(type(self).__name__)),
                     ('VASE_de_novo_families',
-                    '"Family IDs for VASE_de_novo alleles"'),
+                    'Family IDs for VASE_de_novo alleles'),
                     ("VASE_de_novo_features",
-                    '"Features (e.g. transcripts) that contain qualifying ' +
-                    'de novo variants parsed by {}"' .format(
+                    'Features (e.g. transcripts) that contain qualifying ' +
+                    'de novo variants parsed by {}' .format(
                     type(self).__name__)),]
         self.annot_fields = ('samples', 'families', 'features')
         self.report_file = report_file

@@ -64,19 +64,19 @@ class CaddFilter(object):
         self.raw = min_raw_score
         self.info_fields = {'CADD_PHRED_score': {'Number': 'A',
                                                  'Type': 'Float',
-                                                 'Description': '"CADD PHRED ' +
-                                                                'score added '+
-                                                                'from ' +
+                                                 'Description': 'CADD PHRED ' +
+                                                                'score added' +
+                                                                ' from ' +
                                                                 'reference ' +
-                                                                'files by ' + 
-                                                                'VASE"'
+                                                                'files by ' +
+                                                                'VASE'
                                                 },
                             'CADD_raw_score': {'Number': 'A',
                                                'Type': 'Float',
-                                               'Description': '"CADD RawScore' +
+                                               'Description': 'CADD RawScore' +
                                                               ' added from ' +
-                                                              'reference '+
-                                                              'files by VASE"'
+                                                              'reference ' +
+                                                              'files by VASE'
                                               },
                            }
         if to_score is not None:

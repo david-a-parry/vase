@@ -43,9 +43,9 @@ class GtAnnotator(object):
     def _create_header_fields(self):
         header_fields = dict()
         for f in self.format_fields:
-            desc = ('"{} INFO field parsed by {} object from file {}. '.format(
+            desc = ('{} INFO field parsed by {} object from file {}. '.format(
                     f, type(self).__name__, self.vcf.filename) +
-                   'Original description was as follows: {}"' .format(
+                   'Original description was as follows: {}' .format(
                     self.vcf.metadata['FORMAT'][f][-1]['Description'].replace(
                         '"', '')))
             header_fields[f] = {'Number':
@@ -104,5 +104,3 @@ class GtAnnotator(object):
         end = record.SPAN
         self.vcf.set_region(record.CHROM, start - 1, end)
         return (s for s in self.vcf.parser)
-
-

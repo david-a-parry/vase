@@ -8,6 +8,7 @@ pre_scored_fields = ["SYMBOL", "DS_AG", "DS_AL", "DS_DG", "DS_DL", "DP_AG",
 annot_order = ["ALLELE", "SYMBOL", "DS_AG", "DS_AL", "DS_DG", "DS_DL", "DP_AG",
                "DP_AL", "DP_DG", "DP_DL"]
 
+
 def filter_on_splice_ai(record, min_delta=None, max_delta=None,
                         check_symbol=False, canonical_csq=False):
     keep_alleles = [False] * (len(record.ALLELES) - 1)
@@ -104,14 +105,14 @@ class SpliceAiFilter(object):
             self.vcfs[vcf] = VcfReader(vcf)
         self.info_fields = {'SpliceAI': {'Number': '.',
                                          'Type': 'String',
-                                         'Description': '"SpliceAI variant ' +
+                                         'Description': 'SpliceAI variant ' +
                                          'annotation. These include delta ' +
                                          'scores (DS) and delta positions ' +
                                          '(DP) for acceptor gain (AG), ' +
                                          'acceptor loss (AL), donor gain ' +
                                          '(DG), and donor loss (DL). Format:' +
                                          'ALLELE|SYMBOL|DS_AG|DS_AL|DS_DG|' +
-                                         'DS_DL|DP_AG|DP_AL|DP_DG|DP_DL"'}}
+                                         'DS_DL|DP_AG|DP_AL|DP_DG|DP_DL'}}
         self.vcf_is_prescored = dict()
         self._check_vcf_info()
         if to_score is not None:

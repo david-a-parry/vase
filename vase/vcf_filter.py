@@ -257,27 +257,27 @@ class VcfFilter(object):
         for an in self.an_fields:
             name = an.replace("AN", "AF", 1)
             ac = an.replace("AN", "AC", 1)
-            desc = ('"{} INFO field parsed by {} object. '.format(
+            desc = ('{} INFO field parsed by {} object. '.format(
                     name, type(self).__name__) + 'Calculated from {} and {} '
-                    .format(ac, an) + 'from file {}."'.format(
+                    .format(ac, an) + 'from file {}.'.format(
                         self.vcf.filename))
-            self.added_info[self.prefix + "_" + name] = {'Number' : 'A',
-                                                         'Type' : 'Float',
-                                                         'Description' : desc }
+            self.added_info[self.prefix + "_" + name] = {'Number': 'A',
+                                                         'Type': 'Float',
+                                                         'Description': desc}
 
     def _make_metadata(self, name, properties):
 
-        desc = ('"{} INFO field parsed by {} object from file {}. '.format(
+        desc = ('{} INFO field parsed by {} object from file {}. '.format(
                 name, type(self).__name__, self.vcf.filename) +
-               'Original description was as follows: {}"' .format(
+                'Original description was as follows: {}' .format(
                 properties['Description'].replace('"', '')))
         if properties['Type'] == 'Flag':
             f_type = 'Integer'
         else:
             f_type = properties['Type']
-        self.added_info[self.prefix + "_" + name] = {'Number' : 'A',
-                                                     'Type' : f_type,
-                                                     'Description' : desc }
+        self.added_info[self.prefix + "_" + name] = {'Number': 'A',
+                                                     'Type': f_type,
+                                                     'Description': desc }
 
     def _get_an_and_ac(self, an_info, ac_info):
         for i in range(len(ac_info)):
@@ -285,6 +285,6 @@ class VcfFilter(object):
             ac = ac_info[i]
             if (an in self.vcf.metadata['INFO'] and
                 ac in self.vcf.metadata['INFO']):
-                #ANs and ACs should be in same order
+                # ANs and ACs should be in same order
                 self.an_fields[an] = self.vcf.metadata['INFO'][an][-1]
                 self.ac_fields[ac] = self.vcf.metadata['INFO'][ac][-1]
