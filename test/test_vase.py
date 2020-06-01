@@ -196,12 +196,14 @@ def test_case_control():
     test_args = dict(
         cases=['Sample3', 'Sample2'],
         controls=['Sample1'],
+        het_ab=0.005,
         gq=20,
-        output=get_tmp_out()
+        output=output,
     )
     args = get_args(test_args)
     runner = VaseRunner(args)
-    results = runner.run()
+    runner.run()
+    results = convert_results(output)
     expected = get_expected_out(sys._getframe().f_code.co_name)
     assert_equal(results, expected)
     os.remove(output)
@@ -210,6 +212,7 @@ def test_case_control():
 if __name__ == '__main__':
     test_alts_filters()
     test_info_filters()
+    test_case_control()
     import nose
     nose.run(defaultTest = __name__)
 
