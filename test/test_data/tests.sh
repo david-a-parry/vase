@@ -1,6 +1,6 @@
-vase -i ex1.vcf --af 0.4 --ac 5 --info_filters 'FS < 1' 'DB = True' | python3 ../utils/vcf2vars.py  -  > expected_outputs/test1_out.txt
+vase -i ex1.vcf --af 0.4 --ac 5 --info_filters 'FS < 1' 'DB = True' | python3 ../utils/vcf2vars.py  -  > expected_outputs/test_info_filters.txt
 
-vase -i ex1.vcf --max_alt 1 --keep_filters VQSRTrancheSNP99.90to99.95 | python3 ../utils/vcf2vars.py -  > expected_outputs/test2_out.txt
+vase -i ex1.vcf --max_alt 1 --keep_filters VQSRTrancheSNP99.90to99.95 | python3 ../utils/vcf2vars.py -  > expected_outputs/test_alts_filters.txt
 
 vase -i ex1.vcf --csq | ../utils/vcf2vars.py - > expected_outputs/test3_out.txt
 
@@ -20,4 +20,4 @@ vase -i ex1.vcf --ped test.ped  --biallelic --impact HIGH MODERATE | ../utils/vc
 
 vase -i ex1.vcf --ped test.ped  --biallelic --impact HIGH  | ../utils/vcf2vars.py > expected_outputs/test11_out.txt
 vase --ped test2.ped -i ex1.vcf --dominant --csq | ../utils/vcf2vars.py > expected_outputs/test12_out.txt
-vase -i ex1.vcf --cases Sample3 Sample2 --controls Sample1 | ../utils/vcf2vars.py > expected_outputs/test13_out.txt
+vase -i ex1.vcf --cases Sample3 Sample2 --controls Sample1 | ../utils/vcf2vars.py > expected_outputs/test_case_control
