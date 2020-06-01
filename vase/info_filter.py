@@ -1,14 +1,14 @@
 import operator
 
 ops = {
-     ">": operator.gt,
-     "<": operator.lt,
-     ">=": operator.ge,
-     "<=": operator.le,
-     "==": operator.eq,
-     "!=": operator.ne,
-     "=": operator.eq,
-     "!": operator.ne,
+    ">": operator.gt,
+    "<": operator.lt,
+    ">=": operator.ge,
+    "<=": operator.le,
+    "==": operator.eq,
+    "!=": operator.ne,
+    "=": operator.eq,
+    "!": operator.ne,
 }
 
 
@@ -17,10 +17,10 @@ class InfoFilter(object):
         A class for filtering on given INFO fields in a VCF
     '''
 
-    def __init__(self, vcf, filters, ):
+    def __init__(self, vcf, filters):
         '''
             Args:
-                vcf:    VcfReader object from parse_vcf.py
+                vcf:    VcfReader object from vase
 
                 filters:
                         iterable of tuples of field names, operands and
