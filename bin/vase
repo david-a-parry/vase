@@ -4,6 +4,7 @@ import sys
 import argparse
 from vase.vase_runner import VaseRunner
 
+
 def parse_args():
     parser = argparse.ArgumentParser(
                        description='Variant annotation, segregation and ' +
@@ -1368,8 +1369,9 @@ STDERR. Only program ending errors will appear.
 '''Show this help message and exit
 
 ''')
-    #end of args
+    # end of args
     return parser
+
 
 if __name__ == '__main__':
     parser = parse_args()

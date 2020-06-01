@@ -23,6 +23,7 @@ from .g2p import G2P
 
 
 class VaseRunner(object):
+
     def __init__(self, args):
         self._twirler = ['-', '\\', '|', '/']
         self.args = args
