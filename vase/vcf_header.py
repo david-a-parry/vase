@@ -9,7 +9,7 @@ class VcfHeader(object):
     ''' Header class storing metadata and sample information for a vcf '''
 
     __slots__ = ['vcfreader', 'header', 'formats', 'info', 'filters',
-                 '__csq_label', '__csq_fields']
+                 'samples', '__csq_label', '__csq_fields']
 
     def __init__(self, vcfreader):
         self.vcfreader = vcfreader
@@ -17,6 +17,7 @@ class VcfHeader(object):
         self.formats = self.header.formats
         self.info = self.header.info
         self.filters = self.header.filters
+        self.samples = self.header.samples
         self.__csq_fields = None
         self.__csq_label = None
 
