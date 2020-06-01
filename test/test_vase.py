@@ -250,7 +250,7 @@ def test_vartype():
 def test_de_novo():
     output = get_tmp_out()
     test_args = dict(
-        ped=os.path.join(dir_name, "test_data", "test.ped"),
+        ped=os.path.join(dir_path, "test_data", "test.ped"),
         de_novo=True,
         output=output,
     )
@@ -263,7 +263,7 @@ def test_de_novo():
 def test_de_novo2():
     output = get_tmp_out()
     test_args = dict(
-        ped=os.path.join(dir_name, "test_data", "test.ped"),
+        ped=os.path.join(dir_path, "test_data", "test.ped"),
         de_novo=True,
         max_alt_alleles=1,
         output=output,
@@ -277,7 +277,7 @@ def test_de_novo2():
 def test_de_novo3():
     output = get_tmp_out()
     test_args = dict(
-        ped=os.path.join(dir_name, "test_data", "test.ped"),
+        ped=os.path.join(dir_path, "test_data", "test.ped"),
         de_novo=True,
         het_ab=0.25,
         max_alt_alleles=1,
@@ -292,9 +292,9 @@ def test_de_novo3():
 def test_biallelic():
     output = get_tmp_out()
     test_args = dict(
-        ped=os.path.join(dir_name, "test_data", "test.ped"),
+        ped=os.path.join(dir_path, "test_data", "test.ped"),
         biallelic=True,
-        csq=True,
+        csq=[],
         output=output,
     )
     results, expected = run_args(test_args, output,
@@ -306,9 +306,9 @@ def test_biallelic():
 def test_biallelic2():
     output = get_tmp_out()
     test_args = dict(
-        ped=os.path.join(dir_name, "test_data", "test.ped"),
+        ped=os.path.join(dir_path, "test_data", "test.ped"),
         biallelic=True,
-        impact="HIGH",
+        impact=['HIGH', 'MODERATE'],
         output=output,
     )
     results, expected = run_args(test_args, output,
@@ -320,9 +320,9 @@ def test_biallelic2():
 def test_biallelic3():
     output = get_tmp_out()
     test_args = dict(
-        ped=os.path.join(dir_name, "test_data", "test.ped"),
+        ped=os.path.join(dir_path, "test_data", "test.ped"),
         biallelic=True,
-        impact="HIGH",
+        impact=['HIGH'],
         output=output,
     )
     results, expected = run_args(test_args, output,
@@ -334,9 +334,9 @@ def test_biallelic3():
 def test_dominant():
     output = get_tmp_out()
     test_args = dict(
-        ped=os.path.join(dir_name, "test_data", "test2.ped"),
+        ped=os.path.join(dir_path, "test_data", "test2.ped"),
         dominant=True,
-        csq=True,
+        csq=[],
         output=output,
     )
     results, expected = run_args(test_args, output,
