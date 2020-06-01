@@ -121,7 +121,7 @@ all_args = {
     'prog_interval': 1000,
     'log_progress': False,
     'no_progress': False,
-    'quiet': False,
+    'quiet': True,
     'debug': False,
     'no_warnings': False,
     'silent': False
@@ -143,7 +143,7 @@ def get_expected_out(f):
     f += ".txt"
     f = os.path.join(dir_path, "test_data", "expected_outputs", f)
     with open(f, 'rt') as infile:
-        lines = infile.read().split("\n")
+        lines = [x for x in infile.read().split("\n") if x != '']
     return lines
 
 
@@ -162,7 +162,7 @@ def convert_results(f):
 def test_alts_filters():
     output = get_tmp_out()
     test_args = dict(
-        max_alt=1,
+        max_alt_alleles=1,
         keep_filters=['VQSRTrancheSNP99.90to99.95'],
         output=output,
     )
@@ -180,7 +180,7 @@ def test_info_filters():
     test_args = dict(
         af=0.4,
         ac=5,
-        info_filtes=['FS < 1', 'DB = True'],
+        info_filters=['FS < 1', 'DB = True'],
         output=output,
     )
     args = get_args(test_args)
