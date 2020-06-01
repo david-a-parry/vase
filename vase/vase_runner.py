@@ -299,7 +299,8 @@ class VaseRunner(object):
                 self.var_count += 1
                 self.update_progress(vase_record.record)
         self.finish_up()
-        if self.prog_string and not self.log_progress:
+        if (self.prog_string and not self.log_progress and
+                not self.args.no_progress):
             sys.stderr.write('\r' + '-' * len(self.prog_string) + '\n')
         self.logger.info('Finished processing {:,} {}.'.format(
             self.var_count,
