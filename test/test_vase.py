@@ -158,7 +158,7 @@ def convert_results(f):
         return [var_string_from_record(x) for x in vcf]
 
 
-def run_test(args, output, func_name):
+def run_args(args, output, func_name):
     args = get_args(args)
     runner = VaseRunner(args)
     runner.run()
@@ -174,7 +174,7 @@ def test_alts_filters():
         keep_filters=['VQSRTrancheSNP99.90to99.95'],
         output=output,
     )
-    results, expected = run_test(test_args, output,
+    results, expected = run_args(test_args, output,
                                  sys._getframe().f_code.co_name)
     assert_equal(results, expected)
     os.remove(output)
@@ -188,7 +188,7 @@ def test_info_filters():
         info_filters=['FS < 1', 'DB = True'],
         output=output,
     )
-    results, expected = run_test(test_args, output,
+    results, expected = run_args(test_args, output,
                                  sys._getframe().f_code.co_name)
     assert_equal(results, expected)
     os.remove(output)
@@ -203,7 +203,7 @@ def test_case_control():
         gq=20,
         output=output,
     )
-    results, expected = run_test(test_args, output,
+    results, expected = run_args(test_args, output,
                                  sys._getframe().f_code.co_name)
     assert_equal(results, expected)
     os.remove(output)
@@ -215,7 +215,7 @@ def test_csq():
         csq=[],
         output=output,
     )
-    results, expected = run_test(test_args, output,
+    results, expected = run_args(test_args, output,
                                  sys._getframe().f_code.co_name)
     assert_equal(results, expected)
     os.remove(output)
@@ -227,7 +227,7 @@ def test_impact():
         impact=["HIGH"],
         output=output,
     )
-    results, expected = run_test(test_args, output,
+    results, expected = run_args(test_args, output,
                                  sys._getframe().f_code.co_name)
     assert_equal(results, expected)
     os.remove(output)
@@ -241,7 +241,7 @@ def test_vartype():
         output=output,
         pass_filters=True,
     )
-    results, expected = run_test(test_args, output,
+    results, expected = run_args(test_args, output,
                                  sys._getframe().f_code.co_name)
     assert_equal(results, expected)
     os.remove(output)
@@ -254,7 +254,7 @@ def test_de_novo():
         de_novo=True,
         output=output,
     )
-    results, expected = run_test(test_args, output,
+    results, expected = run_args(test_args, output,
                                  sys._getframe().f_code.co_name)
     assert_equal(results, expected)
     os.remove(output)
@@ -268,7 +268,7 @@ def test_de_novo2():
         max_alt_alleles=1,
         output=output,
     )
-    results, expected = run_test(test_args, output,
+    results, expected = run_args(test_args, output,
                                  sys._getframe().f_code.co_name)
     assert_equal(results, expected)
     os.remove(output)
@@ -283,7 +283,7 @@ def test_de_novo3():
         max_alt_alleles=1,
         output=output,
     )
-    results, expected = run_test(test_args, output,
+    results, expected = run_args(test_args, output,
                                  sys._getframe().f_code.co_name)
     assert_equal(results, expected)
     os.remove(output)
@@ -297,7 +297,7 @@ def test_biallelic():
         csq=True,
         output=output,
     )
-    results, expected = run_test(test_args, output,
+    results, expected = run_args(test_args, output,
                                  sys._getframe().f_code.co_name)
     assert_equal(results, expected)
     os.remove(output)
@@ -311,7 +311,7 @@ def test_biallelic2():
         impact="HIGH",
         output=output,
     )
-    results, expected = run_test(test_args, output,
+    results, expected = run_args(test_args, output,
                                  sys._getframe().f_code.co_name)
     assert_equal(results, expected)
     os.remove(output)
@@ -325,7 +325,7 @@ def test_biallelic3():
         impact="HIGH",
         output=output,
     )
-    results, expected = run_test(test_args, output,
+    results, expected = run_args(test_args, output,
                                  sys._getframe().f_code.co_name)
     assert_equal(results, expected)
     os.remove(output)
@@ -339,7 +339,7 @@ def test_dominant():
         csq=True,
         output=output,
     )
-    results, expected = run_test(test_args, output,
+    results, expected = run_args(test_args, output,
                                  sys._getframe().f_code.co_name)
     assert_equal(results, expected)
     os.remove(output)
