@@ -158,6 +158,15 @@ def convert_results(f):
         return [var_string_from_record(x) for x in vcf]
 
 
+def run_test(args, output, func_name):
+    args = get_args(args)
+    runner = VaseRunner(args)
+    runner.run()
+    results = convert_results(output)
+    expected = get_expected_out(func_name)
+    return (results, expected)
+
+
 def test_alts_filters():
     output = get_tmp_out()
     test_args = dict(
@@ -165,11 +174,8 @@ def test_alts_filters():
         keep_filters=['VQSRTrancheSNP99.90to99.95'],
         output=output,
     )
-    args = get_args(test_args)
-    runner = VaseRunner(args)
-    runner.run()
-    results = convert_results(output)
-    expected = get_expected_out(sys._getframe().f_code.co_name)
+    results, expected = run_test(test_args, output,
+                                 sys._getframe().f_code.co_name)
     assert_equal(results, expected)
     os.remove(output)
 
@@ -182,11 +188,8 @@ def test_info_filters():
         info_filters=['FS < 1', 'DB = True'],
         output=output,
     )
-    args = get_args(test_args)
-    runner = VaseRunner(args)
-    runner.run()
-    results = convert_results(output)
-    expected = get_expected_out(sys._getframe().f_code.co_name)
+    results, expected = run_test(test_args, output,
+                                 sys._getframe().f_code.co_name)
     assert_equal(results, expected)
     os.remove(output)
 
@@ -200,19 +203,148 @@ def test_case_control():
         gq=20,
         output=output,
     )
-    args = get_args(test_args)
-    runner = VaseRunner(args)
-    runner.run()
-    results = convert_results(output)
-    expected = get_expected_out(sys._getframe().f_code.co_name)
+    results, expected = run_test(test_args, output,
+                                 sys._getframe().f_code.co_name)
+    assert_equal(results, expected)
+    os.remove(output)
+
+
+def test_csq():
+    output = get_tmp_out()
+    test_args = dict(
+        csq=[],
+        output=output,
+    )
+    results, expected = run_test(test_args, output,
+                                 sys._getframe().f_code.co_name)
+    assert_equal(results, expected)
+    os.remove(output)
+
+
+def test_impact():
+    output = get_tmp_out()
+    test_args = dict(
+        impact=["HIGH"],
+        output=output,
+    )
+    results, expected = run_test(test_args, output,
+                                 sys._getframe().f_code.co_name)
+    assert_equal(results, expected)
+    os.remove(output)
+
+
+def test_vartype():
+    output = get_tmp_out()
+    test_args = dict(
+        var_types=["INDEL"],
+        max_alt_alleles=1,
+        output=output,
+        pass_filters=True,
+    )
+    results, expected = run_test(test_args, output,
+                                 sys._getframe().f_code.co_name)
+    assert_equal(results, expected)
+    os.remove(output)
+
+
+def test_de_novo():
+    output = get_tmp_out()
+    test_args = dict(
+        ped=os.path.join(dir_name, "test_data", "test.ped"),
+        de_novo=True,
+        output=output,
+    )
+    results, expected = run_test(test_args, output,
+                                 sys._getframe().f_code.co_name)
+    assert_equal(results, expected)
+    os.remove(output)
+
+
+def test_de_novo2():
+    output = get_tmp_out()
+    test_args = dict(
+        ped=os.path.join(dir_name, "test_data", "test.ped"),
+        de_novo=True,
+        max_alt_alleles=1,
+        output=output,
+    )
+    results, expected = run_test(test_args, output,
+                                 sys._getframe().f_code.co_name)
+    assert_equal(results, expected)
+    os.remove(output)
+
+
+def test_de_novo3():
+    output = get_tmp_out()
+    test_args = dict(
+        ped=os.path.join(dir_name, "test_data", "test.ped"),
+        de_novo=True,
+        het_ab=0.25,
+        max_alt_alleles=1,
+        output=output,
+    )
+    results, expected = run_test(test_args, output,
+                                 sys._getframe().f_code.co_name)
+    assert_equal(results, expected)
+    os.remove(output)
+
+
+def test_biallelic():
+    output = get_tmp_out()
+    test_args = dict(
+        ped=os.path.join(dir_name, "test_data", "test.ped"),
+        biallelic=True,
+        csq=True,
+        output=output,
+    )
+    results, expected = run_test(test_args, output,
+                                 sys._getframe().f_code.co_name)
+    assert_equal(results, expected)
+    os.remove(output)
+
+
+def test_biallelic2():
+    output = get_tmp_out()
+    test_args = dict(
+        ped=os.path.join(dir_name, "test_data", "test.ped"),
+        biallelic=True,
+        impact="HIGH",
+        output=output,
+    )
+    results, expected = run_test(test_args, output,
+                                 sys._getframe().f_code.co_name)
+    assert_equal(results, expected)
+    os.remove(output)
+
+
+def test_biallelic3():
+    output = get_tmp_out()
+    test_args = dict(
+        ped=os.path.join(dir_name, "test_data", "test.ped"),
+        biallelic=True,
+        impact="HIGH",
+        output=output,
+    )
+    results, expected = run_test(test_args, output,
+                                 sys._getframe().f_code.co_name)
+    assert_equal(results, expected)
+    os.remove(output)
+
+
+def test_dominant():
+    output = get_tmp_out()
+    test_args = dict(
+        ped=os.path.join(dir_name, "test_data", "test2.ped"),
+        dominant=True,
+        csq=True,
+        output=output,
+    )
+    results, expected = run_test(test_args, output,
+                                 sys._getframe().f_code.co_name)
     assert_equal(results, expected)
     os.remove(output)
 
 
 if __name__ == '__main__':
-    test_alts_filters()
-    test_info_filters()
-    test_case_control()
     import nose
     nose.run(defaultTest = __name__)
-
