@@ -27,6 +27,8 @@ class VaseRunner(object):
         self._twirler = ['-', '\\', '|', '/']
         self.args = args
         self._set_logger()
+        if self.args.debug:
+            self.logger.debug(vars(args))
         self.input = VcfReader(self.args.input)
         self.var_stream = self.input
         self.keep_filters = None
@@ -789,18 +791,16 @@ class VaseRunner(object):
     def filter_global(self, record):
         ''' Return True if record fails any global variant filters.'''
         if self.args.pass_filters:
-            if record.FILTER != 'PASS':
+            if record.filter.keys() != ['PASS']:
                 return True
         elif self.keep_filters:  # --pass and --keep_filters are mutually excl.
-            fs = record.FILTER.split(';')
-            if not self.keep_filters.issuperset(fs):
+            if not self.keep_filters.issuperset(record.filter):
                 return True
         if self.exclude_filters:
-            fs = record.FILTER.split(';')
-            if self.exclude_filters.intersection(fs):
+            if self.exclude_filters.intersection(record.filter):
                 return True
         if self.args.variant_quality is not None:
-            if record.QUAL < self.args.variant_quality:
+            if record.qual < self.args.variant_quality:
                 return True
         if self.args.max_alt_alleles is not None:
             if (len([x for x in record.alleles if x != '*']) >
