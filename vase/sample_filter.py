@@ -1,6 +1,7 @@
 from .sv_gt_filter import SvGtFilter
 import warnings
 
+
 class SampleFilter(object):
     ''' A class for filtering VCF records on sample calls'''
 
@@ -230,19 +231,19 @@ class SampleFilter(object):
                 continue
             sgt =  gts['GT'][s]
             if self.confirm_missing and sgt == (None,) * len(sgt):
-                #no-call and we require confirmed gts for controls
+                # no-call and we require confirmed gts for controls
                 if self.n_controls:
                     control_matches += 1
                     continue
                 else:
                     return True
-            if allele in sgt: #checks for presence, not whether het/hom
+            if allele in sgt:  # checks for presence, not whether het/hom
                 if self.n_controls:
                     control_matches += 1
                 else:
                     return True
             elif control_filter.ad_over_threshold is not None:
-                #check hom ref for ALT allele counts
+                # check hom ref for ALT allele counts
                 if control_filter.ad_over_threshold(gts, s, allele):
                     if 'AD' not in gts or gts['AD'][s] != (None,):
                         if self.n_controls:
@@ -251,7 +252,7 @@ class SampleFilter(object):
                             return True
         if self.n_controls and control_matches >= self.n_controls:
             return True
-        #check for presence in cases
+        # check for presence in cases
         for s in self.cases:
             gt_ok_args = [gts, s, allele]
             if svtype:
@@ -259,7 +260,7 @@ class SampleFilter(object):
             if not gt_filter.gt_is_ok(*gt_ok_args):
                 sgt = None
             else:
-                sgt =  gts['GT'][s]
+                sgt = gts['GT'][s]
             if sgt is None:
                 if self.n_cases:
                     continue
@@ -274,16 +275,16 @@ class SampleFilter(object):
                 return True
         return False
 
-
     def _parse_sample_args(self, cases, controls, n_cases=0, n_controls=0,
                            gq=0, dp=0, max_dp=0, het_ab=0., hom_ab=0.,
                            con_gq=None, con_dp=None, con_max_dp=None,
                            con_het_ab=None, con_hom_ab=None, con_ref_ab=None,
-                           sv_gq=0, sv_dp=0, sv_max_dp=None, sv_het_ab=0., sv_hom_ab=0.,
-                           sv_con_gq=None, sv_con_dp=None, sv_con_max_dp=None,
-                           sv_con_het_ab=None, sv_con_hom_ab=None,
-                           sv_con_ref_ab=None, del_dhffc=None, dup_dhbfc=None,
-                           con_del_dhffc=None, con_dup_dhbfc=None):
+                           sv_gq=0, sv_dp=0, sv_max_dp=None, sv_het_ab=0.,
+                           sv_hom_ab=0., sv_con_gq=None, sv_con_dp=None,
+                           sv_con_max_dp=None, sv_con_het_ab=None,
+                           sv_con_hom_ab=None, sv_con_ref_ab=None,
+                           del_dhffc=None, dup_dhbfc=None, con_del_dhffc=None,
+                           con_dup_dhbfc=None):
         not_found = set()
         case_set = set()
         control_set = set()
@@ -304,7 +305,7 @@ class SampleFilter(object):
             s.sort()
             raise RuntimeError("The following samples specified by --cases " +
                                "were not found in the input VCF: "
-                               + str.join(", ",s))
+                               + str.join(", ", s))
         for c in controls:
             if c in self.vcf.header.samples:
                 control_set.add(c)
@@ -322,8 +323,8 @@ class SampleFilter(object):
         if not_found:
             s = list(not_found)
             s.sort()
-            raise RuntimeError("The following samples specified by --controls"+
-                               " were not found in the input VCF: " +
+            raise RuntimeError("The following samples specified by " +
+                               "--controls were not found in the input VCF: " +
                                str.join(", ", s))
         self.cases = list(case_set)
         self.controls = list(control_set)
@@ -331,8 +332,8 @@ class SampleFilter(object):
         self.n_controls = None
         if n_cases and len(self.cases) < n_cases:
             raise RuntimeError("Number of cases specified by --n_cases is " +
-                               "greater than the number of cases specified by " +
-                               "--cases")
+                               "greater than the number of cases specified " +
+                               "by --cases")
         if n_controls and len(self.controls) < n_controls:
             raise RuntimeError("Number of controls specified by --n_controls" +
                                "is greater than the number of controls " +
@@ -457,7 +458,7 @@ class GtFilter(object):
         self.ad_over_threshold = None
         ab_field = None
         if not gq and not dp and not max_dp and not het_ab and not hom_ab:
-            #if no parameters are set then every genotype passes
+            # if no parameters are set then every genotype passes
             self.gt_is_ok = lambda gt, smp, al: True
         else:
             ab_field = self._check_header_fields(vcf)
@@ -477,15 +478,14 @@ class GtFilter(object):
 
     def _alt_ad_over_threshold(self, gts, sample, allele):
         ad = gts['AD'][sample]
-        if ad == (None,): #no AD values - assume OK?
+        if ad == (None,):  # no AD values - assume OK?
             return True
         al_dp = ad[allele]
         dp = sum(filter(None, ad))
         if dp > 0 and al_dp is not None:
             ab = float(al_dp)/dp
-            if ab > self.ref_ab_filter:
-                #ALT/REF read counts > threshold
-                return True#filter
+            if ab > self.ref_ab_filter:  # ALT/REF read counts > threshold
+                return True  # filter
         return False
 
     def _alt_ao_over_threshold(self, gts, sample, allele):
@@ -502,7 +502,7 @@ class GtFilter(object):
 
     def _ab_filter_ad(self, gts, sample, allele):
         ad = gts['AD'][sample]
-        if ad == (None,): #no AD values - assume OK?
+        if ad == (None,):  # no AD values - assume OK?
             return True
         al_dp = ad[allele]
         dp = sum(filter(None, ad))
@@ -516,10 +516,10 @@ class GtFilter(object):
         if al_dp is not None and dp > 0 and (is_het_alt or is_hom_alt):
             ab = float(al_dp)/dp
             if is_het_alt and self.het_ab and ab < self.het_ab:
-                return False #filter
+                return False  # filter
             if is_hom_alt and self.hom_ab and ab < self.hom_ab:
-                return False #filter
-        return True #do not filter
+                return False  # filter
+        return True  # do not filter
 
     def _ab_filter_ro(self, gts, sample, allele):
         aos = gts['AO'][sample]
@@ -530,7 +530,7 @@ class GtFilter(object):
             if allele in gts['GT'][sample]:
                 is_hom_alt = True
         elif allele in gts['GT'][sample]:
-                is_het_alt = True
+            is_het_alt = True
         if aos is not None and ro is not None and (is_hom_alt or is_het_alt):
             dp = sum(filter(None, aos)) + ro
             if allele > 0:
@@ -538,12 +538,12 @@ class GtFilter(object):
             else:
                 ao = ro
             if dp > 0:
-                ab =float(ao)/dp
+                ab = float(ao)/dp
                 if is_het_alt and ab < self.het_ab:
-                    return False #filter
+                    return False  # filter
                 if is_hom_alt and ab < self.hom_ab:
-                    return False #filter
-        return True #do not filter
+                    return False  # filter
+        return True  # do not filter
 
     def _gt_is_ok(self, gts, sample, allele):
         '''
@@ -558,18 +558,17 @@ class GtFilter(object):
             if self.max_dp:
                 if dp is not None and dp > self.max_dp:
                     return False
-        if self.gq:
-            #if GQ is None do not filter(?)
+        if self.gq:  # if GQ is None do not filter(?)
             if gts['GQ'][sample] is not None and gts['GQ'][sample] < self.gq:
                 return False
         if self.ab_filter is not None:
             if not self.ab_filter(gts, sample, allele):
                 return False
-        return True #passes all filters
+        return True  # passes all filters
 
     def _check_header_fields(self, vcf):
         ''' Ensure the required annotations are present in VCF header. '''
-        #DP and GQ are common fields that may not be defined in header
+        # DP and GQ are common fields that may not be defined in header
         if self.dp or self.max_dp:
             self.fields.append('DP')
         if self.gq:
