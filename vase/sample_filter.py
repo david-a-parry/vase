@@ -490,7 +490,7 @@ class GtFilter(object):
     def _alt_ao_over_threshold(self, gts, sample, allele):
         aos = gts[sample].get('AO', (None,))
         ro = gts[sample].get('RO', None)
-        if aos is not (None,) and ro is not None:
+        if aos != (None,) and ro is not None:
             dp = sum(filter(None, aos)) + ro
             if dp > 0:
                 ao = aos[allele-1]
