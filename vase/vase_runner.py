@@ -468,6 +468,7 @@ class VaseRunner(object):
     def finish_up(self):
         if self.use_cache:
             self.output_cache(final=True)
+        self.out.close()
         if self.burden_counter:
             self.burden_counter.output_counts()
         for fh in self.report_fhs.values():
