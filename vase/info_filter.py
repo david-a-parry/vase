@@ -3,10 +3,10 @@ import operator
 ops = {
      ">": operator.gt,
      "<": operator.lt,
-    ">=": operator.ge,
-    "<=": operator.le,
-    "==": operator.eq,
-    "!=": operator.ne,
+     ">=": operator.ge,
+     "<=": operator.le,
+     "==": operator.eq,
+     "!=": operator.ne,
      "=": operator.eq,
      "!": operator.ne,
 }
@@ -44,12 +44,12 @@ class InfoFilter(object):
                 op = ops[operand]
             except KeyError:
                 raise ValueError("Unrecognised operand '{}'".format(operand))
-            if field not in self.vcf.metadata['INFO']:
+            if field not in self.vcf.header.info:
                 raise ValueError("INFO field '{}' not in VCF ".format(field) +
                                  "header - can not be used for INFO field " +
                                  "filtering.")
             else:
-                ftype = self.vcf.metadata['INFO'][field][-1]['Type']
+                ftype = self.vcf.header.info[field].type
                 coerc = None
                 if ftype == 'Integer':
                     coerc = int
@@ -61,9 +61,9 @@ class InfoFilter(object):
                     except ValueError:
                         raise ValueError("Filter value for INFO field " +
                                          "'{}' could not be ".format(field) +
-                                         "converted to {}, but ".format(ftype)+
-                                         "field Type is {} in ".format(ftype) +
-                                         "VCF header.")
+                                         "converted to {}, but".format(ftype) +
+                                         "but field Type is {}".format(ftype) +
+                                         "in VCF header.")
                 elif ftype == 'Flag':
                     if value.lower() == 'true' or value == '1':
                         value = True
@@ -82,7 +82,7 @@ class InfoFilter(object):
                                          "operand is neither '==' or '!='. " +
                                          "Flag based filters must be tests " +
                                          "of equality versus boolean values.")
-                num = self.vcf.metadata['INFO'][field][-1]['Number']
+                num = self.vcf.header.info[field].number
                 f.append((field, op, value, num))
                 self.fields.add(field)
         return f
@@ -93,40 +93,37 @@ class InfoFilter(object):
             whether each ALT allele should be filtered according to
             parameters from self.filters.
         '''
-        filter_alleles = [False] * (len(record.ALLELES) -1)
-        p_info = record.parsed_info_fields(fields=self.fields)
+        filter_alleles = [False] * len(record.alts)
         for field, op, value, number in self.filters:
-            if number == '0':#flag
+            if number == 0:  # flag
                 flag_value = False
-                if field in p_info:
+                if field in record.info:
                     flag_value = True
                 if not op(value, flag_value):
-                    filter_alleles = [True] * (len(record.ALLELES) -1)
+                    filter_alleles = [True] * len(record.alts)
                     break
                 continue
-            if field in p_info:
-                inf = p_info[field]
-            else:
+            if field not in record.info:
                 continue
             if number == 'A' or number == 'R':
                 if number == 'R':
-                    alt_vals = inf[1:]
+                    alt_vals = record.info[field][1:]
                 else:
-                    alt_vals = inf
+                    alt_vals = record.info[field]
                 for i in range(len(filter_alleles)):
                     if alt_vals[i] is None or not op(alt_vals[i], value):
                         filter_alleles[i] = True
             else:
-                if number == '1':
-                    if inf is not None and not op(inf, value):
-                        filter_alleles = [True] * (len(record.ALLELES) -1)
+                if number == 1:
+                    if record.info[field] is not None and not op(
+                            record.info[field], value):
+                        filter_alleles = [True] * len(record.alts)
                 else:
-                    for x in inf:
+                    for x in record.info[field]:
                         if x is not None and not op(x, value):
-                            filter_alleles = [True] * (len(record.ALLELES) -1)
+                            filter_alleles = [True] * len(record.alts)
                             break
             if all(filter_alleles):
-                #all alleles filtered
+                # all alleles filtered
                 break
         return filter_alleles
-
