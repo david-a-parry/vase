@@ -30,7 +30,7 @@ class VaseRunner(object):
         self._set_logger()
         if self.args.debug:
             self.logger.debug(vars(args))
-        self.input = VcfReader(self.args.input)
+        self.input = VcfReader(self.args.input, logger=self.logger)
         self.var_stream = self.input
         self.keep_filters = None
         self.exclude_filters = None
@@ -879,7 +879,7 @@ class VaseRunner(object):
 
     def get_vcf_filter_classes(self):
         filters = []
-        uni_args = {}
+        uni_args = {'logger': self.logger}
         if self.args.freq is not None:
             uni_args["freq"] = self.args.freq
         if self.args.min_freq is not None:

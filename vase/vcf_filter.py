@@ -7,7 +7,7 @@ class VcfFilter(object):
         another VCF file.
     '''
 
-    def __init__(self, vcf, prefix, freq=None, min_freq=None,
+    def __init__(self, vcf, prefix, logger=None, freq=None, min_freq=None,
                  freq_fields=("AF",), ac_fields=("AC",), an_fields=("AN",),
                  annotations=[], allow_missing_annotations=False):
         '''
@@ -54,8 +54,9 @@ class VcfFilter(object):
 
         '''
 
-        self.vcf = VcfReader(vcf)
+        self.vcf = VcfReader(vcf, logger=logger)
         self.prefix = prefix
+        self.logger = logger
         self.freq = freq
         self.min_freq = min_freq
         self.freq_info = freq_fields

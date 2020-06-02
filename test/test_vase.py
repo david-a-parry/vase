@@ -11,9 +11,9 @@ input_prefix = os.path.join(dir_path, 'test_data', 'ex1')
 vcf_filter = os.path.join(dir_path,
                           "test_data",
                           "vcf_filter_test.vcf.gz,test_vcf")
-gnomad = os.path.join(dir_path, "test_data", "gnomadTest.vcf.gz")
+gnomad = os.path.join(dir_path, "test_data", "gnomadTest.bcf")
 dbsnp = os.path.join(dir_path, "test_data", "dbSnpTest.vcf.gz")
-  
+
 all_args = {
     'input': input_prefix + '.vcf',
     'output': None,
@@ -470,7 +470,7 @@ def test_vcf_filter_freq():
 
 if __name__ == '__main__':
 #    test_dbsnp_freq()
-#    test_gnomad_novel()
-#    test_vcf_filter_freq()
+    test_gnomad_novel()
+    test_vcf_filter_freq()
     import nose
     nose.run(defaultTest = __name__)

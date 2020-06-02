@@ -9,8 +9,8 @@ class dbSnpFilter(VcfFilter):
         dbSNP VCF file.
     '''
 
-    def __init__(self, vcf, prefix='VASE_dbSNP', freq=None, min_freq=None,
-                 build=None, max_build=None, clinvar_path=False):
+    def __init__(self, vcf, prefix='VASE_dbSNP', logger=None, freq=None,
+                 min_freq=None, build=None, max_build=None, clinvar_path=False):
         '''
             Initialize object with a dbSNP VCF file and optional filtering
             arguments.
@@ -48,7 +48,7 @@ class dbSnpFilter(VcfFilter):
         self.build = build
         self.max_build = max_build
         self.clinvar_path = clinvar_path
-        super().__init__(vcf, prefix, freq, min_freq)
+        super().__init__(vcf, prefix, logger, freq, min_freq)
         if self.build is not None and self.max_build is not None:
             if self.build > self.max_build:
                 raise RuntimeError("build argument must not be greater than " +

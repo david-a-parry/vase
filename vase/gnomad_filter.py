@@ -7,7 +7,7 @@ class GnomadFilter(VcfFilter):
         annotations in a gnomAD or ExAC VCF file.
     '''
 
-    def __init__(self, vcf, prefix, freq=None, min_freq=None, pops=None,
+    def __init__(self, vcf, prefix, logger=None, freq=None, min_freq=None, pops=None,
                  max_homozygotes=None):
         '''
             Initialize object with a VCF file and optional filtering
@@ -45,9 +45,10 @@ class GnomadFilter(VcfFilter):
         hom_info = ["Hom_" + p for p in g_pops] + ["nhomalt_" + p for p in
                                                    g_pops]
         hemi_info = ["Hemi_" + p for p in g_pops]  # v2.1 uses nhomalt for hemi
-        super().__init__(vcf=vcf, prefix=prefix, freq=freq, min_freq=min_freq,
-                         freq_fields=freq_info, ac_fields=ac_info,
-                         an_fields=an_info, annotations=hom_info+hemi_info,
+        super().__init__(vcf=vcf, prefix=prefix, logger=logger, freq=freq,
+                         min_freq=min_freq, freq_fields=freq_info,
+                         ac_fields=ac_info, an_fields=an_info,
+                         annotations=hom_info+hemi_info,
                          allow_missing_annotations=True)
         self.hom_annots = [self.prefix + "_" + f for f in self.extra if f in
                            self.annot_fields]
