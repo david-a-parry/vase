@@ -30,3 +30,6 @@ vase -i ../test/test_data/ex1.bcf --dbsnp ../test/test_data/dbSnpTest.vcf.gz  --
 vase -i ../test/test_data/ex1.vcf.gz --gnomad ../test/test_data/gnomadTest.vcf.gz  --filter_novel | ../test/utils/vcf2vars.py > ../test/test_data/expected_outputs/test_gnomad_novel.txt
 vase -i ../test/test_data/ex1.vcf.gz --gnomad ../test/test_data/gnomadTest.vcf.gz  --filter_known | ../test/utils/vcf2vars.py > ../test/test_data/expected_outputs/test_gnomad_known.txt
 vase -i ../test/test_data/ex1.vcf.gz --gnomad ../test/test_data/gnomadTest.vcf.gz   --freq 0.0005 | ../test/utils/vcf2vars.py > ../test/test_data/expected_outputs/test_gnomad_freq.txt
+vase -i ../test/test_data/ex1.vcf.gz --vcf_filter ../test/test_data/vcf_filter_test.vcf.gz,test_vcf  --filter_known  | ../test/utils/vcf2vars.py > ../test/test_data/expected_outputs/test_vcf_filter_known.txt
+vase -i ../test/test_data/ex1.vcf.gz --vcf_filter ../test/test_data/vcf_filter_test.vcf.gz,test_vcf  --filter_novel  | ../test/utils/vcf2vars.py > ../test/test_data/expected_outputs/test_vcf_filter_novel.txt
+vase -i ../test/test_data/ex1.vcf.gz --vcf_filter ../test/test_data/vcf_filter_test.vcf.gz,test_vcf  --freq 0.1   | ../test/utils/vcf2vars.py > ../test/test_data/expected_outputs/test_vcf_filter_freq.txt
