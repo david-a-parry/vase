@@ -23,3 +23,10 @@ vase -i ex1.vcf --ped test.ped  --biallelic --impact HIGH  | ../utils/vcf2vars.p
 vase --ped test2.ped -i ex1.vcf --dominant --csq | ../utils/vcf2vars.py > expected_outputs/test_dominant.txt
 
 vase -i ex1.vcf --cases Sample3 Sample2 --controls Sample1 | ../utils/vcf2vars.py > expected_outputs/test_case_control
+
+vase -i ../test/test_data/ex1.bcf --dbsnp ../test/test_data/dbSnpTest.vcf.gz  --filter_known  | ../test/utils/vcf2vars.py > ../test/test_data/expected_outputs/test_dbsnp_known.txt 
+vase -i ../test/test_data/ex1.bcf --dbsnp ../test/test_data/dbSnpTest.vcf.gz  --filter_novel  | ../test/utils/vcf2vars.py > ../test/test_data/expected_outputs/test_dbsnp_novel.txt 
+vase -i ../test/test_data/ex1.bcf --dbsnp ../test/test_data/dbSnpTest.vcf.gz  --freq 0.005  | ../test/utils/vcf2vars.py > ../test/test_data/expected_outputs/test_dbsnp_freq.txt 
+vase -i ../test/test_data/ex1.vcf.gz --gnomad ../test/test_data/gnomadTest.vcf.gz  --filter_novel | ../test/utils/vcf2vars.py > ../test/test_data/expected_outputs/test_gnomad_novel.txt
+vase -i ../test/test_data/ex1.vcf.gz --gnomad ../test/test_data/gnomadTest.vcf.gz  --filter_known | ../test/utils/vcf2vars.py > ../test/test_data/expected_outputs/test_gnomad_known.txt
+vase -i ../test/test_data/ex1.vcf.gz --gnomad ../test/test_data/gnomadTest.vcf.gz   --freq 0.0005 | ../test/utils/vcf2vars.py > ../test/test_data/expected_outputs/test_gnomad_freq.txt
