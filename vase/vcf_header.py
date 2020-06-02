@@ -12,6 +12,7 @@ _field2pysam = {'info': 'info',
                 'filter': 'filters',
                 'alt': 'alts'}
 
+
 class VcfHeader(object):
     ''' Header class storing metadata and sample information for a vcf '''
 
