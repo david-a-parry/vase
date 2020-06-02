@@ -7,6 +7,7 @@ from .insilico_filter import InSilicoFilter
 lof_csq = {'frameshift_variant', 'stop_gained', 'splice_acceptor_variant',
            'splice_donor_variant'}
 
+
 class VepFilter(object):
     '''An object that filters VCF records based on annotated VEP data.'''
 
@@ -220,8 +221,8 @@ class VepFilter(object):
                                        "annotation '{}' in VCF".format(rq))
             except HeaderError:
                 raise RuntimeError("Could not identify CSQ or ANN fields in " +
-                                "VCF header. Please ensure your input is " +
-                                "annotated with Ensembl's VEP")
+                                   "VCF header. Please ensure your input is " +
+                                   "annotated with Ensembl's VEP")
         self.gene_filter = gene_filter
         self.freq = freq
         self.min_freq = min_freq
@@ -262,9 +263,9 @@ class VepFilter(object):
             self.path_fields = self._get_path_fields(vcf)
 
     def filter(self, record):
-        filter_alleles = [True] * (len(record.ALLELES) -1)
+        filter_alleles = [True] * len(record.alts)
         #whether an ALT allele should be filtered or not
-        filter_af = [False] * (len(record.ALLELES) -1)
+        filter_af = [False] * len(record.alts)
         try:
             filter_csq = [True] * len(record.CSQ)
             #whether each csq should be filtered or not
@@ -337,7 +338,8 @@ class VepFilter(object):
                 filter_alleles[alt_i] = False
                 filter_csq[i] = False
                 continue
-            if self.pathogenic and self._has_pathogenic_annotation(c, record):
+            if self.pathogenic and self._has_pathogenic_annotation(
+                    c, record):
                 filter_alleles[alt_i] = False
                 filter_csq[i] = False
                 continue
