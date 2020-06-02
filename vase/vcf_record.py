@@ -36,13 +36,28 @@ class VaseRecord(object):
         self.__SPAN = None
         self._vep_allele = {}
 
+    def __str__(self):
+        return str(self.record)
+
     @property
     def alleles(self):
         return self.record.alleles
 
+    @alleles.setter
+    def alleles(self, x):
+        self.record.alleles = x
+
     @property
     def alts(self):
         return self.record.alts
+
+    @alts.setter
+    def alts(self, x):
+        self.record.alts = x
+
+    @alts.setter
+    def alts(self, x):
+        self.record.alts = x
 
     @property
     def alt(self):
@@ -52,25 +67,49 @@ class VaseRecord(object):
     def info(self):
         return self.record.info
 
+    @info.setter
+    def info(self, x):
+        self.record.info = x
+
     @property
     def filter(self):
         return self.record.filter
+
+    @filter.setter
+    def filter(self, x):
+        self.record.filter = x
 
     @property
     def format(self):
         return self.record.format
 
+    @format.setter
+    def format(self, x):
+        self.record.format = x
+
     @property
     def chrom(self):
         return self.record.chrom
+
+    @chrom.setter
+    def chrom(self, x):
+        self.record.chrom = x
 
     @property
     def pos(self):
         return self.record.pos
 
+    @pos.setter
+    def pos(self, x):
+        self.record.pos = x
+
     @property
     def id(self):
         return self.record.id
+
+    @id.setter
+    def id(self, x):
+        self.record.id = x
 
     @property
     def qual(self):
