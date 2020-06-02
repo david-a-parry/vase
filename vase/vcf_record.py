@@ -392,6 +392,81 @@ class VaseRecord(object):
         except ValueError:  # allele might not be in phase group
             return False
 
+    def add_info_fields(self, info, append_existing=False):
+        '''
+            Requires a dict of INFO field names to a list of values.
+            Adds or replaces existing INFO fields in the record with
+            the items in given dict.
+
+            Args:
+                info: A dict of INFO field names to add with values
+                      being list of values for the given field.
+
+                append_existing:
+                      Add values to existing INFO fields in a record.
+                      If the field being added already exists and this
+                      argument is True, the values provided will be
+                      added to the existing values. If the Number
+                      property is a fixed value, multiple values at the
+                      same index will be separated by '|' characters.
+                      Otherwise they will be separated by commas. Note,
+                      that the latter method is only supported for
+                      'String' types.
+                      Default = False.
+
+        '''
+        for k, v in sorted(info.items()):
+            if append_existing and k in self.info:
+                self._append_to_existing_info(k, v)
+            else:
+                self.info[k] = v
+
+    def _append_to_existing_info(self, field, values):
+        if field not in self.header.info:
+            raise KeyError("{} INFO field does not exist in ".format(field) +
+                           "header - can not add to record")
+        if self.header.info[field].type == 'Flag':
+            self.info[field] = True
+            return
+        elif self.header.info[field].number == '.':
+            self.info[field] = ",".join(str(x) for x in self.info[field] +
+                                        tuple(values))
+            return
+        if self.header.info[field].type != 'String':
+            raise ValueError("Appending to fixed length INFO fields is only " +
+                             "supported for String types, not {} types".format(
+                                 self.header.info[field].type))
+        if self.header.info[field].number == '1':
+            self.info[field] += "|" + values
+            return
+        if (len(self.info[field]) != len(new)):
+            raise ValueError("New {} INFO field '{}'" .format(field, values) +
+                             "has differing number of values to existing " +
+                             "field '{}'" .format(self.info[field]))
+        self.info[field] = str.join(",", (str.join("|", x) for x in zip(
+            self.info[field], values)))
+
+    def add_ids(self, ids, replace=False):
+        '''
+            Adds given IDs to the ID field of the VCF record. If the
+            record already has an ID (i.e. is not '.') these IDs are
+            added to the existing value(s) unless the replace
+            argument is True.
+
+            Args:
+                ids:     A list of IDs to add.
+
+                replace: If True, existing ID values are replaced,
+                         otherwise the given IDs are added to.
+                         Default = False.
+
+        '''
+        if replace or self.id is None:
+            self.id = str.join(';', ids)
+        else:
+            uids = set(ids + self.id.split(';'))
+            self.id = str.join(';', uids)
+
 
 class AltAllele(object):
     '''
