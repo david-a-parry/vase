@@ -348,7 +348,7 @@ class VaseRunner(object):
             for i in range(1, len(record.alleles)):
                 if dom_filter_alleles[i - 1]:  # no need to filter again
                     continue
-                r = self.control_filter.filter(record, i)
+                r = self.control_filter.filter(vase_record, i)
                 if r:
                     dom_filter_alleles[i - 1] = True
         self.remove_previous_inheritance_filters(record)
