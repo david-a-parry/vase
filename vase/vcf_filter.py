@@ -229,7 +229,7 @@ class VcfFilter(object):
                                    "filtering.")
         for f in self.extra:
             if f in self.vcf.header.info:
-                self.annot_fields[f] = self.vcf.header.info[f]
+                self.annot_fields[f] = self._meta2dict(self.vcf.header.info[f])
             elif not self.allow_missing_annotations:
                 raise RuntimeError("Requested annotation '{}' ".format(f) +
                                    "does not exist in VCF header for file " +
