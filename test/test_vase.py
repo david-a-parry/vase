@@ -345,6 +345,84 @@ def test_dominant():
     os.remove(output)
 
 
+def test_dbsnp_known():
+    output = get_tmp_out()
+    test_args = dict(
+        dbsnp="../test/test_data/dbSnpTest.vcf.gz",
+        filter_known=True,
+        output=output,
+    )
+    results, expected = run_test(test_args, output,
+                                 sys._getframe().f_code.co_name)
+    assert_equal(results, expected)
+    os.remove(output)
+
+
+def test_dbsnp_novel():
+    output = get_tmp_out()
+    test_args = dict(
+        dbsnp="../test/test_data/dbSnpTest.vcf.gz",
+        filter_novel=True,
+        output=output,
+    )
+    results, expected = run_test(test_args, output,
+                                 sys._getframe().f_code.co_name)
+    assert_equal(results, expected)
+    os.remove(output)
+
+
+def test_dbsnp_freq():
+    output = get_tmp_out()
+    test_args = dict(
+        dbsnp="../test/test_data/dbSnpTest.vcf.gz",
+        freq=0.005,
+        output=output,
+    )
+    results, expected = run_test(test_args, output,
+                                 sys._getframe().f_code.co_name)
+    assert_equal(results, expected)
+    os.remove(output)
+
+
+def test_gnomad_novel():
+    output = get_tmp_out()
+    test_args = dict(
+        gnomad="../test/test_data/gnomadTest.vcf.gz",
+        filter_novel=True,
+        output=output,
+    )
+    results, expected = run_test(test_args, output,
+                                 sys._getframe().f_code.co_name)
+    assert_equal(results, expected)
+    os.remove(output)
+
+
+def test_gnomad_known():
+    output = get_tmp_out()
+    test_args = dict(
+        gnomad="../test/test_data/gnomadTest.vcf.gz",
+        filter_known=True,
+        output=output,
+    )
+    results, expected = run_test(test_args, output,
+                                 sys._getframe().f_code.co_name)
+    assert_equal(results, expected)
+    os.remove(output)
+
+
+def test_gnomad_freq():
+    output = get_tmp_out()
+    test_args = dict(
+        gnomad="../test/test_data/gnomadTest.vcf.gz",
+        freq=0.0005,
+        output=output,
+    )
+    results, expected = run_test(test_args, output,
+                                 sys._getframe().f_code.co_name)
+    assert_equal(results, expected)
+    os.remove(output)
+
+
 if __name__ == '__main__':
     import nose
     nose.run(defaultTest = __name__)
