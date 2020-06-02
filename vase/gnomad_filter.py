@@ -44,7 +44,7 @@ class GnomadFilter(VcfFilter):
         an_info = ["AN_" + p for p in g_pops]
         hom_info = ["Hom_" + p for p in g_pops] + ["nhomalt_" + p for p in
                                                    g_pops]
-        hemi_info = ["Hemi_" + p for p in g_pops] #v2.1 uses nhomalt for hemi
+        hemi_info = ["Hemi_" + p for p in g_pops]  # v2.1 uses nhomalt for hemi
         super().__init__(vcf=vcf, prefix=prefix, freq=freq, min_freq=min_freq,
                          freq_fields=freq_info, ac_fields=ac_info,
                          an_fields=an_info, annotations=hom_info+hemi_info,
@@ -55,21 +55,19 @@ class GnomadFilter(VcfFilter):
         if self.max_homozygotes is not None:
             self.annotate_and_filter_record = self.filter_including_homozygotes
         else:
-            self.annotate_and_filter_record = super().annotate_and_filter_record
-
+            self.annotate_and_filter_record = \
+                super().annotate_and_filter_record
 
     def filter_including_homozygotes(self, record):
         filt, keep, matched = super().annotate_and_filter_record(record)
         if all(filt):
-            #no need to check homozygotes - filtering anyway
+            # no need to check homozygotes - filtering anyway
             return filt, keep, matched
-        hom_info = record.parsed_info_fields(self.hom_annots)
-        if hom_info:
-            for i in range(len(record.DECOMPOSED_ALLELES)):
-                if filt[i]:
-                    continue
-                hom_counts = sum(hom_info[x][i] for x in self.hom_annots if
-                                 x in hom_info and hom_info[x][i] is not None)
-                if hom_counts > self.max_homozygotes:
-                    filt[i] = True
+        for i in range(len(record.DECOMPOSED_ALLELES)):
+            if filt[i]:
+                continue
+            hom_counts = sum(record.info[x][i] for x in self.hom_annots if x in
+                             record.info and record.info[x][i] is not None)
+            if hom_counts > self.max_homozygotes:
+                filt[i] = True
         return filt, keep, matched
