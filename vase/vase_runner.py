@@ -1284,7 +1284,8 @@ class VaseRunner(object):
 
     def _clean_info(self, record):
         ''' Remove predefined INFO fields from records. '''
-        record.remove_info_fields(self.info_to_remove)
+        for f in (x for x in self.info_to_remove if x in record.info):
+            del record.info[f]
 
     def _get_dominant_filter(self):
         self._get_family_filter()
