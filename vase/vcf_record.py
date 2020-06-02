@@ -15,7 +15,7 @@ class VaseRecord(object):
     """
 
     __slots__ = ['record', 'caller', 'header', '__CSQ', '__is_sv',
-                 '__DECOMPOSED_ALLELES', '__SPAN']
+                 '__DECOMPOSED_ALLELES', '__SPAN', '_vep_allele']
 
     def __init__(self, record, vcfreader):
         """
@@ -34,6 +34,67 @@ class VaseRecord(object):
         self.__is_sv = None
         self.__DECOMPOSED_ALLELES = None
         self.__SPAN = None
+        self._vep_allele = {}
+
+    @property
+    def alleles(self):
+        return self.record.alleles
+
+    @property
+    def alts(self):
+        return self.record.alts
+
+    @property
+    def alt(self):
+        return ",".join(self.record.alts)
+
+    @property
+    def info(self):
+        return self.record.info
+
+    @property
+    def filter(self):
+        return self.record.filter
+
+    @property
+    def format(self):
+        return self.record.format
+
+    @property
+    def chrom(self):
+        return self.record.chrom
+
+    @property
+    def pos(self):
+        return self.record.pos
+
+    @property
+    def id(self):
+        return self.record.id
+
+    @property
+    def qual(self):
+        return self.record.qual
+
+    @property
+    def ref(self):
+        return self.record.ref
+
+    @property
+    def rlen(self):
+        return self.record.rlen
+
+    @property
+    def samples(self):
+        return self.record.samples
+
+    @property
+    def start(self):
+        return self.record.start
+
+    @property
+    def stop(self):
+        return self.record.stop
 
     @property
     def IS_SV(self):
@@ -52,6 +113,7 @@ class VaseRecord(object):
             Returns end position of a record according to END INFO
             field if available, or otherwise POS + len(REF) - 1.
         '''
+        # TODO Can we just use record.pos + record.rlen - 1?
         if self.__SPAN is None:
             if 'END' in self.record.info:
                 self.__SPAN = self.record.info['END']
