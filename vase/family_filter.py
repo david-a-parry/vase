@@ -376,7 +376,7 @@ class InheritanceFilter(object):
         if record.IS_SV:
             gt_filter = self.sv_gt_filter
             control_filter = self.sv_con_gt_filter
-            gt_filter_args['svtype'] = record.INFO_FIELDS.get('SVTYPE', '')
+            gt_filter_args['svtype'] = record.info.get('SVTYPE', '')
         else:
             gt_filter = self.gt_filter
             control_filter = self.con_gt_filter
@@ -570,7 +570,7 @@ class RecessiveFilter(InheritanceFilter):
         if record.IS_SV:
             gt_filter = self.sv_gt_filter
             control_filter = self.sv_con_gt_filter
-            gt_filter_args['svtype'] = record.INFO_FIELDS.get('SVTYPE', '')
+            gt_filter_args['svtype'] = record.info.get('SVTYPE', '')
         else:
             gt_filter = self.gt_filter
             control_filter = self.con_gt_filter
@@ -1338,8 +1338,6 @@ class SegregatingVariant(object):
                                                         sorted(self.de_novos))
         converted = self._convert_annotations(annots)
         for k, v in converted.items():
-            if k in self.segregant.record.info:
-                del self.segregant.record.info[k]
             self.segregant.record.info[k] = v
         if report_file:
             report_file.write(self._annot_to_string(annots, annot_order)
@@ -1371,10 +1369,11 @@ class SegregatingVariant(object):
     def _convert_annotations(self, annots):
         ''' Convert to per-allele (Number=A) format for INFO field '''
         converted_annots = dict()
-        for k,v in annots.items():
-            allele_fields = ['.'] * len(self.segregant.record.alts)
+        for k, v in annots.items():
             if k in self.segregant.record.info:
                 allele_fields = self.segregant.record.info[k]
+            else:
+                allele_fields = ['.'] * len(self.segregant.record.alts)
             i = self.segregant.allele - 1
             allele_fields[i] = v
             converted_annots[k] = allele_fields
