@@ -133,8 +133,9 @@ class VcfHeader(object):
             field_type = field_type.lower()
             field_header = getattr(self.header, _field2pysam[field_type])
             if name in field_header:
-                field_header.remove_header(name)
-                self.header = self.header.copy()
+                # TODO check header same? pysam segfaults if we remove and
+                # add INFO field with same name
+                return
             if field_type in _required_keys:
                 for k in add_order:
                     if k in _required_keys[field_type]:
