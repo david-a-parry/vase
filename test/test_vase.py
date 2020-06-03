@@ -11,7 +11,7 @@ input_prefix = os.path.join(dir_path, 'test_data', 'ex1')
 vcf_filter = os.path.join(dir_path,
                           "test_data",
                           "vcf_filter_test.vcf.gz,test_vcf")
-gnomad = os.path.join(dir_path, "test_data", "gnomadTest.bcf")
+gnomad = os.path.join(dir_path, "test_data", "gnomadTest.vcf.gz")
 dbsnp = os.path.join(dir_path, "test_data", "dbSnpTest.vcf.gz")
 
 all_args = {
@@ -133,8 +133,8 @@ all_args = {
     }
 
 
-def get_tmp_out():
-    f, fname = tempfile.mkstemp(suffix='.vcf')
+def get_tmp_out(suffix='.vcf'):
+    f, fname = tempfile.mkstemp(suffix=suffix)
     return fname
 
 
@@ -468,9 +468,30 @@ def test_vcf_filter_freq():
     os.remove(output)
 
 
+def test_burden_counts():
+    output = get_tmp_out(suffix='.txt')
+    test_args = dict(
+        cases="Sample1",
+        controls="Sample3",
+        burden_counts=output,
+        csq=["default"],
+        output=output,
+    )
+    expected_results = os.path.join(dir_path,
+                                    "test_data",
+                                    "expected_outputs",
+                                    "test_burden_counts.txt")
+    args = get_args(test_args)
+    runner = VaseRunner(args)
+    runner.run()
+    with open(output, 'rt') as infile:
+        results = [x for x in infile.read().split("\n") if x != '']
+    with open(expected_results, 'rt') as infile:
+        expected = [x for x in infile.read().split("\n") if x != '']
+    assert_equal(results, expected)
+    os.remove(output)
+
+
 if __name__ == '__main__':
-#    test_dbsnp_freq()
-    test_gnomad_novel()
-    test_vcf_filter_freq()
     import nose
     nose.run(defaultTest = __name__)
