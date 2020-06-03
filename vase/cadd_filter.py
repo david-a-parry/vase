@@ -126,7 +126,7 @@ class CaddFilter(object):
                     record.DECOMPOSED_ALLELES[i].REF == ref and
                     record.DECOMPOSED_ALLELES[i].ALT == alt):
                     s = (float(raw), float(phred))
-                    break #bail on first matching variant
+                    break  # bail on first matching variant
             scores.append(s)
         return scores
 
@@ -144,13 +144,13 @@ class CaddFilter(object):
         alt = cols[3]
         pos = int(cols[1])
         while len(ref) > 1 and len(alt) > 1:
-            if ref[-1] == alt[-1]:               #remove identical suffixes
+            if ref[-1] == alt[-1]:               # remove identical suffixes
                 ref = ref[:-1]
                 alt = alt[:-1]
             else:
                 break
         while len(ref) > 1 and len(alt) > 1:
-            if ref[0] == alt[0]:                 #remove identical prefixes
+            if ref[0] == alt[0]:                 # remove identical prefixes
                 ref = ref[1:]
                 alt = alt[1:]
                 pos += 1
@@ -189,7 +189,7 @@ class CaddFilter(object):
     def _write_for_scoring(self, record, alt):
         if record.DECOMPOSED_ALLELES[alt].ALT != '*':
             self.to_score_file.write("{}\t{}\t.\t{}\t{}\n".format(
-                                           record.CHROM,
+                                           record.chrom,
                                            record.DECOMPOSED_ALLELES[alt].POS,
                                            record.DECOMPOSED_ALLELES[alt].REF,
                                            record.DECOMPOSED_ALLELES[alt].ALT))
