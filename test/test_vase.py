@@ -471,11 +471,11 @@ def test_vcf_filter_freq():
 def test_burden_counts():
     output = get_tmp_out(suffix='.txt')
     test_args = dict(
-        cases="Sample1",
-        controls="Sample3",
+        cases=["Sample1", "Sample2"],
+        controls=["Sample3"],
         burden_counts=output,
         csq=["default"],
-        output=output,
+        output='/dev/null',
     )
     expected_results = os.path.join(dir_path,
                                     "test_data",
