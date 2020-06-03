@@ -293,7 +293,6 @@ class VaseRunner(object):
     def run(self):
         ''' Run VCF filtering/annotation using args from bin/vase'''
         self.logger.info('Starting variant processing')
-        self.add_vase_header()
         with self.var_stream:
             for vase_record in self.var_stream:
                 self.process_record(vase_record)
