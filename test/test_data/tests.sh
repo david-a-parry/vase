@@ -34,3 +34,5 @@ vase -i ../test/test_data/ex1.vcf.gz --vcf_filter ../test/test_data/vcf_filter_t
 vase -i ../test/test_data/ex1.vcf.gz --vcf_filter ../test/test_data/vcf_filter_test.vcf.gz,test_vcf  --filter_novel  | ../test/utils/vcf2vars.py > ../test/test_data/expected_outputs/test_vcf_filter_novel.txt
 vase -i ../test/test_data/ex1.vcf.gz --vcf_filter ../test/test_data/vcf_filter_test.vcf.gz,test_vcf  --freq 0.1   | ../test/utils/vcf2vars.py > ../test/test_data/expected_outputs/test_vcf_filter_freq.txt
 vase -i test/test_data/ex1.bcf --cases Sample1 Sample2 --controls Sample3 --burden_counts test/test_data/expected_outputs/test_burden_counts.txt --csq default 
+vase -i ../test/test_data/ex1.vcf.gz --cadd_files ../test/test_data/test_cadd_scores.tsv.gz -o ../test/test_data/expected_outputs/test_cadd_annot.vcf.gz --missing_cadd ../test/test_data/expected_outputs/test_cadd_missing.vcf.gz
+vase -i ../test/test_data/ex1.vcf.gz --cadd_files ../test/test_data/test_cadd_scores.tsv.gz  --cadd_phred 30  | ../test/utils/vcf2vars.py > ../test/test_data/test_cadd_filters.txt
