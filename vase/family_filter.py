@@ -1371,7 +1371,7 @@ class SegregatingVariant(object):
         converted_annots = dict()
         for k, v in annots.items():
             if k in self.segregant.record.info:
-                allele_fields = self.segregant.record.info[k]
+                allele_fields = list(self.segregant.record.info[k])
             else:
                 allele_fields = ['.'] * len(self.segregant.record.alts)
             i = self.segregant.allele - 1
