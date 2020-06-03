@@ -116,9 +116,7 @@ class CaddFilter(object):
             Returns the scores for the first matching record encountered
             in cadd files.
         '''
-        start = record.pos - 1
-        end = record.span
-        hits = self.search_coordinates(record.chrom, start, end)
+        hits = self.search_coordinates(record.chrom, record.start, record.stop)
         scores = []
         for i in range(len(record.DECOMPOSED_ALLELES)):
             s = (None, None)
