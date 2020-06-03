@@ -2,6 +2,7 @@ import sys
 import os
 import tempfile
 import pysam
+import numpy as np
 from nose.tools import *
 from vase.vase_runner import VaseRunner
 from argparse import Namespace
@@ -164,13 +165,22 @@ def convert_results(f):
         return [var_string_from_record(x) for x in vcf]
 
 
-def run_args(args, output, func_name):
+def info_fields_from_vcf(f, i):
+    results = []
+    with pysam.VariantFile(f) as vcf:
+        for record in vcf:
+            results.extend(record.info[i] if i in record.info else None)
+    return results
+
+
+def run_args(args, output=None, func_name=None):
     args = get_args(args)
     runner = VaseRunner(args)
     runner.run()
-    results = convert_results(output)
-    expected = get_expected_out(func_name)
-    return (results, expected)
+    if output is not None and func_name is not None:
+        results = convert_results(output)
+        expected = get_expected_out(func_name)
+        return (results, expected)
 
 
 def test_alts_filters():
@@ -458,7 +468,7 @@ def test_vcf_filter_novel():
 def test_vcf_filter_freq():
     output = get_tmp_out()
     test_args = dict(
-        vcf_filter=[vcf_filter], 
+        vcf_filter=[vcf_filter],
         freq=0.1,
         output=output,
     )
@@ -477,19 +487,40 @@ def test_burden_counts():
         csq=["default"],
         output='/dev/null',
     )
+    run_args(test_args)
     expected_results = os.path.join(dir_path,
                                     "test_data",
                                     "expected_outputs",
                                     "test_burden_counts.txt")
-    args = get_args(test_args)
-    runner = VaseRunner(args)
-    runner.run()
     with open(output, 'rt') as infile:
         results = [x for x in infile.read().split("\n") if x != '']
     with open(expected_results, 'rt') as infile:
         expected = [x for x in infile.read().split("\n") if x != '']
     assert_equal(results, expected)
     os.remove(output)
+
+
+def test_cadd_annot():
+    output = get_tmp_out()
+    missing_cadd = get_tmp_out()
+    cadd_file = os.path.join(dir_path, "test_data", "test_cadd_scores.tsv.gz")
+    test_args = dict(
+        output=output,
+        missing_cadd=missing_cadd,
+        cadd_files=[cadd_file],
+    )
+    run_args(test_args)
+    expected_results = os.path.join(dir_path,
+                                    "test_data",
+                                    "expected_outputs",
+                                    "test_cadd_annot.vcf.gz")
+    for i in ['CADD_PHRED_score', 'CADD_raw_score']:
+        results = np.array(info_fields_from_vcf(output, i), dtype=float)
+        expected = np.array(info_fields_from_vcf(expected_results, i),
+                            dtype=float)
+        np.testing.assert_array_almost_equal(results, expected, decimal=5)
+    for f in (output, missing_cadd):
+        os.remove(f)
 
 
 if __name__ == '__main__':
