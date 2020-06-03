@@ -211,6 +211,32 @@ def test_info_filters():
     os.remove(output)
 
 
+def test_cadd_phred_filters():
+    output = get_tmp_out()
+    cadd_file = os.path.join(dir_path, "test_data", "test_cadd_scores.tsv.gz")
+    test_args = dict(
+        output=output,
+        cadd_files=[cadd_file],
+        cadd_phred=30
+    )
+    results, expected = run_args(test_args, output,
+                                 sys._getframe().f_code.co_name)
+    assert_equal(results, expected)
+
+
+def test_cadd_raw_filters():
+    output = get_tmp_out()
+    cadd_file = os.path.join(dir_path, "test_data", "test_cadd_scores.tsv.gz")
+    test_args = dict(
+        output=output,
+        cadd_files=[cadd_file],
+        cadd_raw=2.25
+    )
+    results, expected = run_args(test_args, output,
+                                 sys._getframe().f_code.co_name)
+    assert_equal(results, expected)
+
+
 def test_case_control():
     output = get_tmp_out()
     test_args = dict(
@@ -533,19 +559,6 @@ def test_cadd_annot():
         os.remove(f)
 
 
-def test_cadd_phred_filters():
-    output = get_tmp_out()
-    cadd_file = os.path.join(dir_path, "test_data", "test_cadd_scores.tsv.gz")
-    test_args = dict(
-        output=output,
-        cadd_files=[cadd_file],
-        cadd_phred=30
-    )
-    results, expected = run_args(test_args, output,
-                                 sys._getframe().f_code.co_name)
-    assert_equal(results, expected)
-
-
 if __name__ == '__main__':
     import nose
-    nose.run(defaultTest = __name__)
+    nose.run(defaultTest=__name__)
