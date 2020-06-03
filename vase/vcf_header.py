@@ -16,18 +16,29 @@ _field2pysam = {'info': 'info',
 class VcfHeader(object):
     ''' Header class storing metadata and sample information for a vcf '''
 
-    __slots__ = ['vcfreader', 'header', 'formats', 'info', 'filters',
-                 'samples', '__csq_label', '__csq_fields']
+    __slots__ = ['vcfreader', 'header', '__csq_label', '__csq_fields']
 
     def __init__(self, vcfreader):
         self.vcfreader = vcfreader
         self.header = self.vcfreader.variant_file.header
-        self.formats = self.header.formats
-        self.info = self.header.info
-        self.filters = self.header.filters
-        self.samples = self.header.samples
         self.__csq_fields = None
         self.__csq_label = None
+
+    @property
+    def formats(self):
+        return self.header.formats
+
+    @property
+    def info(self):
+        return self.header.info
+
+    @property
+    def filters(self):
+        return self.header.filters
+
+    @property
+    def samples(self):
+        return self.header.samples
 
     @property
     def csq_label(self):
@@ -122,7 +133,7 @@ class VcfHeader(object):
             field_type = field_type.lower()
             field_header = getattr(self.header, _field2pysam[field_type])
             if name in field_header:
-                field_header.remove(name)
+                field_header.remove_header(name)
                 self.header = self.header.copy()
             if field_type in _required_keys:
                 for k in add_order:
@@ -141,4 +152,3 @@ class VcfHeader(object):
                     field_type))
         else:
             self.header.add_meta(key=name, value=string)
- 
