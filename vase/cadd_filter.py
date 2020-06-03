@@ -4,6 +4,7 @@ import logging
 import gzip
 from collections import defaultdict
 
+
 class CaddFilter(object):
     '''
         An object that filters/annotates VCF records using CADD PHRED
@@ -62,23 +63,16 @@ class CaddFilter(object):
         self._has_chr = self._check_contigs()
         self.phred = min_phred
         self.raw = min_raw_score
-        self.info_fields = {'CADD_PHRED_score': {'Number': 'A',
-                                                 'Type': 'Float',
-                                                 'Description': 'CADD PHRED ' +
-                                                                'score added' +
-                                                                ' from ' +
-                                                                'reference ' +
-                                                                'files by ' +
-                                                                'VASE'
-                                                },
-                            'CADD_raw_score': {'Number': 'A',
-                                               'Type': 'Float',
-                                               'Description': 'CADD RawScore' +
-                                                              ' added from ' +
-                                                              'reference ' +
-                                                              'files by VASE'
-                                              },
-                           }
+        self.info_fields = {
+            'CADD_PHRED_score': {'Number': 'A',
+                                 'Type': 'Float',
+                                 'Description': 'CADD PHRED score added from' +
+                                                ' reference files by VASE'},
+            'CADD_raw_score': {'Number': 'A',
+                               'Type': 'Float',
+                               'Description': 'CADD RawScore added from ' +
+                                              'reference files by VASE'}
+        }
         if to_score is not None:
             if not to_score.endswith('.gz'):
                 to_score += '.gz'
@@ -100,14 +94,14 @@ class CaddFilter(object):
         filter_alleles = []
         i = 0
         for s in scores:
-            info_to_add['CADD_raw_score'].append(s[0] or '.')
-            info_to_add['CADD_PHRED_score'].append(s[1] or '.')
+            info_to_add['CADD_raw_score'].append(s[0])
+            info_to_add['CADD_PHRED_score'].append(s[1])
             do_filter = False
             if self.raw and s[0] is not None:
-                if float(s[0]) < self.raw:
+                if s[0] < self.raw:
                     do_filter = True
             if self.phred and s[1] is not None:
-                if float(s[1]) < self.phred:
+                if s[1] < self.phred:
                     do_filter = True
             filter_alleles.append(do_filter)
             if self.to_score_file and s[0] is None:
@@ -122,9 +116,9 @@ class CaddFilter(object):
             Returns the scores for the first matching record encountered
             in cadd files.
         '''
-        start = record.POS - 1
-        end = record.SPAN
-        hits = self.search_coordinates(record.CHROM, start, end)
+        start = record.pos - 1
+        end = record.span
+        hits = self.search_coordinates(record.chrom, start, end)
         scores = []
         for i in range(len(record.DECOMPOSED_ALLELES)):
             s = (None, None)
@@ -133,7 +127,7 @@ class CaddFilter(object):
                 if (record.DECOMPOSED_ALLELES[i].POS == pos and
                     record.DECOMPOSED_ALLELES[i].REF == ref and
                     record.DECOMPOSED_ALLELES[i].ALT == alt):
-                    s = (raw, phred)
+                    s = (float(raw), float(phred))
                     break #bail on first matching variant
             scores.append(s)
         return scores
@@ -166,7 +160,6 @@ class CaddFilter(object):
                 break
         return (pos, ref, alt, cols[4], cols[5])
 
-
     def search_coordinates(self, chrom, start, end):
         hits = []
         for tbx in self.cadd_tabix:
@@ -177,9 +170,9 @@ class CaddFilter(object):
             elif self._has_chr[tbx]:
                 chrom = 'chr' + chrom
             try:
-                 for rec in tbx.fetch(chrom, start, end):
+                for rec in tbx.fetch(chrom, start, end):
                     hits.append(self._simplify_cadd_record(rec))
-            except ValueError: #presumably no matching contig
+            except ValueError:  # presumably no matching contig
                 pass
         return hits
 
@@ -187,7 +180,7 @@ class CaddFilter(object):
         tabixfiles = []
         for fn in cadd_files:
             idx = fn + '.tbi'
-            if not os.path.isfile(idx):   #create index if it doesn't exist
+            if not os.path.isfile(idx):  # create index if it doesn't exist
                 self.logger.warn("No index found for {} - attempting to index."
                                  .format(fn))
                 pysam.tabix_index(fn, preset="vcf")
@@ -214,11 +207,10 @@ class CaddFilter(object):
                 else:
                     no_chr = True
             if has_chr and no_chr:
-                raise RuntimeError("CADD file '{}'".format(
-                                                        tbx.filename.decode())+
-                                   "has chromosomes with and without 'chr' " +
-                                   "prefix - please only provide files with " +
-                                   "chromosomes in the same format.")
+                raise RuntimeError(
+                    "CADD file '{}'".format(tbx.filename.decode()) +
+                    "has chromosomes with and without 'chr' prefix - please " +
+                    "only provide files with chromosomes in the same format.")
             tbx_has_chr[tbx] = has_chr
         return tbx_has_chr
 
