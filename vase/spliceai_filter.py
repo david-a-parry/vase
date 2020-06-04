@@ -1,7 +1,7 @@
 import gzip
 import logging
 from collections import defaultdict
-from parse_vcf import VcfReader, HeaderError
+from .vcf_reader import VcfReader
 
 pre_scored_fields = ["SYMBOL", "DS_AG", "DS_AL", "DS_DG", "DS_DL", "DP_AG",
                      "DP_AL", "DP_DG", "DP_DL"]
@@ -11,33 +11,27 @@ annot_order = ["ALLELE", "SYMBOL", "DS_AG", "DS_AL", "DS_DG", "DS_DL", "DP_AG",
 
 def filter_on_splice_ai(record, min_delta=None, max_delta=None,
                         check_symbol=False, canonical_csq=False):
-    keep_alleles = [False] * (len(record.ALLELES) - 1)
+    keep_alleles = [False] * len(record.alts)
     keep_csq = []
     if check_symbol:
-        try:
-            keep_csq = [False] * len(record.CSQ)
-        except HeaderError:
-            raise RuntimeError("Could not identify CSQ or ANN fields in " +
-                               "VCF header. Please ensure your input is " +
-                               "annotated with Ensembl's VEP")
-    if 'SpliceAI' not in record.INFO_FIELDS:
+        keep_csq = [False] * len(record.CSQ)
+    if 'SpliceAI' not in record.info:
         return keep_alleles, keep_csq
-    splice_ai = record.parsed_info_fields(['SpliceAI'])['SpliceAI']
     info_dicts = list()
-    for s in splice_ai:
+    for s in record.info['SpliceAI']:
         scores = s.split('|')
-        idict = dict((k, v) for k,v in zip(annot_order, scores))
+        idict = dict((k, v) for k, v in zip(annot_order, scores))
         idict.update(dict((k, float(idict[k])) if idict[k] != '.' else
                           (k, None) for k in annot_order[2:6]))
         info_dicts.append(idict)
-    for i in range(1, len(record.ALLELES)):
+    for i in range(1, len(record.alleles)):
         if check_symbol:
             csqs = [(n,x) for n,x in enumerate(record.CSQ) if
                     x['alt_index'] == i]
             if canonical_csq:
                 csqs = [x for x in csqs if x[1]['CANONICAL'] == 'YES']
         for idict in info_dicts:
-            if idict['ALLELE'] != record.ALLELES[i]:
+            if idict['ALLELE'] != record.alleles[i]:
                 continue
             if min_delta:
                 over_threshold = [ds for ds in annot_order[2:6] if idict[ds] is
@@ -138,13 +132,13 @@ class SpliceAiFilter(object):
 
     def _check_vcf_info(self):
        for vcf, vreader in self.vcfs.items():
-            if 'SpliceAI' in vreader.metadata['INFO']:
-                if vreader.metadata['INFO']['SpliceAI'][-1]['Number'] == '.':
-                   #VCF is in SpliceAI annotated format
+            if 'SpliceAI' in vreader.header.info:
+                if vreader.header.info['SpliceAI'].number == '.':
+                   # VCF is in SpliceAI annotated format
                    self.vcf_is_prescored[vcf] = False
-            else:#not annotated by SpliceAI, check if has prescored fields
+            else:  # not annotated by SpliceAI, check if has prescored fields
                 for f in pre_scored_fields:
-                    if f not in vreader.metadata['INFO']:
+                    if f not in vreader.header.info:
                         raise RuntimeError("ERROR: neither SpliceAI or " +
                                            "individual delta score annotations " +
                                            "found in SpliceAI VCF. Please " +
@@ -159,26 +153,22 @@ class SpliceAiFilter(object):
             For a given record, returns a list of overlapping records
             in the class's VCFs.
         '''
-        start = record.POS
-        end = record.SPAN
         overlapping = dict()
         for vcf, vreader in self.vcfs.items():
-            vreader.set_region(record.CHROM, start - 1, end)
-            overlapping[vcf] = list(s for s in vreader.parser)
+            vreader.set_region(record.chrom, record.start, record.stop)
+            overlapping[vcf] = list(s for s in vreader)
         return overlapping
 
     def _get_annotation(self, record, alt_index, prescored=False):
-        alt = record.ALLELES[alt_index + 1]
+        alt = record.alleles[alt_index + 1]
         if prescored:
-            info_strings = ["|".join(record.INFO_FIELDS[x] for x in
-                                   pre_scored_fields)]
-            info_dict = dict([(x, [record.parsed_info_fields([x])[x]]) for x in
-                             pre_scored_fields])
+            info_strings = ["|".join(record.info[x] for x in
+                                     pre_scored_fields)]
+            info_dict = dict([(x, record.info[x]) for x in pre_scored_fields])
         else:
-            splice_ai = record.parsed_info_fields(['SpliceAI'])['SpliceAI']
             info_dict = defaultdict(list)
             info_strings = []
-            for s in splice_ai:
+            for s in record.info['SpliceAI']:
                 scores = s.split('|')
                 if scores[0] == alt:
                     info_strings.append('|'.join(scores[1:]))
@@ -226,7 +216,7 @@ class SpliceAiFilter(object):
                         check_symbol option.
 
         '''
-        keep_alleles = [False] * (len(record.ALLELES) - 1)
+        keep_alleles = [False] * len(record.alts)
         keep_csq = []
         if check_symbol:
             try:
@@ -239,13 +229,12 @@ class SpliceAiFilter(object):
         annotation = []
         for i in range(len(record.DECOMPOSED_ALLELES)):
             info_strings, info_dict = self._search_annotations(
-                record.DECOMPOSED_ALLELES[i],
-                overlaps)
+                record.DECOMPOSED_ALLELES[i], overlaps)
             if info_dict is None:
                 if self.to_score_file:
                     self._write_for_scoring(record, i)
                 continue
-            annotation.extend(record.ALLELES[i+1] + "|" + x for x in
+            annotation.extend(record.alts[i] + "|" + x for x in
                               info_strings)
             over_threshold = []
             if self.min_delta or self.max_delta:
@@ -269,7 +258,7 @@ class SpliceAiFilter(object):
                     if canonical_csq and record.CSQ[j]['CANONICAL'] != 'YES':
                         continue
                     gene_match = []
-                    alt_j = record.CSQ[j]['alt_index'] -1
+                    alt_j = record.CSQ[j]['alt_index'] - 1
                     if alt_j == i:
                         for ds in annot_order[2:]:
                             if self.min_delta:
@@ -293,7 +282,7 @@ class SpliceAiFilter(object):
     def _write_for_scoring(self, record, alt):
         if record.DECOMPOSED_ALLELES[alt].ALT != '*':
             self.to_score_file.write("{}\t{}\t.\t{}\t{}\t.\t.\t.\n".format(
-                                           record.CHROM,
+                                           record.chrom,
                                            record.DECOMPOSED_ALLELES[alt].POS,
                                            record.DECOMPOSED_ALLELES[alt].REF,
                                            record.DECOMPOSED_ALLELES[alt].ALT))
