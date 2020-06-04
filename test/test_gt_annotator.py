@@ -19,12 +19,6 @@ def check_annots(test_vcf, annot, expected_annots):
             rid = var_string_from_record(record)
             for s in record.samples:
                 if rid in expected_annots:
-                    sys.stderr.write("Found {} = {} for {} at {}\n".format(
-                        annot,
-                        expected_annots[rid][s],
-                        s,
-                        rid)
-                    )
                     if n == 1:
                         assert_almost_equal(record.samples[s][annot],
                                             expected_annots[rid][s],
