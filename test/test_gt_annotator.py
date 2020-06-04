@@ -2,6 +2,7 @@ from .utils import *
 from vase.gt_annotator import GtAnnotator
 from collections import defaultdict
 
+
 def get_annotated_gts(anno_vcf, annot):
     expected_annots = defaultdict(dict)
     with pysam.VariantFile(anno_vcf) as vcf:
