@@ -3,6 +3,13 @@ from .utils import *
 bed = os.path.join(dir_path, 'test_data', 'test_regions.bed')
 
 
+def teardown_module():
+    idxs = [input_prefix + '.vcf.gz.tbi', input_prefix + '.bcf.csi']
+    for i in idxs:
+        if os.path.exists(i):
+            os.remove(i)
+
+
 def test_fail_on_uncompressed():
     test_args = dict(
         region=['1:1060742-1061726', '1:1083580-1084363'],

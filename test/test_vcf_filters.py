@@ -1,10 +1,23 @@
 from .utils import *
 
+vcf_filter = os.path.join(dir_path,
+                          "test_data",
+                          "vcf_filter_test.vcf.gz")
+gnomad = os.path.join(dir_path, "test_data", "gnomadTest.vcf.gz")
+dbsnp = os.path.join(dir_path, "test_data", "dbSnpTest.vcf.gz")
+
+
+def teardown_module():
+    for f in [vcf_filter, gnomad, dbsnp]:
+        idx = f + '.tbi'
+        if os.path.exists(idx):
+            os.remove(idx)
+
 
 def test_vcf_filter_known():
     output = get_tmp_out()
     test_args = dict(
-        vcf_filter=[vcf_filter],
+        vcf_filter=[vcf_filter + ',test_vcf'],
         filter_known=True,
         output=output,
     )
@@ -17,7 +30,7 @@ def test_vcf_filter_known():
 def test_vcf_filter_novel():
     output = get_tmp_out()
     test_args = dict(
-        vcf_filter=[vcf_filter],
+        vcf_filter=[vcf_filter + ',test_vcf'],
         filter_novel=True,
         output=output,
     )
@@ -30,7 +43,7 @@ def test_vcf_filter_novel():
 def test_vcf_filter_freq():
     output = get_tmp_out()
     test_args = dict(
-        vcf_filter=[vcf_filter],
+        vcf_filter=[vcf_filter + ',test_vcf'],
         freq=0.1,
         output=output,
     )

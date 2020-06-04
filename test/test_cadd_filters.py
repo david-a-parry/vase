@@ -1,10 +1,17 @@
 from .utils import *
 
+cadd_file = os.path.join(dir_path, "test_data", "test_cadd_scores.tsv.gz")
+
+
+def teardown_module():
+    idx = cadd_file + '.tbi'
+    if os.path.exists(idx):
+        os.remove(idx)
+
 
 def test_cadd_annot():
     output = get_tmp_out()
     missing_cadd = get_tmp_out(suffix='.vcf')
-    cadd_file = os.path.join(dir_path, "test_data", "test_cadd_scores.tsv.gz")
     test_args = dict(
         output=output,
         missing_cadd_scores=missing_cadd,
@@ -35,7 +42,6 @@ def test_cadd_annot():
 
 def test_cadd_phred_filters():
     output = get_tmp_out()
-    cadd_file = os.path.join(dir_path, "test_data", "test_cadd_scores.tsv.gz")
     test_args = dict(
         output=output,
         cadd_files=[cadd_file],
@@ -48,7 +54,6 @@ def test_cadd_phred_filters():
 
 def test_cadd_raw_filters():
     output = get_tmp_out()
-    cadd_file = os.path.join(dir_path, "test_data", "test_cadd_scores.tsv.gz")
     test_args = dict(
         output=output,
         cadd_files=[cadd_file],

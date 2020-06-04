@@ -3,6 +3,12 @@ from .utils import *
 splice_ai_vcf = os.path.join(dir_path, "test_data", "splice_ai_scores.vcf.gz")
 
 
+def teardown_module():
+    idx = splice_ai_vcf + '.tbi'
+    if os.path.exists(idx):
+        os.remove(idx)
+
+
 def get_info_annotations(anno_vcf, annot):
     expected_annots = dict()
     with pysam.VariantFile(anno_vcf) as vcf:
