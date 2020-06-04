@@ -74,6 +74,7 @@ class RegionFinder(object):
         else:
             return i
 
+
 class VarByRegion(object):
     '''
         Iterate over variants in VcfReader that overlap regions in
@@ -88,7 +89,7 @@ class VarByRegion(object):
         '''
             Args:
                 vcfreader:
-                    VcfReader object from parse_vcf module
+                    VcfReader object
 
                 bed:
                     Filename for BED file containing regions to retrieve
@@ -155,6 +156,12 @@ class VarByRegion(object):
         else:
             return self._next_from_region_iterator()
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, tb):
+        self.vcfreader.variant_file.close()
+
     def _next_from_region_iterator(self):
         if self.current_region is None:
             self._next_interval()
@@ -172,13 +179,13 @@ class VarByRegion(object):
 
     def _next_from_region_finder(self):
         for record in self.vcfreader:
-            regions = self.region_finder.fetch(record.CHROM, record.POS,
-                                               record.SPAN)
+            regions = self.region_finder.fetch(record.chrom, record.pos,
+                                               record.stop)
             if not regions and not self.exclude:
                 continue
             elif regions and self.exclude:
                 continue
-            if regions: #i.e. not using exclude option
+            if regions:  # i.e. not using exclude option
                 self.current_region = regions[0]
                 if self.gene_targets:
                     self.current_targets.clear()
@@ -206,8 +213,8 @@ class VarByRegion(object):
 
     def _record_overlaps(self, record, interval):
         ''' Return True if record overlaps interval.'''
-        return (record.CHROM == interval.contig and record.POS <= interval.end
-                and record.SPAN > interval.start)
+        return (record.chrom == interval.contig and record.pos <= interval.end
+                and record.stop > interval.start)
 
     def _next_interval(self):
         '''
