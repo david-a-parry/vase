@@ -1,6 +1,7 @@
-from parse_vcf import VcfReader
+from .vcf_reader import VcfReader
 
-_comp_fields = ['CHROM', 'POS', 'REF', 'ALT']
+_comp_fields = ['chrom', 'pos', 'ref', 'alts']
+
 
 class GtAnnotator(object):
     '''
@@ -46,18 +47,16 @@ class GtAnnotator(object):
             desc = ('{} INFO field parsed by {} object from file {}. '.format(
                     f, type(self).__name__, self.vcf.filename) +
                    'Original description was as follows: {}' .format(
-                    self.vcf.metadata['FORMAT'][f][-1]['Description'].replace(
+                    self.vcf.header.formats[f].description.replace(
                         '"', '')))
-            header_fields[f] = {'Number':
-                                self.vcf.metadata['FORMAT'][f][-1]['Number'],
-                                'Type':
-                                self.vcf.metadata['FORMAT'][f][-1]['Type'],
+            header_fields[f] = {'Number': self.vcf.header.formats[f].number,
+                                'Type': self.vcf.header.formats[f].type,
                                 'Description': desc}
         return header_fields
 
     def _check_args(self):
         not_found = [f for f in self.format_fields if f not in
-                     self.vcf.metadata['FORMAT']]
+                     self.vcf.header.formats]
         if not_found:
             raise RuntimeError("Could not find '{}' FORMAT field(s) in VCF "
                                .format(",".join(not_found)) +
@@ -68,9 +67,10 @@ class GtAnnotator(object):
             if not_found:
                 raise RuntimeError("Could not find '{}' sample(s) in VCF "
                                    .format(",".join(not_found)) +
-                                   "header for file {}".format(self.vcf))
+                                   "header for file {}".format(
+                                       self.vcf.filename))
         else:
-            self.samples = self.vcf.header.samples
+            self.samples = list(self.vcf.header.samples)
 
     def annotate(self, record):
         '''
@@ -81,13 +81,12 @@ class GtAnnotator(object):
         if match is None:
             return
         for f in self.format_fields:
-            d = dict((s, match.get_sample_call(s)[f]) for s in
-                      match.header.samples if s in self.samples)
-            record.add_format_field(field=f, sample_values=d)
+            for s in (x for x in match.header.samples if x in self.samples):
+                record.samples[s][f] = match.samples[s][f]
 
     def find_matching_record(self, record):
         overlapping = self.get_overlapping_records(record)
-        #require CHROM, POS, REF and ALT fields to be identical
+        # require CHROM, POS, REF and ALT fields to be identical
         for x in overlapping:
             if ([getattr(record, f) for f in _comp_fields] ==
                 [getattr(x, f) for f in _comp_fields]):
@@ -100,7 +99,5 @@ class GtAnnotator(object):
             For a given record, returns a list of overlapping records
             in the class's VCF.
         '''
-        start = record.POS
-        end = record.SPAN
-        self.vcf.set_region(record.CHROM, start - 1, end)
-        return (s for s in self.vcf.parser)
+        self.vcf.set_region(record.chrom, record.start, record.stop)
+        return (s for s in self.vcf)
