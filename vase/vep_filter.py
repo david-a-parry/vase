@@ -1,7 +1,6 @@
 import os
 import logging
 from collections import defaultdict
-from parse_vcf import HeaderError
 from .insilico_filter import InSilicoFilter
 
 lof_csq = {'frameshift_variant', 'stop_gained', 'splice_acceptor_variant',
@@ -219,7 +218,7 @@ class VepFilter(object):
                 if rq not in vcf.header.csq_fields:
                     raise RuntimeError("Could not find required VEP " +
                                        "annotation '{}' in VCF".format(rq))
-            except HeaderError:
+            except KeyError:
                 raise RuntimeError("Could not identify CSQ or ANN fields in " +
                                    "VCF header. Please ensure your input is " +
                                    "annotated with Ensembl's VEP")
@@ -268,8 +267,8 @@ class VepFilter(object):
         filter_af = [False] * len(record.alts)
         try:
             filter_csq = [True] * len(record.CSQ)
-            #whether each csq should be filtered or not
-        except HeaderError:
+            # whether each csq should be filtered or not
+        except KeyError:
             raise RuntimeError("Could not identify CSQ or ANN fields in VCF " +
                                "header. Please ensure your input is annotated " +
                                "with Ensembl's VEP")
