@@ -50,6 +50,17 @@ def test_cadd_phred_filters():
     results, expected = run_args(test_args, output,
                                  sys._getframe().f_code.co_name)
     assert_equal(results, expected)
+    pre_scored_output = get_tmp_out()
+    test_args = dict(
+        input=output,
+        cadd_phred=30,
+        output=pre_scored_output
+    )
+    results, expected = run_args(test_args, pre_scored_output,
+                                 sys._getframe().f_code.co_name)
+    assert_equal(results, expected)
+    os.remove(output)
+    os.remove(pre_scored_output)
 
 
 def test_cadd_raw_filters():
@@ -62,6 +73,17 @@ def test_cadd_raw_filters():
     results, expected = run_args(test_args, output,
                                  sys._getframe().f_code.co_name)
     assert_equal(results, expected)
+    pre_scored_output = get_tmp_out()
+    test_args = dict(
+        input=output,
+        cadd_raw=2.25,
+        output=pre_scored_output
+    )
+    results, expected = run_args(test_args, pre_scored_output,
+                                 sys._getframe().f_code.co_name)
+    assert_equal(results, expected)
+    os.remove(output)
+    os.remove(pre_scored_output)
 
 
 if __name__ == '__main__':
