@@ -7,7 +7,7 @@ import os
 import json
 from collections import OrderedDict, defaultdict
 from .ped_file import PedFile, Individual, PedError
-from parse_vcf import VcfReader
+from .vcf_reader import VcfReader
 from .ensembl_rest_queries import EnsemblRestQueries
 from .utils import csv_to_dict
 from .g2p import G2P, allelic_req_to_label
@@ -16,7 +16,7 @@ ENST = re.compile(r'''^ENS\w*T\d{11}(\.\d+)?''')
 ENTREZ_RE = re.compile(r'''(\d+)(\|(\d+))*''')
 SUPPORTED_OUTPUT = ['json', 'xlsx']
 
-vcf_output_columns = ['CHROM', 'POS', 'ID', 'REF', 'ALT', 'QUAL', 'FILTER']
+vcf_output_columns = ['chrom', 'pos', 'id', 'ref', 'alts', 'qual', 'filter']
 
 MG_FIELDS = ['entrezgene', 'name', 'summary', 'go', 'MIM', 'generif']
 
@@ -194,13 +194,10 @@ class VaseReporter(object):
     def _get_info_fields(self, info_fields):
         idict = OrderedDict()
         for x in info_fields:
-            if x not in self.vcf.metadata['INFO']:
+            if x not in self.vcf.header.info:
                 raise ValueError("Requested INFO annotation {} ".format(x) +
                                  "not found in VCF header.")
-            if len(self.vcf.metadata['INFO'][x]) > 1:
-                self.logger.warn("Multiple header lines for INFO annotation " +
-                                 "'{}' - picking last occurence".format(x))
-            idict[x] = self.vcf.metadata['INFO'][x][-1]
+            idict[x] = self.vcf.header.info[x]
         return idict
 
     def _add_info_annotations(self, record, allele):
@@ -234,15 +231,15 @@ class VaseReporter(object):
     def _get_seg_fields(self):
         inheritance_fields = dict()
         seg = False
-        if 'VASE_biallelic_families' in self.vcf.metadata['INFO']:
+        if 'VASE_biallelic_families' in self.vcf.header.info:
             inheritance_fields['VASE_biallelic_families'] = 'recessive'
             self.logger.info("Found VASE biallelic annotations.")
             seg = True
-        if 'VASE_dominant_families' in self.vcf.metadata['INFO']:
+        if 'VASE_dominant_families' in self.vcf.header.info:
             inheritance_fields['VASE_dominant_families'] = 'dominant'
             self.logger.info("Found VASE dominant annotations.")
             seg = True
-        if 'VASE_de_novo_families' in self.vcf.metadata['INFO']:
+        if 'VASE_de_novo_families' in self.vcf.header.info:
             inheritance_fields['VASE_de_novo_families'] = 'de novo'
             self.logger.info("Found VASE de novo annotations.")
             seg = True
@@ -307,7 +304,7 @@ class VaseReporter(object):
                 return None
             self.sample_orders[family] = samples
             header.extend(samples)
-        if 'CADD_PHRED_score' in self.vcf.header.metadata['INFO']:
+        if 'CADD_PHRED_score' in self.vcf.header.header.info:
             header.append("CADD_PHRED_score")
         for inf in self.info_annotations.keys():
             header.append(inf)
@@ -526,7 +523,7 @@ class VaseReporter(object):
         if "MIM" in self._header_columns[family]:  # from MyGene
             mim_col =  self._header_columns[family].index("MIM")
         for col in range(len(values)):
-            if col in (entrez_cols):  # provide link to Entrez Gene 
+            if col in (entrez_cols):  # provide link to Entrez Gene
                 m = ENTREZ_RE.match(values[col])
                 if m:  # if multiple ENTREZ ids pick the most recent/largest
                     eid = max([int(x) for x in m.groups() if x and
@@ -592,17 +589,16 @@ class VaseReporter(object):
             values.extend(getattr(record, f) for f in vcf_output_columns)
             values.append(allele)
             for i_field in (('AC', 'AN')):
-                if i_field in record.INFO_FIELDS:
-                    values.append(record.INFO_FIELDS[i_field])
+                if i_field in record.info:
+                    values.append(record.info[i_field])
                 else:
                     values.append('.')
             values.append(record.FORMAT)
             values.extend(record.CALLS[x] for x in
                           self._get_sample_order(family))
-            if 'CADD_PHRED_score' in self.vcf.header.metadata['INFO']:
+            if 'CADD_PHRED_score' in self.vcf.header.header.info:
                 try:
-                    cinf = record.parsed_info_fields(['CADD_PHRED_score'])
-                    values.append(cinf['CADD_PHRED_score'][allele-1])
+                    values.append(record.info['CADD_PHRED_score'][allele-1])
                 except KeyError:
                     values.append('.')
             values.extend(self._add_info_annotations(record, allele))
@@ -656,23 +652,21 @@ class VaseReporter(object):
         n = 0
         for record in self.vcf.parser:
             n += 1
-            info = record.parsed_info_fields(list(self.seg_fields.keys()) +
-                                             list(self.feat_annots.values()))
             for annot, pattern in self.seg_fields.items():
-                if annot in info:
-                    for i in range(len(info[annot])):
-                        if info[annot][i] is None:
+                if annot in record.info:
+                    for i in range(len(record.info[annot])):
+                        if record.info[annot][i] is None:
                             continue
                         if self.all_features:
                             feat = list(x['Feature'] for x in record.CSQ if
                                         x['Feature'] != '' and
                                         x['alt_index'] == i + 1)
                         else:
-                            feat = info[self.feat_annots[annot]][i].split("|")
+                            feat = record.info[self.feat_annots[annot]][i].split("|")
                         if self.choose_transcript:
                             feat = [self.pick_transcript(feat, i+1,
                                                          record.CSQ)]
-                        for fam in info[annot][i].split("|"):
+                        for fam in record.info[annot][i].split("|"):
                             if fam in self.families:
                                 self.write_records(record, fam, pattern, i+1,
                                                    feat)

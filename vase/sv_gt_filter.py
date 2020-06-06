@@ -1,9 +1,8 @@
 class SvGtFilter(object):
     '''
-        Given a dict of GT information from the 'parsed_gts' function of
-        VcfRecord from parse_vcf.py, this provides a function 'filter'
-        which returns True if the call meets the criteria (e.g. GQ, SR,
-        etc.) established on initialisation.
+        Given sample calls from a VariantRecord, this class provides a
+        function 'filter' which returns True if the call meets the
+        criteria (e.g. GQ, SR etc.) established on initialisation.
     '''
 
     __slots__ = ['gq', 'dp', 'max_dp', 'het_ab', 'hom_ab', 'gt_is_ok',
@@ -99,19 +98,19 @@ class SvGtFilter(object):
     def _duphold_filter(self, gts, sample, allele, svtype):
         is_hom_alt = False
         is_het_alt = False
-        if len(set(gts['GT'][sample])) == 1:
-            if allele in gts['GT'][sample]:
+        if len(set(gts[sample]['GT'])) == 1:
+            if allele in gts[sample]['GT']:
                 is_hom_alt = True
-        elif allele in gts['GT'][sample]:
+        elif allele in gts[sample]['GT']:
             is_het_alt = True
         if not is_hom_alt and not is_het_alt:
             return True #do not filter
         if svtype == 'DUP' and self.dup_dhbfc:
-            fc = gts['DHBFC'][sample]
+            fc = gts[sample]['DHBFC']
             if fc is not None:
                 return fc > self.dup_dhbfc
         if svtype == 'DEL' and self.del_dhffc:
-            fc = gts['DHFFC'][sample]
+            fc = gts[sample]['DHFFC']
             if fc is not None:
                 return fc < self.del_dhffc
         return True #do not filter
@@ -133,10 +132,10 @@ class SvGtFilter(object):
         dp = sum(support)
         is_hom_alt = False
         is_het_alt = False
-        if len(set(gts['GT'][sample])) == 1:
-            if allele in gts['GT'][sample]:
+        if len(set(gts[sample]['GT'])) == 1:
+            if allele in gts[sample]['GT']:
                 is_hom_alt = True
-        elif allele in gts['GT'][sample]:
+        elif allele in gts[sample]['GT']:
             is_het_alt = True
         if al_dp is not None and dp > 0 and (is_het_alt or is_hom_alt):
             ab = float(al_dp)/dp
@@ -160,8 +159,8 @@ class SvGtFilter(object):
 
     def _get_pr_sr(self, gts, sample):
         ''' Returns a tuple of SR + PR counts for a sample.'''
-        pr = gts['PR'][sample]
-        sr = gts['SR'][sample]
+        pr = gts[sample]['PR']
+        sr = gts[sample]['SR']
         if pr is None or pr == (None,): #no PR values - just check SR
             pr = (0, 0)
         if sr is None or sr == (None,): #no SR values - just check PR
@@ -178,7 +177,7 @@ class SvGtFilter(object):
                 return False
         if self.gq:
             #if GQ is None presumably is a no call
-            if gts['GQ'][sample] is None or gts['GQ'][sample] < self.gq:
+            if gts[sample]['GQ'] is None or gts[sample]['GQ'] < self.gq:
                 return False
         if self.ab_filter is not None:
             if not self.ab_filter(gts, sample, allele):
@@ -194,21 +193,21 @@ class SvGtFilter(object):
         if self.gq:
             self.fields.append('GQ')
         if self.dup_dhbfc:
-            if 'DHBFC' not in vcf.header.metadata['FORMAT']:
+            if 'DHBFC' not in vcf.header.header.formats:
                 raise RuntimeError("Genotype filtering on SV duphold DHBFC " +
                                    "annotation is set but 'DHBFC' FORMAT " +
                                    "field is not defined in your VCF header.")
             self.fields.append("DHBFC")
         if self.del_dhffc:
-            if 'DHFFC' not in vcf.header.metadata['FORMAT']:
+            if 'DHFFC' not in vcf.header.header.formats:
                 raise RuntimeError("Genotype filtering on SV duphold DHFFC " +
                                    "annotation is set but 'DHFFC' FORMAT " +
                                    "field is not defined in your VCF header.")
             self.fields.append("DHFFC")
         if (self.dp or self.max_dp or self.het_ab or self.hom_ab
             or self.ref_ab_filter):
-            if ('PR' in vcf.header.metadata['FORMAT'] and
-                'SR' in vcf.header.metadata['FORMAT']):
+            if ('PR' in vcf.header.header.formats and
+                'SR' in vcf.header.header.formats):
                 self.fields.append('PR')
                 self.fields.append('SR')
                 return ('PR', 'SR')
