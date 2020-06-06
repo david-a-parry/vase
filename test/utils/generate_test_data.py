@@ -13,7 +13,7 @@ if __name__ == '__main__':
     vcf.subset_samples(samples)
     out = pysam.VariantFile("-", mode='w', header=vcf.header)
     pos_offset = 1000000
-    for record in vcf.fetch('16', 68514471, 72557468):
+    for record in vcf:
         if any(y is not None and y > 0 for x in samples for y in
                record.samples[x].allele_indices):
             record.chrom = '1'
