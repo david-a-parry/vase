@@ -5,6 +5,7 @@ vep_internal_pred_re = re.compile(r'\(\d(\.\d+)?\)')
 # for removing numbers in brackets at end of PolyPhen, SIFT and Condel VEP
 # annotations
 
+
 class InSilicoFilter(object):
     '''
         Stores in silico prediction formats for VEP and indicates
