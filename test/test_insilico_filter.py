@@ -28,6 +28,7 @@ def test_insilico_pred():
     results, expected = run_args(test_args, output,
                                  'test_insilico_pred_sift')
     assert_equal(results, expected)
+    os.remove(output)
     output = get_tmp_out()
     test_args = dict(
         input=input,
@@ -47,6 +48,7 @@ def test_insilico_pred():
     results, expected = run_args(test_args, output,
                                  'test_insilico_pred_both')
     assert_equal(results, expected)
+    os.remove(output)
 
 
 def test_insilico_freq_pred():
@@ -87,6 +89,21 @@ def test_insilico_unpredicted():
         missense_filters=['SIFT_score=0.1'])
     results, expected = run_args(test_args, output,
                                  'test_insilico_unpredicted')
+    assert_equal(results, expected)
+    os.remove(output)
+
+
+def test_insilico_keep_any_damaging():
+    output = get_tmp_out()
+    test_args = dict(
+        input=input,
+        output=output,
+        csq=[],
+        keep_if_any_damaging=True,
+        missense_filters=['Polyphen', 'sift=deleterious'],
+    )
+    results, expected = run_args(test_args, output,
+                                 sys._getframe().f_code.co_name)
     assert_equal(results, expected)
     os.remove(output)
 
