@@ -188,7 +188,7 @@ class VaseRecord(object):
                     AltAllele(chrom=self.record.chrom,
                               pos=self.record.pos,
                               ref=self.record.ref,
-                              alt=self.record.alt,
+                              alt=alt,
                               is_sv=True,
                               record=self))
             else:
