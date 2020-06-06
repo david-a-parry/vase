@@ -139,6 +139,21 @@ def test_vartype():
     os.remove(output)
 
 
+def test_sv_vartype():
+    input = os.path.join(dir_path, 'test_data', 'ex4.bcf')
+    output = get_tmp_out()
+    test_args = dict(
+        input=input,
+        var_types=["SV"],
+        max_alt_alleles=1,
+        output=output,
+    )
+    results, expected = run_args(test_args, output,
+                                 sys._getframe().f_code.co_name)
+    assert_equal(results, expected)
+    os.remove(output)
+
+
 if __name__ == '__main__':
     import nose
     nose.run(defaultTest=__name__)
