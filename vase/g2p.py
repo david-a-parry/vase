@@ -1,6 +1,5 @@
 from collections import defaultdict
 from .utils import csv_to_dict
-from parse_vcf import HeaderError
 
 allelic_req_to_label = {'biallelic':                  ['recessive'],
                         'digenic':                    [],
@@ -78,7 +77,7 @@ class G2P(object):
         '''
         try:
             return [self.csq_matches_requirement(x) for x in record.CSQ]
-        except HeaderError:
+        except KeyError:
             raise RuntimeError("Could not identify CSQ or ANN fields in VCF " +
                                "header. Please ensure your input is " +
                                "annotated with Ensembl's VEP")

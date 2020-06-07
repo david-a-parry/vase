@@ -250,8 +250,7 @@ class VarByRegion(object):
 
             Args:
                 csq:    A dict for a single VEP CSQ annotation (i.e. a
-                        single item from parse_vcf's VcfRecord.CSQ
-                        attribute)
+                        single item from VcfRecord.CSQ attribute)
 
         '''
         for k,v in self.current_targets.items():

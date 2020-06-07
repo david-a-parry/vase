@@ -1,4 +1,3 @@
-from parse_vcf import HeaderError
 from .sample_filter import SampleFilter, GtFilter
 from .sv_gt_filter import SvGtFilter
 import logging
@@ -17,7 +16,7 @@ class FamilyFilter(object):
                  logging_level=logging.WARNING):
         '''
             Initialize with Family object from ped_file.py and a
-            VcfReader object from parse_vcf.py. You may also specify an
+            VcfReader object from vcf_reader.py. You may also specify an
             inheritance pattern (either 'recessive' or 'dominant'). If
             inheritance_pattern is not specified an attempt is made to
             infer an appropriate inheritance pattern based on the family
@@ -634,7 +633,7 @@ class RecessiveFilter(InheritanceFilter):
                             else:
                                 self._potential_recessives[feat] = OrderedDict(
                                     [(pr.alt_id, pr)])
-                except HeaderError:
+                except KeyError:
                     raise RuntimeError("Could not identify CSQ or ANN " +
                                        "fields in VCF header. Please ensure " +
                                        "your input is annotated with " +
@@ -928,7 +927,7 @@ class DominantFilter(InheritanceFilter):
                     if record.CSQ[j]['alt_index'] == allele:
                         # store record and csq details
                         csqs.append(record.CSQ[j])
-            except HeaderError:
+            except KeyError:
                 if self.min_families > 1:
                     raise RuntimeError("Could not identify CSQ or ANN fields" +
                                        " in VCF header. Please ensure your " +
@@ -1159,7 +1158,7 @@ class DeNovoFilter(InheritanceFilter):
                     if record.CSQ[j]['alt_index'] == allele:
                         # store record and csq details
                         csqs.append(record.CSQ[j])
-            except HeaderError:
+            except KeyError:
                 if self.min_families > 1:
                     raise RuntimeError("Could not identify CSQ or ANN fields" +
                                        " in VCF header. Please ensure your " +

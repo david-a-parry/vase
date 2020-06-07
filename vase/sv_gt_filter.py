@@ -169,8 +169,8 @@ class SvGtFilter(object):
 
     def _gt_is_ok(self, gts, sample, allele, svtype):
         '''
-            Returns True if genotype (from parse_vcf.py parsed_gts
-            function) passes all parameters set on initialisation.
+            Returns True if genotype (from VariantRecord.samples) passes
+            all parameters set on initialisation.
         '''
         if self.dp or self.max_dp:
             if not self.enough_support(gts, sample, allele):

@@ -401,7 +401,7 @@ class SampleFilter(object):
 class GtFilter(object):
     '''
         Given a dict of GT information from the 'parsed_gts' function of
-        VcfRecord from parse_vcf.py, this provides a function 'filter'
+        VcfRecord from vcf_record.py, this provides a function 'filter'
         which returns True if the call meets the criteria (e.g. GQ, AD
         etc.) established on initialisation.
     '''
@@ -548,8 +548,8 @@ class GtFilter(object):
 
     def _gt_is_ok(self, gts, sample, allele):
         '''
-            Returns True if genotype (from parse_vcf.py parsed_gts
-            function) passes all parameters set on initialisation.
+            Returns True if genotype (from VariantRecord.samples) passes
+            all parameters set on initialisation.
         '''
         if self.dp or self.max_dp:
             dp = gts[sample].get('DP', None)
