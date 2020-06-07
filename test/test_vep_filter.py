@@ -49,6 +49,7 @@ def test_insilico_pred():
         input=is_input,
         output=output,
         csq=[],
+        biotypes=['default', 'transcribed_processed_pseudogene'],
         missense_filters=['sift=deleterious'],
     )
     results, expected = run_args(test_args, output,
