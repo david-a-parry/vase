@@ -131,6 +131,20 @@ def test_gnomad_freq():
     os.remove(output)
 
 
+def test_gnomad_homozygotes():
+    output = get_tmp_out()
+    test_args = dict(
+        gnomad=[gnomad],
+        freq=0.0005,
+        max_gnomad_homozygotes=0,
+        output=output,
+    )
+    results, expected = run_args(test_args, output,
+                                 sys._getframe().f_code.co_name)
+    assert_equal(results, expected)
+    os.remove(output)
+
+
 if __name__ == '__main__':
     import nose
     nose.run(defaultTest=__name__)
