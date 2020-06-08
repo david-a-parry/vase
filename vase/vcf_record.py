@@ -1,7 +1,7 @@
 from collections import OrderedDict
 import re
 
-sv_fields = ['SVTYPE', 'END',  'CIPOS', 'CIEND', 'SVLEN', 'IMPRECISE',
+sv_fields = ['SVTYPE', 'CIPOS', 'CIEND', 'SVLEN', 'IMPRECISE',
              'LEFT_SVINSSEQ', 'RIGHT_SVINSSEQ']
 _svalt_re = re.compile(r'''<(\w+)(:\w+)*>''')  # group 1 gives SV type
 _bnd_re = re.compile(r'''^(([ACTGN]*)[\[\]]\w+):\d+[\]\[]([ACGTN]*)$''')
@@ -510,9 +510,10 @@ class AltAllele(object):
             if record is None:
                 raise ValueError("record argument is required if AltAllele " +
                                  "is a structural variant (is_sv == True)")
+            self.sv_info['END'] = record.stop
             for x in sv_fields:
                 self.sv_info[x] = record.info[x] if x in record.info else None
-            if isinstance(self.sv_info['SVLEN'], list): # Manta gives Number as '.'
+            if isinstance(self.sv_info['SVLEN'], tuple): # Manta gives Number as '.'
                 self.sv_info['SVLEN'] = self.sv_info['SVLEN'][0]
 
     @property
@@ -642,6 +643,7 @@ class AltAllele(object):
                 return True
             else:
                 return False
+        return True
 
     def compare_svinvseq(self, other):
         '''
