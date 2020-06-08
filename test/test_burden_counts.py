@@ -19,7 +19,8 @@ def test_burden_counts():
         results = [x for x in infile.read().split("\n") if x != '']
     with open(expected_results, 'rt') as infile:
         expected = [x for x in infile.read().split("\n") if x != '']
-    assert_equal(results, expected)
+    assert_equal(len(results), len(expected))
+    assert_equal(set(results), set(expected))
     os.remove(output)
 
 
