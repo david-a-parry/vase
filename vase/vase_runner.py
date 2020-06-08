@@ -250,7 +250,7 @@ class VaseRunner(object):
         if args.check_g2p_inheritance:
             if (not self.dominant_filter and not self.recessive_filter
                     and not self.de_novo_filter):
-                raise RuntimeError("--check_g2p_inheritance option requires " +
+                raise ValueError("--check_g2p_inheritance option requires " +
                                    "at least one segregation option (e.g. " +
                                    "--recessive, --dominant or --de_novo) " +
                                    "to be selected.")
@@ -829,17 +829,17 @@ class VaseRunner(object):
             return cf
         else:
             if self.args.cadd_phred is not None and not self.prev_cadd_phred:
-                raise RuntimeError("--cadd_phred cutoff given but VCF does " +
-                                   "not have CADD_PHRED_score INFO field " +
-                                   "in its header and no CADD score files " +
-                                   "have been specified with --cadd_files or" +
-                                   " --cadd_dir arguments.")
+                raise ValueError("--cadd_phred cutoff given but VCF does " +
+                                 "not have CADD_PHRED_score INFO field " +
+                                 "in its header and no CADD score files " +
+                                 "have been specified with --cadd_files or" +
+                                 " --cadd_dir arguments.")
             if self.args.cadd_raw is not None and not self.prev_cadd_raw:
-                raise RuntimeError("--cadd_raw cutoff given but VCF does " +
-                                   "not have CADD_raw_score INFO field " +
-                                   "in its header and no CADD score files " +
-                                   "have been specified with --cadd_files " +
-                                   "or --cadd_dir arguments.")
+                raise ValueError("--cadd_raw cutoff given but VCF does " +
+                                 "not have CADD_raw_score INFO field " +
+                                 "in its header and no CADD score files " +
+                                 "have been specified with --cadd_files " +
+                                 "or --cadd_dir arguments.")
         return None
 
     def get_splice_ai_filter(self):
@@ -861,14 +861,14 @@ class VaseRunner(object):
         else:
             if not self.prev_splice_ai:
                 if self.args.splice_ai_min_delta is not None:
-                    raise RuntimeError(
+                    raise ValueError(
                         "--splice_ai_min_delta cutoff given " +
                         "but VCF does not have SpliceAI INFO " +
                         "field in its header and no SpliceAI " +
                         "score files have been specified with " +
                         "--splice_ai_vcfs argument.")
                 if self.args.splice_ai_max_delta is not None:
-                    raise RuntimeError(
+                    raise ValueError(
                         "--splice_ai_max_delta cutoff given " +
                         "but VCF does not have SpliceAI INFO " +
                         "field in its header and no SpliceAI " +
@@ -924,7 +924,7 @@ class VaseRunner(object):
         for var_filter in self.args.vcf_filter:
             vcf_and_id = var_filter.split(',')
             if len(vcf_and_id) < 2:
-                raise RuntimeError(
+                raise ValueError(
                     "Expected two or more comma separated " +
                     "values for --vcf_filter argument '{}'".format(var_filter))
             prefix = self.check_info_prefix('VASE_' + vcf_and_id[1])
@@ -1154,11 +1154,11 @@ class VaseRunner(object):
         if not self.ped:
             if (not self.args.singleton_recessive
                     and not self.args.singleton_dominant):
-                raise RuntimeError("Inheritance filtering options require a " +
-                                   "PED file specified using --ped or else " +
-                                   "samples specified using " +
-                                   "--singleton_recessive or " +
-                                   "--singleton_dominant arguments")
+                raise ValueError("Inheritance filtering options require a " +
+                                 "PED file specified using --ped or else " +
+                                 "samples specified using " +
+                                 "--singleton_recessive or " +
+                                 "--singleton_dominant arguments")
             else:
                 self.ped = self._make_ped_io()
                 no_ped = True
@@ -1180,7 +1180,7 @@ class VaseRunner(object):
                 try:
                     self.ped.add_individual(indv)
                 except PedError:
-                    raise RuntimeError(
+                    raise ValueError(
                         "Sample '{}' ".format(s) + "specified" +
                         " as either --singleton_recessive or " +
                         "--singleton_dominant already exists " +
@@ -1258,7 +1258,7 @@ class VaseRunner(object):
         if self.args.de_novo or self.args.biallelic or self.args.dominant:
             if (not self.recessive_filter and not self.de_novo_filter
                     and not self.dominant_filter):
-                raise RuntimeError("No inheritance filters could be created " +
+                raise ValueError("No inheritance filters could be created " +
                                    "with current settings. Please check your" +
                                    " ped/sample inputs or run without " +
                                    "--biallelic/--dominant/--de_novo options.")
@@ -1295,7 +1295,7 @@ class VaseRunner(object):
             msg = ("No samples fit a dominant model - can not use dominant " +
                    "filtering")
             if not self.args.biallelic and not self.args.de_novo:
-                raise RuntimeError("Error: " + msg)
+                raise ValueError("Error: " + msg)
             else:
                 self.logger.warn(msg + ". Will continue with other models.")
                 self.dominant_filter = None
@@ -1323,7 +1323,7 @@ class VaseRunner(object):
             msg = ("No samples fit a de novo model - can not use de novo " +
                    "filtering")
             if not self.args.biallelic and not self.args.dominant:
-                raise RuntimeError("Error: " + msg)
+                raise ValueError("Error: " + msg)
             else:
                 self.logger.warn(msg + ". Will continue with other models.")
                 self.de_novo_filter = None
@@ -1351,7 +1351,7 @@ class VaseRunner(object):
             msg = ("No samples fit a recessive model - can not use biallelic" +
                    " filtering")
             if not self.args.de_novo and not self.args.dominant:
-                raise RuntimeError("Error: " + msg)
+                raise ValueError("Error: " + msg)
             else:
                 self.logger.warn(msg + ". Will continue with other models.")
                 self.recessive_filter = None
