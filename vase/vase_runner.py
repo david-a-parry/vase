@@ -1167,13 +1167,6 @@ class VaseRunner(object):
             g2p = self.g2p
         else:
             g2p = None
-        self.family_filter = FamilyFilter(
-            ped=self.ped,
-            vcf=self.input,
-            infer_inheritance=infer,
-            g2p=g2p,
-            check_g2p_consequence=self.args.check_g2p_consequence,
-            logging_level=self.logger.level)
         for s in self.args.seg_controls:
             indv = Individual(s, s, 0, 0, 0, 1)
             try:
@@ -1192,6 +1185,13 @@ class VaseRunner(object):
                         " as either --singleton_recessive or " +
                         "--singleton_dominant already exists " +
                         "in PED file {}".format(self.ped.filename))
+        self.family_filter = FamilyFilter(
+            ped=self.ped,
+            vcf=self.input,
+            infer_inheritance=infer,
+            g2p=g2p,
+            check_g2p_consequence=self.args.check_g2p_consequence,
+            logging_level=self.logger.level)
         for s in set(self.args.singleton_dominant):
             self.family_filter.inheritance_patterns[s].append('dominant')
         for s in set(self.args.singleton_recessive):
