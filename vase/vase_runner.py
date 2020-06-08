@@ -727,7 +727,7 @@ class VaseRunner(object):
         remove = [False] * len(record.alts)
         matched = [False] * len(record.alts)
         for annot in self.prev_freqs:
-            if record.info[annot] is None:
+            if annot not in record.info or record.info[annot] is None:
                 continue
             for i in range(len(remove)):
                 if record.info[annot][i] is not None:
@@ -744,7 +744,7 @@ class VaseRunner(object):
         remove = [False] * len(record.alts)
         matched = [False] * len(record.alts)
         for annot in self.prev_homs:
-            if record.info[annot] is None:
+            if annot not in record.info or record.info[annot] is None:
                 continue
             for i in range(len(remove)):
                 if record.info[annot][i] is not None:
@@ -758,7 +758,7 @@ class VaseRunner(object):
         remove = [False] * len(record.alts)
         matched = [False] * len(record.alts)
         for annot in [x for x in self.prev_builds if x in record.info]:
-            if record.info[annot] is None:
+            if annot not in record.info or record.info[annot] is None:
                 continue
             for i in range(len(remove)):
                 if record.info[annot][i] is not None:
@@ -775,7 +775,7 @@ class VaseRunner(object):
         keep = [False] * len(record.alts)
         matched = [False] * len(record.alts)
         for annot in self.prev_clinvar:
-            if record.info[annot] is None:
+            if annot not in record.info or record.info[annot] is None:
                 continue
             for i in range(len(keep)):
                 if record.info[annot][i] is not None:
