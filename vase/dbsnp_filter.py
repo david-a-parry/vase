@@ -179,9 +179,9 @@ class dbSnpFilter(VcfFilter):
                                         do_keep = True
                     elif len(snp.DECOMPOSED_ALLELES) == 1:
                         if 'CLNSIG' in snp.info:
-                            annot['CLNSIG'] = snp.info['CLNSIG']
+                            annot['CLNSIG'] = snp.info['CLNSIG'][0]
                             if ([i for i in clinvar_path_annot if i in
-                                 snp.info['CLNSIG'].split('|')]):
+                                 annot['CLNSIG'].split('|')]):
                                 # keep anything with path or likely label
                                 do_filter = False
                                 do_keep = True
