@@ -15,7 +15,7 @@ class VaseRecord(object):
     """
 
     __slots__ = ['record', 'caller', 'header', '__CSQ', '__is_sv',
-                 '__DECOMPOSED_ALLELES', '__SPAN', '_vep_allele']
+                 '__DECOMPOSED_ALLELES', '_vep_allele']
 
     def __init__(self, record, vcfreader):
         """
@@ -33,7 +33,6 @@ class VaseRecord(object):
         self.__CSQ = None
         self.__is_sv = None
         self.__DECOMPOSED_ALLELES = None
-        self.__SPAN = None
         self._vep_allele = {}
 
     def __str__(self):
@@ -145,24 +144,6 @@ class VaseRecord(object):
     @IS_SV.setter
     def IS_SV(self, is_sv):
         self.__is_sv = is_sv
-
-    @property
-    def SPAN(self):
-        '''
-            Returns end position of a record according to END INFO
-            field if available, or otherwise POS + len(REF) - 1.
-        '''
-        # TODO Can we just use record.pos + record.rlen - 1?
-        if self.__SPAN is None:
-            if 'END' in self.record.info:
-                self.__SPAN = self.record.info['END']
-            else:
-                self.__SPAN = self.record.pos + len(self.record.ref) - 1
-        return self.__SPAN
-
-    @SPAN.setter
-    def SPAN(self, end):
-        self.__SPAN = end
 
     @property
     def DECOMPOSED_ALLELES(self):
