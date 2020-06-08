@@ -99,6 +99,41 @@ def test_biallelic3():
     os.remove(output)
 
 
+def test_biallelic_no_ped():
+    output = get_tmp_out()
+    test_args = dict(
+        singleton_recessive=['Sample1'],
+        seg_controls=['Sample2', 'Sample3'],
+        csq=[],
+        output=output,
+    )
+    results, expected = run_args(test_args, output, "test_biallelic")
+    assert_equal(results, expected)
+    os.remove(output)
+
+
+def test_biallelic_seg_control():
+    output = get_tmp_out()
+    test_args = dict(
+        ped=os.path.join(dir_path, "test_data", "test3.ped"),
+        singleton_recessive=['Sample1'],
+        seg_controls=['Sample2', 'Sample3'],
+        csq=[],
+        output=output,
+    )
+    assert_raises(ValueError, run_args, test_args)
+    test_args = dict(
+        ped=os.path.join(dir_path, "test_data", "test3.ped"),
+        biallelic=True,
+        seg_controls=['Sample2', 'Sample3'],
+        csq=[],
+        output=output,
+    )
+    results, expected = run_args(test_args, output, "test_biallelic")
+    assert_equal(results, expected)
+    os.remove(output)
+
+
 def test_dominant():
     output = get_tmp_out()
     test_args = dict(
