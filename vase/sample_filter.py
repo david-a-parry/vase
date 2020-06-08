@@ -243,7 +243,7 @@ class SampleFilter(object):
                     return True
             elif control_filter.ad_over_threshold is not None:
                 # check hom ref for ALT allele counts
-                if control_filter.ad_over_threshold(record, s, allele):
+                if control_filter.ad_over_threshold(record.samples, s, allele):
                     if 'AD' not in record.format or gts[s]['AD'] != (None,):
                         if self.n_controls:
                             control_matches += 1
