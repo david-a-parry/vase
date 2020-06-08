@@ -23,6 +23,5 @@ def test_g2p():
 
 
 if __name__ == '__main__':
-    test_g2p()
     import nose
     nose.run(defaultTest=__name__)
