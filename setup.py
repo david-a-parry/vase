@@ -14,7 +14,7 @@ setup(
     download_url='https://github.com/david-a-parry/vase/archive/0.3.tar.gz',
     license='MIT',
     install_requires=[
-          'pysam',
+          'pysam>=0.14',
           'natsort',
     ],
     test_requires=[
