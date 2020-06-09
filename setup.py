@@ -19,11 +19,13 @@ setup(
     ],
     test_requires=[
         'nose',
-        'numpy'
+        'numpy',
+        'xlrd',
+        'json'
     ],
     extras_require={
         'BGZIP': ['biopython'],
-        'REPORTER': ['xlsxwriter', 'requests'],
+        'REPORTER': ['xlsxwriter', 'requests', 'json'],
         'MYGENEINFO': ['mygene'],
     },
     scripts=["bin/vase", "bin/burden_test_vase", "bin/vase_reporter",
