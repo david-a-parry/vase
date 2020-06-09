@@ -214,9 +214,12 @@ class VaseReporter(object):
                     annots.append('.')
             else:
                 try:
-                    if d.number == 1:
+                    if d.type == 'Flag':
+                        annots.append(inf in record.info)
+                    elif d.number == 1:
                         annots.append(record.info[inf])
                     else:
+                        print("Appending {}".format(inf))
                         annots.append(','.join(str(x) for x in
                                                record.info[inf]))
                 except KeyError:
