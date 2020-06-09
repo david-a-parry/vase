@@ -151,6 +151,24 @@ def test_reporter_filter_g2p():
         expected = _get_xlsx_output(expect_xlsx, f)
         assert_equal(results, expected)
 
+def test_reporter_singleton():
+    output = get_tmp_out(suffix='.xlsx')
+    vr  = VaseReporter(
+        vcf=os.path.join(dir_path, 'test_data', 'ex8.bcf'),
+        out=output,
+        singletons=['Sample4'],
+        force=True,
+        quiet=True,
+        )
+    vr.write_report()
+    expect_xlsx = os.path.join(dir_path,
+                               "test_data",
+                               "expected_outputs",
+                               sys._getframe().f_code.co_name + ".xlsx")
+    results = _get_xlsx_output(output, "Sample4")
+    expected = _get_xlsx_output(expect_xlsx, "Sample4")
+    assert_equal(results, expected)
+
 
 if __name__ == '__main__':
     import nose
