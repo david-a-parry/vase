@@ -1168,7 +1168,7 @@ class VaseRunner(object):
         else:
             g2p = None
         for s in self.args.seg_controls:
-            indv = Individual(s, s, 0, 0, 0, 1)
+            indv = Individual(s, s, "0", "0", 0, 1)
             try:
                 self.ped.add_individual(indv)
             except PedError:
@@ -1176,7 +1176,7 @@ class VaseRunner(object):
         if not no_ped:
             for s in set(self.args.singleton_recessive +
                          self.args.singleton_dominant):
-                indv = Individual(s, s, 0, 0, 0, 2)
+                indv = Individual(s, s, "0", "0", 0, 2)
                 try:
                     self.ped.add_individual(indv)
                 except PedError:
