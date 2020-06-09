@@ -2,6 +2,7 @@ import sys
 import io
 import re
 import logging
+import pysam
 import xlsxwriter
 import os
 import json
@@ -202,18 +203,22 @@ class VaseReporter(object):
 
     def _add_info_annotations(self, record, allele):
         annots = []
-        for inf,d  in self.info_annotations.items():
-            if d['Number'] == 'A' or d['Number'] == 'R':
+        for inf, d  in self.info_annotations.items():
+            if d.number == 'A' or d.number == 'R':
                 i = allele
-                if d['Number'] == 'A':
+                if d.number == 'A':
                     i -= 1
                 try:
-                    annots.append(record.parsed_info_fields([inf])[inf][i])
+                    annots.append(record.info[inf][i])
                 except KeyError:
                     annots.append('.')
             else:
                 try:
-                    annots.append(record.INFO_FIELDS[inf])
+                    if d.number == 1:
+                        annots.append(record.info[inf])
+                    else:
+                        annots.append(','.join(str(x) for x in
+                                               record.info[inf]))
                 except KeyError:
                     annots.append('.')
         return annots
@@ -586,16 +591,26 @@ class VaseReporter(object):
                 if csq['Feature'] in self.blacklist:
                     continue
             values = [inheritance]
-            values.extend(getattr(record, f) for f in vcf_output_columns)
+            values.extend(",".join(str(y) for y in x) if isinstance(x, tuple)
+                          or isinstance(x, pysam.libcbcf.VariantRecordFilter)
+                          else str(x) if x is not None else '.' for x in
+                          (getattr(record, f) for f in vcf_output_columns))
             values.append(allele)
             for i_field in (('AC', 'AN')):
                 if i_field in record.info:
-                    values.append(record.info[i_field])
+                    if isinstance(record.info[i_field], tuple):
+                        values.append(",".join(str(x) for x in
+                                               record.info[i_field]))
+                    else:
+                        values.append(record.info[i_field])
                 else:
                     values.append('.')
-            values.append(record.FORMAT)
-            values.extend(record.CALLS[x] for x in
-                          self._get_sample_order(family))
+            values.append(":".join(record.format))
+            for s in self._get_sample_order(family):
+                values.append(":".join((",".join(str(y) for y in x) if
+                                        isinstance(x, tuple) else str(x))
+                                       if x is not None else '.'
+                                       for x in record.samples[s].values()))
             if 'CADD_PHRED_score' in self.vcf.header.header.info:
                 try:
                     values.append(record.info['CADD_PHRED_score'][allele-1])
@@ -650,7 +665,7 @@ class VaseReporter(object):
         '''Write an entry for every segregating allele in VCF'''
         self.logger.info("Reading variants and writing report")
         n = 0
-        for record in self.vcf.parser:
+        for record in self.vcf:
             n += 1
             for annot, pattern in self.seg_fields.items():
                 if annot in record.info:
