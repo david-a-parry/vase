@@ -607,10 +607,11 @@ class VaseReporter(object):
                     values.append('.')
             values.append(":".join(record.format))
             for s in self._get_sample_order(family):
-                values.append(":".join((",".join(str(y) for y in x) if
-                                        isinstance(x, tuple) else str(x))
-                                       if x is not None else '.'
-                                       for x in record.samples[s].values()))
+                values.append(":".join(
+                    ("/".join(str(y) for y in v) if k == 'GT'
+                     else (",".join(str(y) for y in v) if isinstance(v, tuple)
+                           else str(v)) if v is not None else '.'
+                     for k, v in record.samples[s].items())))
             if 'CADD_PHRED_score' in self.vcf.header.header.info:
                 try:
                     values.append(record.info['CADD_PHRED_score'][allele-1])
