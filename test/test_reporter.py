@@ -65,6 +65,27 @@ def test_reporter_xlsx():
         assert_equal(results, expected)
 
 
+def test_reporter_info_annotations():
+    output = get_tmp_out(suffix='.xlsx')
+    vr  = VaseReporter(
+        vcf=rep_input,
+        out=output,
+        ped=ped,
+        info_fields='MQRankSum MLEAC NEGATIVE_TRAIN_SITE'.split(),
+        force=True,
+        quiet=True,
+        )
+    vr.write_report()
+    expect_xlsx = os.path.join(dir_path,
+                               "test_data",
+                               "expected_outputs",
+                               sys._getframe().f_code.co_name + ".xlsx")
+    for f in ['Fam1', 'Fam2']:
+        results = _get_xlsx_output(output, f)
+        expected = _get_xlsx_output(expect_xlsx, f)
+        assert_equal(results, expected)
+
+
 def test_reporter_choose_transcript():
     output = get_tmp_out(suffix='.xlsx')
     vr  = VaseReporter(
