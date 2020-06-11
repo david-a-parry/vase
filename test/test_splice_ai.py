@@ -3,6 +3,7 @@ from .utils import *
 splice_ai_vcf = os.path.join(dir_path, "test_data", "splice_ai_scores.vcf.gz")
 prescored_vcf = os.path.join(dir_path, "test_data", "splice_ai_prescored.vcf.gz")
 
+
 def teardown_module():
     for vcf in [splice_ai_vcf, prescored_vcf]:
         idx = vcf + '.tbi'
@@ -18,6 +19,7 @@ def get_info_annotations(anno_vcf, annot):
             expected_annots[rid] = record.info[annot]
     return expected_annots
 
+
 def test_annotate_prescored():
     output = get_tmp_out()
     test_args = dict(
@@ -26,9 +28,7 @@ def test_annotate_prescored():
     )
     run_args(test_args)
     annot = 'SpliceAI'
-    expected_vcf = os.path.join(dir_path, "test_data", "expected_outputs",
-                                "test_annotate_prescored.vcf.gz")
-    expected = get_info_annotations(expected_vcf, annot)
+    expected = get_info_annotations(splice_ai_vcf, annot)
     hits = 0
     with pysam.VariantFile(output) as vcf:
         for record in vcf:
@@ -61,6 +61,43 @@ def test_annotate_splice_ai():
             else:
                 assert(annot not in record.info)
     assert_equal(hits, len(expected))
+    os.remove(output)
+
+
+def test_filter_splice_ai():
+    output = get_tmp_out()
+    test_args = dict(
+        splice_ai_vcfs=[splice_ai_vcf],
+        output=output,
+        splice_ai_min_delta=0.5,
+    )
+    results, expected = run_args(test_args, output,
+                                 sys._getframe().f_code.co_name)
+    assert_equal(results, expected)
+    os.remove(output)
+
+
+def test_filter_splice_ai_prescored():
+    output = get_tmp_out()
+    test_args = dict(
+        splice_ai_vcfs=[prescored_vcf],
+        output=output,
+        splice_ai_min_delta=0.5,
+    )
+    results, expected = run_args(test_args, output, "test_filter_splice_ai")
+    assert_equal(results, expected)
+    os.remove(output)
+
+
+def test_filter_splice_ai_multi():
+    output = get_tmp_out()
+    test_args = dict(
+        splice_ai_vcfs=[splice_ai_vcf, prescored_vcf],
+        output=output,
+        splice_ai_min_delta=0.5,
+    )
+    results, expected = run_args(test_args, output, "test_filter_splice_ai")
+    assert_equal(results, expected)
     os.remove(output)
 
 
