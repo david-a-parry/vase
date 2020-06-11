@@ -1,7 +1,7 @@
 from .utils import *
 
 splice_ai_vcf = os.path.join(dir_path, "test_data", "splice_ai_scores.vcf.gz")
-prescored_vcf = os.path.join(dir_path, "test_data", "splice_ai_prescored.bcf")
+prescored_vcf = os.path.join(dir_path, "test_data", "splice_ai_prescored.vcf.gz")
 
 def teardown_module():
     idx = splice_ai_vcf + '.tbi'
@@ -25,7 +25,9 @@ def test_annotate_prescored():
     )
     run_args(test_args)
     annot = 'SpliceAI'
-    expected = get_info_annotations(prescored_vcf, annot)
+    expected_vcf = os.path.join(dir_path, "test_data", "expected_outputs",
+                                "test_annotate_prescored.vcf.gz")
+    expected = get_info_annotations(expected_vcf, annot)
     hits = 0
     with pysam.VariantFile(output) as vcf:
         for record in vcf:
