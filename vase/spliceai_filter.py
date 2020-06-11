@@ -162,11 +162,11 @@ class SpliceAiFilter(object):
     def _get_annotation(self, record, alt_index, prescored=False):
         alt = record.alleles[alt_index + 1]
         if prescored:
-            info_strings = ["|".join("{:.2f}".format(record.info[x])
-                                     if isinstance(record.info[x], float)
-                                     else str(record.info[x])
-                                     for x in pre_scored_fields)]
-            info_dict = dict([(x, [record.info[x]]) for x in
+            info_strings = "|".join("{:.2f}".format(record.info[x])
+                                    if isinstance(record.info[x], float)
+                                    else str(record.info[x])
+                                    for x in pre_scored_fields)
+            info_dict = dict([(x, record.info[x]) for x in
                               pre_scored_fields])
         else:
             info_dict = defaultdict(list)
@@ -187,12 +187,25 @@ class SpliceAiFilter(object):
         return info_strings, info_dict
 
     def _search_annotations(self, alt_allele, overlaps):
+        if self.vcf_is_prescored:
+            i_dict = defaultdict(list)
+            i_strings = []
         for vcf, olap in overlaps.items():
             for o in olap:
                 for i in range(len(o.DECOMPOSED_ALLELES)):
                     if alt_allele == o.DECOMPOSED_ALLELES[i]:
-                        return self._get_annotation(o, i,
-                                                    self.vcf_is_prescored[vcf])
+                        if self.vcf_is_prescored[vcf]:
+                            s, d = self._get_annotation(
+                                o, i, self.vcf_is_prescored[vcf])
+                            i_strings.append(s)
+                            for k, v in d.items():
+                                i_dict[k].append(v)
+
+                        else:
+                            return self._get_annotation(
+                                o, i, self.vcf_is_prescored[vcf])
+        if self.vcf_is_prescored and i_strings:
+            return i_strings, i_dict
         return None, None
 
     def annotate_or_filter(self, record, check_symbol=False,
