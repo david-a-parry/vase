@@ -166,7 +166,8 @@ class SpliceAiFilter(object):
                                      if isinstance(record.info[x], float)
                                      else str(record.info[x])
                                      for x in pre_scored_fields)]
-            info_dict = dict([(x, record.info[x]) for x in pre_scored_fields])
+            info_dict = dict([(x, [record.info[x]]) for x in
+                              pre_scored_fields])
         else:
             info_dict = defaultdict(list)
             info_strings = []
