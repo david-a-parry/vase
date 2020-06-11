@@ -162,8 +162,10 @@ class SpliceAiFilter(object):
     def _get_annotation(self, record, alt_index, prescored=False):
         alt = record.alleles[alt_index + 1]
         if prescored:
-            info_strings = ["|".join(record.info[x] for x in
-                                     pre_scored_fields)]
+            info_strings = ["|".join("{:.2f}".format(record.info[x])
+                                     if isinstance(record.info[x], float)
+                                     else str(record.info[x])
+                                     for x in pre_scored_fields)]
             info_dict = dict([(x, record.info[x]) for x in pre_scored_fields])
         else:
             info_dict = defaultdict(list)
