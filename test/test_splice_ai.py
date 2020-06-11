@@ -4,9 +4,10 @@ splice_ai_vcf = os.path.join(dir_path, "test_data", "splice_ai_scores.vcf.gz")
 prescored_vcf = os.path.join(dir_path, "test_data", "splice_ai_prescored.vcf.gz")
 
 def teardown_module():
-    idx = splice_ai_vcf + '.tbi'
-    if os.path.exists(idx):
-        os.remove(idx)
+    for vcf in [splice_ai_vcf, prescored_vcf]:
+        idx = vcf + '.tbi'
+        if os.path.exists(idx):
+            os.remove(idx)
 
 
 def get_info_annotations(anno_vcf, annot):
