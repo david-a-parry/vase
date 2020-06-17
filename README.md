@@ -23,16 +23,17 @@ Detailed instructions and examples to follow in the VASE
 ## INSTALLATION
 
 VASE requires python3. It has been tested with python 3.5 and 3.6. The modules 
-'pysam' and 'parse_vcf' from pypi are required and should be installed for you 
+'pysam' and 'natsort' from pypi are required and should be installed for you 
 if following the instructions below. You may also wish to install biopython, 
-which is required if you want to write directly to bgzipped output.
+which is required if you want to write missing CADD/spliceAI scores to
+bgzipped output.
 
 To install the vase script to $HOME/.local/bin (or possibly on Mac OS
 /Users/$USER/Library/Python/3.\*/bin/) the simplest way is to use pip:
 
     pip3 install git+git://github.com/david-a-parry/vase.git --user
 
-To install with the extra moduls required for bgzip output and vase_reporter
+To install with the extra modules required for bgzip output and vase_reporter
 functionality (recommended) use the following:
 
     pip3 install git+git://github.com/david-a-parry/vase.git#egg=project[BGZIP,REPORTER,MYGENE] --user
@@ -74,10 +75,10 @@ or:
                 [-burden_counts BURDEN_COUNTS] [-gnomad_burden] [-v QUAL]
                 [-p | --keep_filters KEEP_FILTERS [KEEP_FILTERS ...]]
                 [--exclude_filters EXCLUDE_FILTERS [EXCLUDE_FILTERS ...]]
-                [-t TYPE [TYPE ...]] [-max_alts MAX_ALT_ALLELES] [-af AF]
-                [-min_af MIN_AF] [-filtering_an FILTERING_AN] [-min_an MIN_AN]
-                [-ac AC] [-min_ac MIN_AC]
-                [--info_filters INFO_FILTERS [INFO_FILTERS ...]]
+                [-t TYPE [TYPE ...]] [-max_alts MAX_ALT_ALLELES]
+                [--filter_asterisk_only_calls] [-af AF] [-min_af MIN_AF]
+                [-filtering_an FILTERING_AN] [-min_an MIN_AN] [-ac AC]
+                [-min_ac MIN_AC] [--info_filters INFO_FILTERS [INFO_FILTERS ...]]
                 [-c [CSQ [CSQ ...]]] [--impact IMPACT [IMPACT ...]] [--canonical]
                 [--flagged_features] [--biotypes BIOTYPE [BIOTYPE ...]]
                 [--feature_blacklist FEATURE_BLACKLIST] [--loftee]
@@ -87,6 +88,7 @@ or:
                 [--splice_filter_unpredicted] [--splice_keep_if_any_damaging]
                 [--retain_labels Label=Value [Label=Value ...]] [--no_vep_freq]
                 [--vep_af VEP_AF [VEP_AF ...]] [--pathogenic] [--no_conflicted]
+                [--g2p G2P] [--check_g2p_consequence] [--check_g2p_inheritance]
                 [--region REGION [REGION ...] | --bed BED | --gene_bed BED]
                 [--stream] [--exclude_regions] [--cadd_files FILE [FILE ...]]
                 [-cadd_dir DIR] [--missing_cadd_scores FILE] [--cadd_phred FLOAT]
@@ -109,9 +111,12 @@ or:
                 [-sv_max_dp SV_MAX_DP] [-sv_het_ab AB] [-sv_hom_ab AB]
                 [-sv_con_gq SV_CONTROL_GQ] [-sv_con_dp SV_CONTROL_DP]
                 [-sv_con_max_dp SV_CONTROL_MAX_DP] [-sv_con_het_ab AB]
-                [-sv_con_hom_ab AB] [-sv_con_ref_ab AB] [--n_cases N_CASES]
-                [--n_controls N_CONTROLS] [--biallelic] [--de_novo] [--dominant]
-                [--min_families MIN_FAMILIES]
+                [-sv_con_hom_ab AB] [-sv_con_ref_ab AB]
+                [--duphold_del_dhffc DHFFC] [--duphold_dup_dhbfc DHBFC]
+                [--control_duphold_del_dhffc DHFFC]
+                [--control_duphold_dup_dhbfc DHBFC] [--n_cases N_CASES]
+                [--n_controls N_CONTROLS] [--confirm_control_gts] [--biallelic]
+                [--de_novo] [--dominant] [--min_families MIN_FAMILIES]
                 [--singleton_recessive SAMPLE_ID [SAMPLE_ID ...]]
                 [--singleton_dominant SAMPLE_ID [SAMPLE_ID ...]]
                 [--seg_controls SAMPLE_ID [SAMPLE_ID ...]] [--strict_recessive]
@@ -131,6 +136,9 @@ or:
                             Default = STDOUT
                             
       -r REPORT_PREFIX, --report_prefix REPORT_PREFIX
+                            DEPRECATED - use the 'vase_reporter' program
+                            provided alongside vase instead.
+                            
                             Prefix for segregation summary report output
                             files. If either --biallelic, --de_novo or
                             --dominant options are in effect this option will
@@ -279,7 +287,10 @@ or:
                             files supplied to --gnomad, --dbsnp or
                             --vcf_filter arguments, or if using '--csq' if any
                             allele frequency is recorded for any of VEP's AF
-                            annotations.
+                            annotations. This will also filter
+                            alleles/variants if an annotation from --gnomad or
+                            --dbsnp is present from a previous run unless the
+                            --ignore_existing_annotations option is given.
                             
       --filter_novel, -filter_novel
                             Filter any allele/variant NOT present in
@@ -386,6 +397,9 @@ or:
                             '--max_alt_alleles 1' would retain biallelic sites
                             only ('*' alleles are not counted for this
                             purpose).
+                            
+      --filter_asterisk_only_calls
+                            Filter variants where the only ALT allele is '*'.
                             
       -af AF, --af AF       Maximum AF value in input VCF. Any allele with an
                             AF > than this value will be filtered.
@@ -686,6 +700,25 @@ or:
                             only be retained if there are no conflicting
                             'benign' or 'likely benign' assertions.
                             
+      --g2p G2P             A G2P CSV file for filtering variants based on G2P
+                            annotations. Requires your VCF to be annotated
+                            with VEP. Only variants with consequences
+                            affecting genes in this file will be retained.
+                            
+      --check_g2p_consequence
+                            If using --g2p option, use this flag to require
+                            that the observed consequence matches the
+                            'mutation consequence' in the specified G2P file.
+                            
+      --check_g2p_inheritance
+                            If using --g2p option, use this flag to require
+                            that the observed inheritance or
+                            hetero/hemi/homozygosity of alleles match the
+                            requirement specified in the specified G2P file.
+                            Requires at least one of --recessive/--de_novo/
+                            --dominant/singleton_recessive/singleton_dominant
+                            arguments.
+                            
 
     Region Filtering Arguments:
       Arguments for filtering variants on genomic regions. These arguments are mutually exclusive.
@@ -703,8 +736,12 @@ or:
                             identifiers. The fourth column of the provided BED
                             file should contain gene symbols and/or Ensembl
                             gene/transcript/protein identifiers (multiple IDs
-                            should be separated with '/' characters.
+                            should be separated with '/' characters).
                             Requires input to be annotated with VEP.
+                            
+                            A suitably formatted BED can be created using the
+                            'coordinates_from_genes' program installed with
+                            vase.
                             
       --stream              When using region filtering arguments, read all
                             variants in your VCF and filter out all that do
@@ -777,6 +814,16 @@ or:
                             in ANY sample specified by --controls, require at
                             least this many controls to carry a variant before
                             it is filtered.
+                            
+      --confirm_control_gts
+                            If using the --controls argument, also filter
+                            variants if any control sample is either a no-call
+                            or fails specified genotype quality, depth or
+                            allele balance thresholds. If used in conjunction
+                            with the --n_controls option, control samples with
+                            no-call genotypes or genotypes failing the above
+                            thresholds will be counted towards the number of
+                            controls with an allele/variant.
                             
       --biallelic, -biallelic, --recessive
                             Identify variants matching a recessive inheritance
@@ -1025,6 +1072,42 @@ or:
                             reference but still have a low proportion of ALT
                             alleles specify a suitable cutoff here.
                             
+      --duphold_del_dhffc DHFFC
+                            Maximum fold-change for deletion calls relative to
+                            flanking regions as annotated by duphold
+                            (https://github.com/brentp/duphold). Deletion
+                            calls will be filtered if the DHFFC annotation
+                            from duphold is greater than this value.
+                            
+      --duphold_dup_dhbfc DHBFC
+                            Minimum fold-change for duplication calls relative
+                            to flanking regions as annotated by duphold
+                            (https://github.com/brentp/duphold). Duplication
+                            calls will be filtered if the DHBFC annotation
+                            from duphold is less than this value.
+                            
+      --control_duphold_del_dhffc DHFFC
+                            Maximum fold-change for deletion calls relative to
+                            flanking regions as annotated by duphold for
+                            parent/unaffected/control sample het/homozygous
+                            alternative calls. Defaults to the same value as
+                            --duphold_del_dhffc but you may wish to set this
+                            to a higher value if, for example, you require
+                            less evidence from controls/unaffected in order to
+                            filter a variant or from parental genotype calls
+                            when confirming a potential de novo variant.
+                            
+      --control_duphold_dup_dhbfc DHBFC
+                            Minimum fold-change for duplication calls relative
+                            to flanking regions as annotated by duphold for
+                            parent/unaffected/control sample het/homozygous
+                            alternative calls. Defaults to the same value as
+                            --duphold_dup_dhbfc but you may wish to set this
+                            to a lower value if, for example, you require
+                            less evidence from controls/unaffected in order to
+                            filter a variant or from parental genotype calls
+                            when confirming a potential de novo variant.
+                            
 
     Help/Logging Arguments:
       --prog_interval N, -prog_interval N
@@ -1049,7 +1132,7 @@ or:
                             '--no_warnings' options.
                             
       -h, --help            Show this help message and exit
-                            
+                        
 
 
 ## AUTHOR
@@ -1060,7 +1143,7 @@ Written by David A. Parry at the University of Edinburgh.
 
 MIT License
 
-Copyright (c) 2017 David A. Parry
+Copyright (c) 2017-2020 David A. Parry
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -1079,6 +1162,5 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
 
 
