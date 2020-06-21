@@ -4,8 +4,9 @@ import argparse
 import re
 import logging
 import io
+import pysam
 from collections import defaultdict
-from parse_vcf import VcfReader, VcfHeader, VcfRecord
+from vase.vcf_reader import VcfReader
 from vase.ped_file import PedFile, Family, Individual, PedError
 from vase.sample_filter import GtFilter
 from vase.gnomad_filter import GnomadFilter
@@ -74,26 +75,6 @@ def parse_args():
                            '--no_warnings' options.''')
     return parser
 
-def get_output(output):
-    '''
-        Return an output filehandle. If no output specified return
-        sys.stdout.
-    '''
-    if isinstance(output, str):
-        if output.endswith(('.gz', '.bgz')):
-            try:
-                from Bio import bgzf
-            except ImportError:
-                raise RuntimeError("Can not import bgzf via " +
-                                   "biopython. Please install biopython " +
-                                   "in order to write bgzip compressed " +
-                                   "(.gz/.bgz) output.")
-            fh = bgzf.BgzfWriter(output)
-        else:
-            fh = open(output, 'w')
-    else:
-        fh = sys.stdout
-    return fh
 
 def get_logger(quiet=False, debug=False, no_warnings=False, silent=False):
     logger = logging.getLogger("phase_by_transmission")
@@ -116,29 +97,29 @@ def get_logger(quiet=False, debug=False, no_warnings=False, silent=False):
     logger.addHandler(ch)
     return logger
 
-def print_header(vcf, filehandle):
+def set_header(vcf):
     ''' Write VCF header based on input VCF template to filehandle.'''
     vcf.header.add_header_field(name='NonMendelian',
                                 dictionary={'Number': '.',
                                             'Type': 'String',
-                                            'Description': '"Samples ' +
+                                            'Description': 'Samples ' +
                                             'demonstrating non-mendelian ' +
-                                            'inheritance."'},
+                                            'inheritance.'},
                                 field_type='INFO')
     vcf.header.add_header_field(name='PhasedByTransmission',
                                 dictionary={'Number': '.',
                                             'Type': 'String',
-                                            'Description': '"Samples phased ' +
+                                            'Description': 'Samples phased ' +
                                             'using VASE\'s ' +
                                             'phase_by_transmission program.'},
                                 field_type='INFO')
     vcf.header.add_header_field(name="gt_filter.py",
                                string='"' + str.join(" ", sys.argv) + '"')
-    filehandle.write(str(vcf.header))
+
 
 def report_progress(n, w, prev_string, record, logger, log_progress=False):
     prog_string = ('{:,} variants processed, {:,} written...'.format(n, w) +
-                   'at pos {}:{}'.format(record.CHROM, record.POS))
+                   'at pos {}:{}'.format(record.chrom, record.pos))
     if log_progress:
         logger.info(prog_string)
     else:
@@ -149,26 +130,26 @@ def report_progress(n, w, prev_string, record, logger, log_progress=False):
     return prog_string
 
 def phase_alleles(var, trios, gt_filter=None):
-    fgt = ()
-    mgt = ()
-    gts = var.parsed_gts(fields=gt_filter.fields)
-    phased_calls = dict()
-    chrom = var.CHROM.lstrip("chr")
+    n_phased = 0
+    chrom = var.chrom.lstrip("chr")
+    phased_samples = list()
     mendelian_violations = list()
     for child, tdict in trios.items():
+        fgt = ()
+        mgt = ()
         paternal = None
         maternal = None
-        cgt = gts['GT'][child]
-        if None in cgt or not gt_filter.gt_is_ok(gts, child, max(cgt)):
+        cgt = var.samples[child]['GT']
+        if None in cgt or not gt_filter.gt_is_ok(var.samples, child, max(cgt)):
             continue
         if 'mother' in tdict:
-            mgt = gts['GT'][tdict['mother']]
-            if None in mgt or not gt_filter.gt_is_ok(gts, tdict['mother'],
+            mgt = var.samples[tdict['mother']]['GT']
+            if None in mgt or not gt_filter.gt_is_ok(var.samples, tdict['mother'],
                                                      max(mgt)):
                 mgt = ()
         if 'father' in tdict:
-            fgt = gts['GT'][tdict['father']]
-            if None in fgt or not gt_filter.gt_is_ok(gts, tdict['father'],
+            fgt = var.samples[tdict['father']]['GT']
+            if None in fgt or not gt_filter.gt_is_ok(var.samples, tdict['father'],
                                                      max(fgt)):
                 fgt = ()
         if not fgt and not mgt: #can't phase
@@ -207,36 +188,25 @@ def phase_alleles(var, trios, gt_filter=None):
                         maternal = allele
         if maternal is not None or paternal is not None: #can phase
             if maternal is not None and paternal is not None:
-                phased_gt = "{}|{}".format(maternal, paternal)
+                phased_gt = (maternal, paternal)
             elif maternal is not None:
                 other = [x for x in cgt if x != maternal]
-                phased_gt = "{}|{}".format(maternal, other[0])
+                phased_gt = (maternal, other[0])
             elif paternal is not None:
                 other = [x for x in cgt if x != paternal]
-                phased_gt = "{}|{}".format(other[0], paternal)
-            new_call = []
-            for f in var.GT_FORMAT:
-                if f == 'GT':
-                    new_call.append(phased_gt)
-                else:
-                    new_call.append(var.sample_calls()[child][f])
-            phased_calls[child] = ':'.join(new_call)
+                phased_gt = (other[0], paternal)
+            var.samples[child].allele_indices = phased_gt
+            var.samples[child].phased = True
+            phased_samples.append(child)
         if non_mendelian:
             mendelian_violations.append(child)
     if mendelian_violations:
         var.add_info_fields({'NonMendelian': ','.join(mendelian_violations)})
-    if not phased_calls:
-        return(str(var), 0)
+    if not phased_samples:
+        return(var, 0)
     else:
-        calls = []
-        var.add_info_fields({'PhasedByTransmission':
-                             ','.join(phased_calls.keys())})
-        for sample in var.header.samples:
-            if sample in phased_calls:
-                calls.append(phased_calls[sample])
-            else:
-                calls.append(var.CALLS[sample])
-        return "\t".join(var.cols[:9] + calls), len(phased_calls)
+        var.add_info_fields({'PhasedByTransmission': ','.join(phased_samples)})
+    return var, len(phased_samples)
 
 
 def main(vcf, ped, output=None, gq=0, dp=0, het_ab=0., hom_ab=0.,
@@ -316,8 +286,13 @@ def main(vcf, ped, output=None, gq=0, dp=0, het_ab=0., hom_ab=0.,
             logger.warn("No parent-child pairs/trios for family {}".format(fam)
                         + " - will not phase")
     gt_filter = GtFilter(vreader, gq=gq, dp=dp, het_ab=het_ab, hom_ab=hom_ab)
-    out_fh = get_output(output)
-    print_header(vreader, out_fh)
+
+    if output is None:
+        output = '-'
+    set_header(vreader)
+    vcf_out = pysam.VariantFile(output,
+                                mode='w',
+                                header=vreader.header.header)
     prog_string = ''
     v = 0
     w = 0
@@ -331,10 +306,9 @@ def main(vcf, ped, output=None, gq=0, dp=0, het_ab=0., hom_ab=0.,
             continue
         if frac_phased and (float(n_phased)/len(trios)) < frac_phased:
             continue
-        out_fh.write(phased + "\n")
+        vcf_out.write(phased.record)
         w += 1
-    if output is not None:
-        out_fh.close()
+    vcf_out.close()
     if prog_string and not log_progress:
         sys.stderr.write('\r' + '-' * len(prog_string) + '\n')
     logger.info('Finished Processing {:,} variants. '.format(v) +
