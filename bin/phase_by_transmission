@@ -14,12 +14,14 @@ from vase.gnomad_filter import GnomadFilter
 def parse_args():
     parser = argparse.ArgumentParser(
         description='''Phase variants for samples with at least one parent in
-                       VCF.''',)
+                       VCF.''',
+        epilog='''Genotype quality, depth and allele balance arguments not
+        currently supported for structural variants.''')
     required_args = parser.add_argument_group('Required Arguments')
     opt_args = parser.add_argument_group('Optional Arguments')
     #required arguments
-    required_args.add_argument('-i', '--vcf', '--input', required=True, metavar='VCF',
-                                help='''Input VCF filename''')
+    required_args.add_argument('-i', '--vcf', '--input', required=True,
+                               metavar='VCF', help='''Input VCF filename.''')
     required_args.add_argument('-p', '--ped', required=True,
                                 help='''PED file including sample and parental
                                         IDs for at least each sample.''')
