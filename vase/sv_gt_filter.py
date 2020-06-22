@@ -159,8 +159,8 @@ class SvGtFilter(object):
 
     def _get_pr_sr(self, gts, sample):
         ''' Returns a tuple of SR + PR counts for a sample.'''
-        pr = gts[sample]['PR']
-        sr = gts[sample]['SR']
+        pr = gts[sample].get('PR', (None,))
+        sr = gts[sample].get('SR', (None,))
         if pr is None or pr == (None,): #no PR values - just check SR
             pr = (0, 0)
         if sr is None or sr == (None,): #no SR values - just check PR
@@ -177,7 +177,8 @@ class SvGtFilter(object):
                 return False
         if self.gq:
             #if GQ is None presumably is a no call
-            if gts[sample]['GQ'] is None or gts[sample]['GQ'] < self.gq:
+            gq = gts[sample].get('GQ', None)
+            if gq is None or gq < self.gq:
                 return False
         if self.ab_filter is not None:
             if not self.ab_filter(gts, sample, allele):
