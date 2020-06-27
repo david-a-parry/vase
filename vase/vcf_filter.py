@@ -9,7 +9,8 @@ class VcfFilter(object):
 
     def __init__(self, vcf, prefix, logger=None, freq=None, min_freq=None,
                  freq_fields=("AF",), ac_fields=("AC",), an_fields=("AN",),
-                 annotations=[], allow_missing_annotations=False):
+                 annotations=[], allow_missing_annotations=False,
+                 no_walk=False):
         '''
             Initialize object with a VCF file and optional filtering
             arguments.
@@ -51,7 +52,12 @@ class VcfFilter(object):
                         the provided annotations are not present in the
                         VCF.
 
-
+                no_walk:
+                        If True, do not use walking retrieval method to
+                        find matching records. Walking retrieval reduces
+                        unnecessary seeks if look-ups are performed in
+                        coordinate order but may prove inefficient if
+                        look-up order is random.
         '''
 
         self.vcf = VcfReader(vcf, logger=logger)
@@ -75,16 +81,25 @@ class VcfFilter(object):
         self.get_annot_fields()
         self.added_info = {}
         self.create_header_fields()
+        if no_walk:
+            self.get_overlapping_records = self._fetch_overlapping_records
+        else:
+            self.get_overlapping_records = self._walk_through_records
 
-    def get_overlapping_records(self, record):
+    def _fetch_overlapping_records(self, record):
         '''
             For a given record, returns a list of overlapping records
             in the class's VCF.
         '''
-        start = record.pos
-        end = record.stop
-        self.vcf.set_region(record.chrom, start - 1, end)
+        self.vcf.set_region(record.chrom, record.start, record.stop)
         return list(s for s in self.vcf)
+
+    def _walk_through_records(self, record):
+        '''
+            For a given record, returns a list of overlapping records
+            in the class's VCF without re-seeking if possible.
+        '''
+        return self.vcf.walk(record.chrom, record.start, record.stop)
 
     def annotate_and_filter_record(self, record):
         '''

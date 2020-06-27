@@ -1,5 +1,8 @@
 import pysam
 import os
+import gzip
+import numpy as np
+import struct
 from stat import S_ISREG
 from vase.vcf_record import VaseRecord
 from vase.vcf_header import VcfHeader
@@ -28,6 +31,12 @@ class VcfReader(object):
         self.record_iter = (VaseRecord(r, self) for r in self.variant_file)
         self.header = VcfHeader(self)
         self.set_region = self._index_and_set_region
+        self.indices = None
+        self.walk_chrom = None
+        self.prev_walk = (-1, -1)
+        self.walk_buffer = []
+        self.reseek = False
+        self.region_limit = 1000
 
     def __iter__(self):
         return self
@@ -69,6 +78,11 @@ class VcfReader(object):
             >>> v.set_region(chrom='chr1', start=999999 end=1000000)
 
         """
+        self._create_index()
+        self.set_region = self._set_region
+        self.set_region(chrom, start, end)
+
+    def _create_index(self):
         if not self._is_reg_file:
             raise TypeError("Cannot run set_region() on a non-regular file")
         elif self.index is None:
@@ -80,8 +94,6 @@ class VcfReader(object):
             preset = 'bcf' if self.variant_file.is_bcf else 'vcf'
             pysam.tabix_index(self.filename, preset=preset)
             self.variant_file = pysam.VariantFile(self.filename)
-        self.set_region = self._set_region
-        self.set_region(chrom, start, end)
 
     def _set_region(self, chrom, start=None, end=None):
         """
@@ -116,3 +128,85 @@ class VcfReader(object):
             self.record_iter = (VaseRecord(r, self) for r in region_iter)
         except ValueError:
             self.record_iter = iter([])  # ignore missing contigs
+
+    def _read_index(self):
+        self._create_index()
+        with gzip.open(self.index, 'rb') as f:
+            magic = f.read(4)
+            if magic == b'TBI\x01':
+                return self._read_tbi(f)
+            elif magic == b'CSI\x01':
+                return self._read_csi(f)
+            else:
+                raise ValueError('Invalid index - wrong magic number ' +
+                                 '({}) for {}'.format(magic, self.index))
+
+    def _read_tbi(self, f):
+        '''
+            Called for filehandle AFTER reading first 4 bytes
+            (magic number)
+        '''
+        header = np.frombuffer(f.read(4 * 8), dtype=np.int32)
+        names = f.read(header[7]).split(b'\x00')
+        ridx = dict()
+        for i in range(len(names)):
+            bindx = dict()
+            for j in range(struct.unpack('<i', f.read(4))[0]):  # n_bins
+                bin_key = struct.unpack('<I', f.read(4))[0]  # bin
+                n_chunk = struct.unpack('<i', f.read(4))[0]  # n_chunk
+                bindx[bin_key] = np.frombuffer(f.read(8 * 2 * n_chunk),
+                                               dtype=np.uint64).reshape(
+                                                   n_chunk, -1)
+            d = {'bindx': bindx}
+            n_intv = struct.unpack('<i', f.read(4))[0]
+            d['ioff'] = np.frombuffer(f.read(8 * n_intv), dtype=np.uint64)
+            ridx[names[i].decode()] = d
+        return ridx
+
+    def _read_csi(self, f):
+        '''
+            Called for filehandle AFTER reading first 4 bytes
+            (magic number)
+        '''
+        raise NotImplementedError("CSI index retrieval not implemented yet")
+
+    def walk(self, chrom, start, end):
+        recs = []
+        if self.indices is None:
+            self.indices = self._read_index()
+        if self.walk_chrom != chrom:
+            self.walk_chrom = chrom
+            self.reseek = True
+        elif start < self.prev_walk[0]:
+            raise RuntimeError("Walk must be done in coordinate order")
+        use_buffer = 1 + end - start < self.region_limit
+        min_ioff = self.indices[chrom]['ioff'][start >> 14]
+        # binning index: record cluster in large interval
+        overlap = np.concatenate([chunks for bin_key, chunks
+                                  in self.indices[chrom]['bindx'].items()
+                                  if chunks is not None])
+        # coupled binning and linear indices, filter out low level bins
+        chunk_begin, *_, chunk_end = np.sort(
+            np.ravel(overlap[overlap[:, 0] >= min_ioff]))
+        if self.reseek or chunk_begin > self.variant_file.tell():
+            self.variant_file.seek(chunk_begin)
+        elif self.walk_buffer and start < self.walk_buffer[-1].stop:
+            for record in self.walk_buffer:
+                if record.start >= end:
+                    break
+                if record.stop >= start:
+                    recs.append(record)
+        if not self.walk_buffer or self.walk_buffer[-1].start < end:
+            self.walk_buffer = []
+            for record in self.variant_file:
+                if record.start >= end:
+                    if use_buffer:
+                        self.walk_buffer.append(record)
+                    break
+                if record.stop >= start:
+                    recs.append(record)
+                    if use_buffer:
+                        self.walk_buffer.append(record)
+        self.reseek = not use_buffer
+        self.prev_walk = (start, end)
+        return [VaseRecord(x, self) for x in recs]
