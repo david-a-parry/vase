@@ -170,6 +170,17 @@ class VcfReader(object):
         '''
         raise NotImplementedError("CSI index retrieval not implemented yet")
 
+    def reg2bins(self, begin, end, n_lvls=5, min_shift=14):
+        t, s = 0, min_shift + (n_lvls << 1) + n_lvls
+        for l in range(n_lvls + 1):
+            b, e = t + (begin >> s), t + (end >> s)
+            n = e - b + 1
+            for k in range(b, e + 1):
+                yield k
+                n += 1
+            t += 1 << ((l << 1) + l)
+            s -= 3
+
     def walk(self, chrom, start, end):
         recs = []
         if self.indices is None:
@@ -182,9 +193,9 @@ class VcfReader(object):
         use_buffer = 1 + end - start < self.region_limit
         min_ioff = self.indices[chrom]['ioff'][start >> 14]
         # binning index: record cluster in large interval
-        overlap = np.concatenate([chunks for bin_key, chunks
-                                  in self.indices[chrom]['bindx'].items()
-                                  if chunks is not None])
+        overlap = np.concatenate([self.indices[chrom]['bindx'][k]
+                                  for k in self.reg2bins(start, end)
+                                  if k in self.indices[chrom]['bindx']])
         # coupled binning and linear indices, filter out low level bins
         chunk_begin, *_, chunk_end = np.sort(
             np.ravel(overlap[overlap[:, 0] >= min_ioff]))
