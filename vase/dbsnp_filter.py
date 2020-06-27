@@ -10,7 +10,8 @@ class dbSnpFilter(VcfFilter):
     '''
 
     def __init__(self, vcf, prefix='VASE_dbSNP', logger=None, freq=None,
-                 min_freq=None, build=None, max_build=None, clinvar_path=False):
+                 min_freq=None, build=None, max_build=None,
+                 clinvar_path=False):
         '''
             Initialize object with a dbSNP VCF file and optional filtering
             arguments.
@@ -60,7 +61,7 @@ class dbSnpFilter(VcfFilter):
         matched_alleles = []
         annotations = []
         hits = self.get_overlapping_records(record)
-        all_annots = set() # all fields added - may not be present for all ALTs
+        all_annots = set()  # all fields added, may not be present for all ALTs
         for i in range(len(record.DECOMPOSED_ALLELES)):
             filt, keep, matched, annot = self._compare_snp_values(
                                             record.DECOMPOSED_ALLELES[i], hits)
@@ -89,9 +90,11 @@ class dbSnpFilter(VcfFilter):
         return filter_alleles, keep_alleles, matched_alleles
 
     def _compare_snp_values(self, alt_allele, snp_list):
-        do_filter = False  # only flag indicating should be filtered
-        do_keep = False  # flag to indicate that should be kept, for overriding
-                         # do_filter in downstream applications
+        # flag indicating allele should be filtered
+        do_filter = False
+        # flag to indicate that should be kept, for overriding do_filter in
+        # downstream filters
+        do_keep = False
         annot = {}
         matched = False
         for snp in snp_list:
@@ -132,7 +135,7 @@ class dbSnpFilter(VcfFilter):
                                     do_filter = True
                         elif (f == 'G5A' or f == 'G5' and
                               len(snp.DECOMPOSED_ALLELES) == 1):
-                            #FLAGS: >=5% in 1kg or >=5% in pop from 1kg
+                            # FLAGS: >=5% in 1kg or >=5% in pop from 1kg
                             annot[f] = 1
                             if self.freq is not None and self.freq <= 0.05:
                                 if snp.info[f]:
@@ -219,8 +222,8 @@ class dbSnpFilter(VcfFilter):
         if not self.freq_fields and not self.clinvar_path and (
                 self.freq is not None or self.min_freq is not None):
             raise RuntimeError("ERROR: no frequency fields identified in " +
-                               "dbSNP VCF header for file '{}'." .format(
-                               self.vcf.filename) + " Unable to use freq/" +
+                               "dbSNP VCF header for file '{}'. " .format(
+                                   self.vcf.filename) + "Unable to use freq/" +
                                "min_freq arguments for variant filtering.")
 
         if not self.build_fields and not self.clinvar_path and (
