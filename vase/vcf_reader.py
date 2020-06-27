@@ -37,6 +37,8 @@ class VcfReader(object):
         self.walk_buffer = []
         self.reseek = False
         self.region_limit = 1000
+        self.depth = 5
+        self.min_shift = 14
 
     def __iter__(self):
         return self
@@ -168,11 +170,32 @@ class VcfReader(object):
             Called for filehandle AFTER reading first 4 bytes
             (magic number)
         '''
-        raise NotImplementedError("CSI index retrieval not implemented yet")
+        csindex = dict()
+        self.min_shift, self.depth, l_aux  = np.frombuffer(f.read(4 * 3),
+                                                           dtype=np.int32)
+        aux = np.frombuffer(f.read(4 * l_aux), dtype=np.uint8)
+        n_ref = np.frombuffer(f.read(4), dtype=np.int32)[0]
+        for i in range(n_ref):
+            chrom = self.variant_file.get_reference_name(i)
+            bindx = dict()
+            offsets = list()
+            n_bins = struct.unpack('<i', f.read(4))[0]
+            for j in range(n_bins):  # n_bins
+                bin_key = struct.unpack('<i', f.read(4))[0]
+                offs = np.frombuffer(f.read(8), dtype=np.int64)
+                n_chunk = struct.unpack('<i', f.read(4))[0]  # n_chunk
+                bindx[bin_key] = np.frombuffer(f.read(8 * 2 * n_chunk),
+                                               dtype=np.uint64).reshape(
+                                                  n_chunk, -1)  # chunk_beg/end
+            #offsets = np.ravel([x for y in bindx.values() for x in y])
+            #d = {'bindx': bindx, 'ioff': offsets}
+            d = {'bindx': bindx}
+            csindex[chrom] = d
+        return csindex
 
-    def reg2bins(self, begin, end, n_lvls=5, min_shift=14):
-        t, s = 0, min_shift + (n_lvls << 1) + n_lvls
-        for l in range(n_lvls + 1):
+    def reg2bins(self, begin, end):
+        t, s = 0, self.min_shift + (self.depth << 1) + self.depth
+        for l in range(self.depth + 1):
             b, e = t + (begin >> s), t + (end >> s)
             n = e - b + 1
             for k in range(b, e + 1):
@@ -190,12 +213,16 @@ class VcfReader(object):
             self.reseek = True
         elif start < self.prev_walk[0]:
             raise RuntimeError("Walk must be done in coordinate order")
+        self.prev_walk = (start, end)
         use_buffer = 1 + end - start < self.region_limit
-        min_ioff = self.indices[chrom]['ioff'][start >> 14]
-        # binning index: record cluster in large interval
+        if 'ioff' in self.indices[chrom]:
+            min_ioff = self.indices[chrom]['ioff'][start >> 14]
+        else:
+            min_ioff = 0
+            # binning index: record cluster in large interval
         overlap = np.concatenate([self.indices[chrom]['bindx'][k]
-                                  for k in self.reg2bins(start, end)
-                                  if k in self.indices[chrom]['bindx']])
+                                for k in self.reg2bins(start, end)
+                                if k in self.indices[chrom]['bindx']])
         # coupled binning and linear indices, filter out low level bins
         chunk_begin, *_, chunk_end = np.sort(
             np.ravel(overlap[overlap[:, 0] >= min_ioff]))
@@ -210,7 +237,7 @@ class VcfReader(object):
         if not self.walk_buffer or self.walk_buffer[-1].start < end:
             self.walk_buffer = []
             for record in self.variant_file:
-                if record.start >= end:
+                if record.start >= end or self.variant_file.tell() > chunk_end:
                     if use_buffer:
                         self.walk_buffer.append(record)
                     break
@@ -219,5 +246,4 @@ class VcfReader(object):
                     if use_buffer:
                         self.walk_buffer.append(record)
         self.reseek = not use_buffer
-        self.prev_walk = (start, end)
         return [VaseRecord(x, self) for x in recs]
