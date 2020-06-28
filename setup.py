@@ -16,10 +16,10 @@ setup(
     install_requires=[
           'pysam>=0.14',
           'natsort',
+          'numpy',
     ],
     test_requires=[
         'nose',
-        'numpy',
         'xlrd',
         'json'
     ],
