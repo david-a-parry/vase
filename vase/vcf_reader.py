@@ -245,7 +245,8 @@ class VcfReader(object):
             for record in self.variant_file:
                 if record.start >= end or self.variant_file.tell() > chunk_end:
                     if use_buffer:
-                        self.walk_buffer.append(record)
+                        if record.chrom == chrom:
+                            self.walk_buffer.append(record)
                     break
                 if record.stop >= start:
                     recs.append(record)
