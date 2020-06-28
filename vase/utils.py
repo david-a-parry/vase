@@ -32,10 +32,7 @@ def csv_to_dict(f, index, fieldnames, delimiter=',', keys_are_unique=False):
 
 
 def read_tbi(tbi):
-    '''
-        Called for filehandle AFTER reading first 4 bytes
-        (magic number)
-    '''
+    '''Return a dict with .tbi index binning information.'''
     ridx = dict()
     with gzip.open(tbi, 'rb') as f:
         magic = f.read(4)
@@ -60,6 +57,7 @@ def read_tbi(tbi):
 
 
 def reg2bins(begin, end, min_shift=14, depth=5):
+    '''Calculate possible bins for tbi/csi index based retrieval'''
     t, s = 0, min_shift + (depth << 1) + depth
     for l in range(depth + 1):
         b, e = t + (begin >> s), t + (end >> s)
