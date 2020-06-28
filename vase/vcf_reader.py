@@ -212,12 +212,15 @@ class VcfReader(object):
         else:
             min_ioff = 0
             # binning index: record cluster in large interval
-        overlap = np.concatenate([self.indices[chrom]['bindx'][k]
-                                 for k in reg2bins(start,
-                                                   end,
-                                                   self.min_shift,
-                                                   self.depth)
-                                 if k in self.indices[chrom]['bindx']])
+        try:
+            overlap = np.concatenate([self.indices[chrom]['bindx'][k]
+                                     for k in reg2bins(start,
+                                                       end,
+                                                       self.min_shift,
+                                                       self.depth)
+                                     if k in self.indices[chrom]['bindx']])
+        except ValueError:
+            return []
         # coupled binning and linear indices, filter out low level bins
         chunk_begin, *_, chunk_end = np.sort(
             np.ravel(overlap[overlap[:, 0] >= min_ioff]))
