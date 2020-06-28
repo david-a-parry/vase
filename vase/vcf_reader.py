@@ -4,8 +4,9 @@ import gzip
 import numpy as np
 import struct
 from stat import S_ISREG
-from vase.vcf_record import VaseRecord
-from vase.vcf_header import VcfHeader
+from .vcf_record import VaseRecord
+from .vcf_header import VcfHeader
+from .utils import reg2bins
 
 
 class VcfReader(object):
@@ -193,17 +194,6 @@ class VcfReader(object):
             csindex[chrom] = d
         return csindex
 
-    def reg2bins(self, begin, end):
-        t, s = 0, self.min_shift + (self.depth << 1) + self.depth
-        for l in range(self.depth + 1):
-            b, e = t + (begin >> s), t + (end >> s)
-            n = e - b + 1
-            for k in range(b, e + 1):
-                yield k
-                n += 1
-            t += 1 << ((l << 1) + l)
-            s -= 3
-
     def walk(self, chrom, start, end):
         recs = []
         if self.indices is None:
@@ -223,8 +213,11 @@ class VcfReader(object):
             min_ioff = 0
             # binning index: record cluster in large interval
         overlap = np.concatenate([self.indices[chrom]['bindx'][k]
-                                for k in self.reg2bins(start, end)
-                                if k in self.indices[chrom]['bindx']])
+                                 for k in reg2bins(start,
+                                                   end,
+                                                   self.min_shift,
+                                                   self.depth)
+                                 if k in self.indices[chrom]['bindx']])
         # coupled binning and linear indices, filter out low level bins
         chunk_begin, *_, chunk_end = np.sort(
             np.ravel(overlap[overlap[:, 0] >= min_ioff]))
