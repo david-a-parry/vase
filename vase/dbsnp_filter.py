@@ -11,7 +11,7 @@ class dbSnpFilter(VcfFilter):
 
     def __init__(self, vcf, prefix='VASE_dbSNP', logger=None, freq=None,
                  min_freq=None, build=None, max_build=None,
-                 clinvar_path=False):
+                 clinvar_path=False, no_walk=False, skip_svs=True):
         '''
             Initialize object with a dbSNP VCF file and optional filtering
             arguments.
@@ -41,6 +41,10 @@ class dbSnpFilter(VcfFilter):
                               value of 4 or 5 (corresponding to 'likely
                               pathogenic' or 'pathogenic' ClinVar
                               annotations).
+
+                no_walk:      See VcfFilter documentation.
+
+                skip_svs:     See VcfFilter documentation.
 
         '''
 

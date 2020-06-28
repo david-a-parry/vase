@@ -10,7 +10,7 @@ class VcfFilter(object):
     def __init__(self, vcf, prefix, logger=None, freq=None, min_freq=None,
                  freq_fields=("AF",), ac_fields=("AC",), an_fields=("AN",),
                  annotations=[], allow_missing_annotations=False,
-                 no_walk=False):
+                 no_walk=False, skip_svs=True):
         '''
             Initialize object with a VCF file and optional filtering
             arguments.
@@ -58,6 +58,11 @@ class VcfFilter(object):
                         unnecessary seeks if look-ups are performed in
                         coordinate order but may prove inefficient if
                         look-up order is random.
+
+                skip_svs:
+                        If True skip comparisons for structural variants
+                        passed to annotate_and_filter_record.
+                        Default=True.
         '''
 
         self.vcf = VcfReader(vcf, logger=logger)
@@ -69,6 +74,7 @@ class VcfFilter(object):
         self.ac_info = ac_fields
         self.an_info = an_fields
         self.extra = annotations
+        self.skip_svs = skip_svs
         self.allow_missing_annotations = allow_missing_annotations
         if self.freq is not None and self.min_freq is not None:
             if self.freq <= self.min_freq:
@@ -149,6 +155,8 @@ class VcfFilter(object):
                          # do_filter in downstream applications
         annot = {}
         matched = False
+        if self.skip_svs and alt_allele.is_sv:
+            return (do_filter, do_keep, matched, annot)
         for var in var_list:
             for i in range(len(var.DECOMPOSED_ALLELES)):
                 if alt_allele == var.DECOMPOSED_ALLELES[i]:

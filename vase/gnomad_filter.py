@@ -8,7 +8,7 @@ class GnomadFilter(VcfFilter):
     '''
 
     def __init__(self, vcf, prefix, logger=None, freq=None, min_freq=None, pops=None,
-                 max_homozygotes=None):
+                 max_homozygotes=None, no_walk=False, skip_svs=True):
         '''
             Initialize object with a VCF file and optional filtering
             arguments.
@@ -33,6 +33,10 @@ class GnomadFilter(VcfFilter):
                           Filter alleles if the total number of homozygotes
                           or hemizygotes is equal to or greater than this
                           value.
+
+                no_walk:  See VcfFilter documentation.
+
+                skip_svs: See VcfFilter documentation.
 
         '''
         if pops is None:
