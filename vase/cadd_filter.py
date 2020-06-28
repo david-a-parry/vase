@@ -6,7 +6,7 @@ import numpy as np
 from collections import defaultdict, namedtuple
 from .utils import read_tbi, reg2bins
 
-CaddRecord = namedtuple('CaddRecord', 'pos stop ref alt raw phred')
+CaddRecord = namedtuple('CaddRecord', 'chrom pos stop ref alt raw phred')
 
 
 class CaddFilter(object):
@@ -198,7 +198,8 @@ class CaddFilter(object):
                 pos += 1
             else:
                 break
-        return CaddRecord(pos, pos + len(ref) - 1, ref, alt, cols[4], cols[5])
+        return CaddRecord(cols[0], pos, pos + len(ref) - 1, ref, alt, cols[4],
+                          cols[5])
 
     def walk_coordinates(self, tbx, chrom, start, end):
         recs = []
@@ -255,7 +256,7 @@ class CaddFilter(object):
             for row in tbx:
                 record = self._simplify_cadd_record(row.decode())
                 if record.pos > end or tbx.tell() > chunk_end:
-                    if use_buffer:
+                    if use_buffer and record.chrom == chrom:
                         self.walk_buffer.append(record)
                     break
                 if record.stop >= start:
