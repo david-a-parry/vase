@@ -198,11 +198,9 @@ class VcfReader(object):
         recs = []
         if self.indices is None:
             self.indices = self._read_index()
-        if self.walk_chrom != chrom:
+        if self.walk_chrom != chrom or start < self.prev_walk[0]:
             self.walk_chrom = chrom
             self.reseek = True
-        elif start < self.prev_walk[0]:
-            raise RuntimeError("Walk must be done in coordinate order")
         if chrom not in self.indices:
             return []
         self.prev_walk = (start, end)

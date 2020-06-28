@@ -10,7 +10,7 @@ class VcfFilter(object):
     def __init__(self, vcf, prefix, logger=None, freq=None, min_freq=None,
                  freq_fields=("AF",), ac_fields=("AC",), an_fields=("AN",),
                  annotations=[], allow_missing_annotations=False,
-                 no_walk=False, skip_svs=True):
+                 no_walk=False, force_walk=False, skip_svs=True):
         '''
             Initialize object with a VCF file and optional filtering
             arguments.
@@ -56,8 +56,17 @@ class VcfFilter(object):
                         If True, do not use walking retrieval method to
                         find matching records. Walking retrieval reduces
                         unnecessary seeks if look-ups are performed in
-                        coordinate order but may prove inefficient if
-                        look-up order is random.
+                        coordinate order. Forces tabix-style 'fetch'
+                        look-ups.
+
+                force_walk:
+                        By default, if look-ups are performed out of
+                        order, record retrieval will fall-back to a
+                        standard tabix-style 'fetch' method. If this
+                        option is set to True, walking style look-ups will
+                        continue to be attempted even if out of order
+                        look-ups are detected. Ignored if no_walk is
+                        True.
 
                 skip_svs:
                         If True skip comparisons for structural variants
@@ -75,6 +84,7 @@ class VcfFilter(object):
         self.an_info = an_fields
         self.extra = annotations
         self.skip_svs = skip_svs
+        self.force_walk = force_walk
         self.allow_missing_annotations = allow_missing_annotations
         if self.freq is not None and self.min_freq is not None:
             if self.freq <= self.min_freq:
@@ -87,6 +97,7 @@ class VcfFilter(object):
         self.get_annot_fields()
         self.added_info = {}
         self.create_header_fields()
+        self.prev_coordinate = (None, -1)
         if no_walk:
             self.get_overlapping_records = self._fetch_overlapping_records
         else:
@@ -105,6 +116,16 @@ class VcfFilter(object):
             For a given record, returns a list of overlapping records
             in the class's VCF without re-seeking if possible.
         '''
+
+        if not self.force_walk:
+            if (record.pos < self.prev_coordinate[1] and
+                    record.chrom == self.prev_coordinate[0]):
+                self.logger.warn("Input is not sorted by coordinate, will " +
+                                 "fall back to slower indvidual index-based " +
+                                 "look-ups.")
+                self.get_overlapping_records = self._fetch_overlapping_records
+                return self.get_overlapping_records(record)
+            self.prev_coordinate = (record.chrom, record.pos)
         return self.vcf.walk(record.chrom, record.start, record.stop)
 
     def annotate_and_filter_record(self, record):

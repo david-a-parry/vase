@@ -18,7 +18,8 @@ class CaddFilter(object):
 
     def __init__(self, cadd_files=[], cadd_dir=[], min_phred=None,
                  min_raw_score=None, to_score=None,
-                 logging_level=logging.WARNING, no_walk=False):
+                 logging_level=logging.WARNING, no_walk=False,
+                 force_walk=False, skip_svs=False):
         '''
             Either a directory containing at least one tabix indexed
             file of CADD scores or a list of such files must be
@@ -50,15 +51,30 @@ class CaddFilter(object):
                     scoring.
 
                 no_walk:
-                        If True, do not use walking retrieval method to
-                        find matching records. Walking retrieval reduces
-                        unnecessary seeks if look-ups are performed in
-                        coordinate order but may prove inefficient if
-                        look-up order is random.
+                    If True, do not use walking retrieval method to find
+                    matching records. Walking retrieval reduces
+                    unnecessary seeks if look-ups are performed in
+                    coordinate order but may prove inefficient if look-up
+                    order is random.
+
+                force_walk:
+                     By default, if look-ups are performed out of order,
+                     record retrieval will fall-back to a standard
+                     tabix-style 'fetch' method. If this option is set to
+                     True, walking style look-ups will continue to be
+                     attempted even if out of order look-ups are detected.
+                     Ignored if no_walk is True.
+
+                skip_svs:
+                     If True skip comparisons for structural variants
+                     passed to annotate_and_filter_record. Default=True.
+
         '''
         self.to_score_file = None
         self.logger = self._get_logger(logging_level)
         self.walk = not no_walk
+        self.skip_svs = skip_svs
+        self.force_walk = force_walk
         if cadd_dir:
             cadd_files.extend([os.path.join(cadd_dir, f) for f in
                                os.listdir(cadd_dir) if
@@ -111,9 +127,11 @@ class CaddFilter(object):
             filtered (i.e. each allele has a CADD raw or PHRED score
             below threshold).
         '''
+        if self.skip_svs and record.IS_SV:
+            return [False] * len(record.alts)
+        filter_alleles = []
         scores = self.score_record(record)
         info_to_add = defaultdict(list)
-        filter_alleles = []
         i = 0
         for s in scores:
             info_to_add['CADD_raw_score'].append(s[0])
@@ -185,15 +203,21 @@ class CaddFilter(object):
     def walk_coordinates(self, tbx, chrom, start, end):
         recs = []
         idx = self.indices[tbx]
+        use_buffer = 1 + end - start < self.region_limit
         if self.walk_chrom != chrom:
             self.walk_chrom = chrom
             self.reseek = True
         elif start < self.prev_walk[0]:
-            raise RuntimeError("Walk must be done in coordinate order")
+            self.reseek = True
+            if not self.force_walk:
+                self.logger.warn("Input is not sorted by coordinate, will  " +
+                                 "fall back to slower indvidual index-based " +
+                                 "look-ups.")
+                self.walk = False
+                use_buffer = False
         if chrom not in idx:
             return []
         self.prev_walk = (start, end)
-        use_buffer = 1 + end - start < self.region_limit
         if 'ioff' in idx[chrom]:
             min_ioff = idx[chrom]['ioff'][start >> 14]
         else:
@@ -201,8 +225,8 @@ class CaddFilter(object):
             # binning index: record cluster in large interval
         try:
             overlap = np.concatenate([idx[chrom]['bindx'][k]
-                                    for k in reg2bins(start, end)
-                                    if k in idx[chrom]['bindx']])
+                                     for k in reg2bins(start, end)
+                                     if k in idx[chrom]['bindx']])
             # coupled binning and linear indices, filter out low level bins
             chunk_begin, *_, chunk_end = np.sort(
                 np.ravel(overlap[overlap[:, 1] >= min_ioff]))
@@ -251,7 +275,7 @@ class CaddFilter(object):
                                                  start,
                                                  end):
                     hits.append(rec)
-            else: 
+            else:
                 try:
                     for rec in tbx.fetch(contig, start, end):
                         hits.append(self._simplify_cadd_record(rec))
