@@ -57,7 +57,8 @@ class SpliceAiFilter(object):
     '''
 
     def __init__(self, vcfs, min_delta=None, max_delta=None, to_delta=None,
-                 to_score=None, logging_level=logging.WARNING):
+                 to_score=None, logging_level=logging.WARNING,
+                 no_walk=False, skip_svs=True):
         '''
             Initialize object with a VCF file and optional filtering
             arguments.
@@ -88,9 +89,15 @@ class SpliceAiFilter(object):
                 logging_level:
                             Logging level to use. Default=logging.WARNING
 
+                no_walk:    See VcfFilter documentation.
+
+                skip_svs:   See VcfFilter documentation.
+
         '''
         self.vcfs = dict()
         self.logger = self._get_logger(logging_level)
+        self.walk = not no_walk
+        self.skip_svs = skip_svs
         self.min_delta = min_delta
         self.max_delta = max_delta
         self.to_score = to_score
@@ -154,9 +161,16 @@ class SpliceAiFilter(object):
             in the class's VCFs.
         '''
         overlapping = dict()
+        if self.skip_svs and record.IS_SV:
+            return overlapping
         for vcf, vreader in self.vcfs.items():
-            vreader.set_region(record.chrom, record.start, record.stop)
-            overlapping[vcf] = list(s for s in vreader)
+            if self.walk:
+                overlapping[vcf] = vreader.walk(record.chrom,
+                                                record.start,
+                                                record.stop)
+            else:
+                vreader.set_region(record.chrom, record.start, record.stop)
+                overlapping[vcf] = list(s for s in vreader)
         return overlapping
 
     def _get_annotation(self, record, alt_index, prescored=False):
