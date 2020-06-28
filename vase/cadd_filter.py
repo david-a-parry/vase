@@ -199,22 +199,35 @@ class CaddFilter(object):
         else:
             min_ioff = 0
             # binning index: record cluster in large interval
-        overlap = np.concatenate([idx[chrom]['bindx'][k]
-                                 for k in reg2bins(start, end)
-                                 if k in idx[chrom]['bindx']])
-        # coupled binning and linear indices, filter out low level bins
-        chunk_begin, *_, chunk_end = np.sort(
-            np.ravel(overlap[overlap[:, 0] >= min_ioff]))
+        try:
+            overlap = np.concatenate([idx[chrom]['bindx'][k]
+                                    for k in reg2bins(start, end)
+                                    if k in idx[chrom]['bindx']])
+            # coupled binning and linear indices, filter out low level bins
+            chunk_begin, *_, chunk_end = np.sort(
+                np.ravel(overlap[overlap[:, 1] >= min_ioff]))
+        except ValueError:
+            return []
         if self.reseek or chunk_begin > tbx.tell():
             tbx.seek(chunk_begin)
-        elif self.walk_buffer and start < self.walk_buffer[-1].stop:
-            for record in self.walk_buffer:
-                if record.pos > end:
-                    break
-                if record.stop >= start:
-                    recs.append(record)
-        if not self.walk_buffer or self.walk_buffer[-1].pos <= end:
             self.walk_buffer = []
+        elif self.walk_buffer:
+            if start < self.walk_buffer[-1].stop:
+                remove_i = set()
+                for i in range(len(self.walk_buffer)):
+                    if self.walk_buffer[i].pos > end:
+                        break
+                    if self.walk_buffer[i].stop >= start:
+                        recs.append(self.walk_buffer[i])
+                    else:
+                        remove_i.add(i)
+                if remove_i:
+                    self.walk_buffer = [self.walk_buffer[i] for i in
+                                        range(len(self.walk_buffer)) if i not
+                                        in remove_i]
+            else:
+                self.walk_buffer = []
+        if not self.walk_buffer or self.walk_buffer[-1].pos <= end:
             for row in tbx:
                 record = self._simplify_cadd_record(row.decode())
                 if record.pos > end or tbx.tell() > chunk_end:

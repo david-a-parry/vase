@@ -223,17 +223,27 @@ class VcfReader(object):
             return []
         # coupled binning and linear indices, filter out low level bins
         chunk_begin, *_, chunk_end = np.sort(
-            np.ravel(overlap[overlap[:, 0] >= min_ioff]))
+            np.ravel(overlap[overlap[:, 1] >= min_ioff]))
         if self.reseek or chunk_begin > self.variant_file.tell():
             self.variant_file.seek(chunk_begin)
-        elif self.walk_buffer and start < self.walk_buffer[-1].stop:
-            for record in self.walk_buffer:
-                if record.start >= end:
-                    break
-                if record.stop >= start:
-                    recs.append(record)
-        if not self.walk_buffer or self.walk_buffer[-1].start < end:
             self.walk_buffer = []
+        elif self.walk_buffer:
+            remove_i = set()
+            if start < self.walk_buffer[-1].stop:
+                for i in range(len(self.walk_buffer)):
+                    if self.walk_buffer[i].start >= end:
+                        break
+                    if self.walk_buffer[i].stop >= start:
+                        recs.append(self.walk_buffer[i])
+                    else:
+                        remove_i.add(i)
+                if remove_i:
+                    self.walk_buffer = [self.walk_buffer[i] for i in
+                                        range(len(self.walk_buffer)) if i not
+                                        in remove_i]
+            else:
+                self.walk_buffer = []
+        if not self.walk_buffer or self.walk_buffer[-1].start < end:
             for record in self.variant_file:
                 if record.start >= end or self.variant_file.tell() > chunk_end:
                     if use_buffer:
