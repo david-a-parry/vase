@@ -1,8 +1,12 @@
 import os
-import pysam
 import logging
 import gzip
-from collections import defaultdict
+import pysam
+import numpy as np
+from collections import defaultdict, namedtuple
+from .utils import read_tbi, reg2bins
+
+CaddRecord = namedtuple('CaddRecord', 'pos stop ref alt raw phred')
 
 
 class CaddFilter(object):
@@ -14,7 +18,7 @@ class CaddFilter(object):
 
     def __init__(self, cadd_files=[], cadd_dir=[], min_phred=None,
                  min_raw_score=None, to_score=None,
-                 logging_level=logging.WARNING):
+                 logging_level=logging.WARNING, no_walk=False):
         '''
             Either a directory containing at least one tabix indexed
             file of CADD scores or a list of such files must be
@@ -45,9 +49,16 @@ class CaddFilter(object):
                     suitable for uploading to the CADD server for
                     scoring.
 
+                no_walk:
+                        If True, do not use walking retrieval method to
+                        find matching records. Walking retrieval reduces
+                        unnecessary seeks if look-ups are performed in
+                        coordinate order but may prove inefficient if
+                        look-up order is random.
         '''
         self.to_score_file = None
         self.logger = self._get_logger(logging_level)
+        self.walk = not no_walk
         if cadd_dir:
             cadd_files.extend([os.path.join(cadd_dir, f) for f in
                                os.listdir(cadd_dir) if
@@ -59,7 +70,10 @@ class CaddFilter(object):
                                    cadd_dir)
             else:
                 raise RuntimeError("No CADD files or directory provided.")
-        self.cadd_tabix = self._get_tabix_files(cadd_files)
+        self.cadd_tabix = list()
+        self.indices = dict() if self.walk else None
+        self.bgzfs = dict() if self.walk else None
+        self._get_tabix_files(cadd_files)
         self._has_chr = self._check_contigs()
         self.phred = min_phred
         self.raw = min_raw_score
@@ -77,6 +91,14 @@ class CaddFilter(object):
             if not to_score.endswith('.gz'):
                 to_score += '.gz'
             self.to_score_file = gzip.open(to_score, 'wt')
+        self.walk_chrom = None
+        self.prev_walk = (-1, -1)
+        self.walk_buffer = []
+        self.reseek = False
+        self.region_limit = 1000
+        if self.walk:
+            for fh in self.cadd_tabix:
+                fh.close()
 
     def __del__(self):
         if self.to_score_file is not None:
@@ -121,14 +143,16 @@ class CaddFilter(object):
         for i in range(len(record.DECOMPOSED_ALLELES)):
             s = (None, None)
             for h in (x for x in hits if x is not None):
-                (pos, ref, alt, raw, phred) = h
-                if (record.DECOMPOSED_ALLELES[i].POS == pos and
-                    record.DECOMPOSED_ALLELES[i].REF == ref and
-                    record.DECOMPOSED_ALLELES[i].ALT == alt):
-                    s = (float(raw), float(phred))
+                if self._compare_allele(record.DECOMPOSED_ALLELES[i], h):
+                    s = (float(h.raw), float(h.phred))
                     break  # bail on first matching variant
             scores.append(s)
         return scores
+
+    def _compare_allele(self, alt_allele, cadd):
+        return (alt_allele.POS == cadd.pos and
+                alt_allele.REF == cadd.ref and
+                alt_allele.ALT == cadd.alt)
 
     def _simplify_cadd_record(self, cadd):
         '''
@@ -156,26 +180,81 @@ class CaddFilter(object):
                 pos += 1
             else:
                 break
-        return (pos, ref, alt, cols[4], cols[5])
+        return CaddRecord(pos, pos + len(ref) - 1, ref, alt, cols[4], cols[5])
+
+    def walk_coordinates(self, tbx, chrom, start, end):
+        recs = []
+        idx = self.indices[tbx]
+        if self.walk_chrom != chrom:
+            self.walk_chrom = chrom
+            self.reseek = True
+        elif start < self.prev_walk[0]:
+            raise RuntimeError("Walk must be done in coordinate order")
+        if chrom not in idx:
+            return []
+        self.prev_walk = (start, end)
+        use_buffer = 1 + end - start < self.region_limit
+        if 'ioff' in idx[chrom]:
+            min_ioff = idx[chrom]['ioff'][start >> 14]
+        else:
+            min_ioff = 0
+            # binning index: record cluster in large interval
+        overlap = np.concatenate([idx[chrom]['bindx'][k]
+                                 for k in reg2bins(start, end)
+                                 if k in idx[chrom]['bindx']])
+        # coupled binning and linear indices, filter out low level bins
+        chunk_begin, *_, chunk_end = np.sort(
+            np.ravel(overlap[overlap[:, 0] >= min_ioff]))
+        if self.reseek or chunk_begin > tbx.tell():
+            tbx.seek(chunk_begin)
+        elif self.walk_buffer and start < self.walk_buffer[-1].stop:
+            for record in self.walk_buffer:
+                if record.pos > end:
+                    break
+                if record.stop >= start:
+                    recs.append(record)
+        if not self.walk_buffer or self.walk_buffer[-1].pos <= end:
+            self.walk_buffer = []
+            for row in tbx:
+                record = self._simplify_cadd_record(row.decode())
+                if record.pos > end or tbx.tell() > chunk_end:
+                    if use_buffer:
+                        self.walk_buffer.append(record)
+                    break
+                if record.stop >= start:
+                    recs.append(record)
+                    if use_buffer:
+                        self.walk_buffer.append(record)
+        self.reseek = not use_buffer
+        return recs
 
     def search_coordinates(self, chrom, start, end):
         hits = []
         for tbx in self.cadd_tabix:
-            chrom = str(chrom)
-            if chrom.startswith("chr"):
-                if not self._has_chr[tbx]:
-                    chrom = chrom.replace("chr", "", 1)
-            elif self._has_chr[tbx]:
-                chrom = 'chr' + chrom
-            try:
-                for rec in tbx.fetch(chrom, start, end):
-                    hits.append(self._simplify_cadd_record(rec))
-            except ValueError:  # presumably no matching contig
-                pass
+            contig = self.convert_chrom(chrom, tbx)
+            if self.walk:
+                for rec in self.walk_coordinates(self.bgzfs[tbx],
+                                                 contig,
+                                                 start,
+                                                 end):
+                    hits.append(rec)
+            else: 
+                try:
+                    for rec in tbx.fetch(contig, start, end):
+                        hits.append(self._simplify_cadd_record(rec))
+                except ValueError:  # presumably no matching contig
+                    pass
         return hits
 
+    def convert_chrom(self, chrom, tbx):
+        if chrom.startswith("chr"):
+            if not self._has_chr[tbx]:
+                return chrom.replace("chr", "", 1)
+        elif self._has_chr[tbx]:
+            return 'chr' + chrom
+        return chrom
+
     def _get_tabix_files(self, cadd_files):
-        tabixfiles = []
         for fn in cadd_files:
             idx = fn + '.tbi'
             if not os.path.isfile(idx):  # create index if it doesn't exist
@@ -183,8 +262,12 @@ class CaddFilter(object):
                                  .format(fn))
                 pysam.tabix_index(fn, preset="vcf")
                 self.logger.warn("Finished indexing {}.".format(fn))
-            tabixfiles.append(pysam.Tabixfile(fn))
-        return tabixfiles
+            tbx = pysam.TabixFile(fn)
+            self.cadd_tabix.append(tbx)
+            if self.walk:
+                bgzf = pysam.BGZFile(fn)
+                self.bgzfs[tbx] = bgzf
+                self.indices[bgzf] = read_tbi(idx)
 
     def _write_for_scoring(self, record, alt):
         if record.DECOMPOSED_ALLELES[alt].ALT != '*':
