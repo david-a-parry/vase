@@ -229,8 +229,10 @@ class CaddFilter(object):
             return []
         overlap = np.concatenate(bins)
         # coupled binning and linear indices, filter out low level bins
-        chunk_begin, *_, chunk_end = np.sort(
-            np.ravel(overlap[overlap[:, 1] >= min_ioff]))
+        cbins = np.sort(np.ravel(overlap[overlap[:, 1] >= min_ioff]))
+        if cbins.size == 0:
+            return []
+        chunk_begin, chunk_end = cbins[0], cbins[-1]
         if self.reseek or chunk_begin > tbx.tell():
             tbx.seek(chunk_begin)
             self.walk_buffer = []
