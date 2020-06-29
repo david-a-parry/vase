@@ -162,6 +162,7 @@ class VcfReader(object):
                                                    n_chunk, -1)
             d = {'bindx': bindx}
             n_intv = struct.unpack('<i', f.read(4))[0]
+            d['n_intv'] = n_intv
             d['ioff'] = np.frombuffer(f.read(8 * n_intv), dtype=np.uint64)
             ridx[names[i].decode()] = d
         return ridx
@@ -206,7 +207,10 @@ class VcfReader(object):
         self.prev_walk = (start, end)
         use_buffer = 1 + end - start < self.region_limit
         if 'ioff' in self.indices[chrom]:
-            min_ioff = self.indices[chrom]['ioff'][start >> 14]
+            i = start >> 14
+            if i >= self.indices[chrom]['n_intv']:
+                return []
+            min_ioff = self.indices[chrom]['ioff'][i]
         else:
             min_ioff = 0
             # binning index: record cluster in large interval
