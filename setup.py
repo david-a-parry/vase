@@ -3,6 +3,7 @@ try:
 except ImportError:
     from distutils.core import setup
 
+test_requirements = ['nose', 'xlrd']
 setup(
     name="vase",
     packages=["vase"],
@@ -18,15 +19,12 @@ setup(
           'natsort',
           'numpy',
     ],
-    test_requires=[
-        'nose',
-        'xlrd',
-        'json'
-    ],
+    test_requires=test_requirements,
     extras_require={
         'BGZIP': ['biopython'],
-        'REPORTER': ['xlsxwriter', 'requests', 'json'],
+        'REPORTER': ['xlsxwriter', 'requests'],
         'MYGENEINFO': ['mygene'],
+        'tests': test_requirements,
     },
     scripts=["bin/vase", "bin/burden_test_vase", "bin/vase_reporter",
              "bin/coordinates_from_genes", "bin/filter_gts",
