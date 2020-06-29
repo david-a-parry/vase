@@ -40,6 +40,7 @@ class VcfReader(object):
         self.region_limit = 1000
         self.depth = 5
         self.min_shift = 14
+        self.tbi = False
 
     def __iter__(self):
         return self
@@ -137,6 +138,7 @@ class VcfReader(object):
         with gzip.open(self.index, 'rb') as f:
             magic = f.read(4)
             if magic == b'TBI\x01':
+                self.tbi = True
                 return self._read_tbi(f)
             elif magic == b'CSI\x01':
                 return self._read_csi(f)
@@ -206,24 +208,21 @@ class VcfReader(object):
             return []
         self.prev_walk = (start, end)
         use_buffer = 1 + end - start < self.region_limit
-        if 'ioff' in self.indices[chrom]:
+        if self.tbi:
             i = start >> 14
             if i >= self.indices[chrom]['n_intv']:
                 return []
             min_ioff = self.indices[chrom]['ioff'][i]
         else:
             min_ioff = 0
-            # binning index: record cluster in large interval
-        try:
-            overlap = np.concatenate([self.indices[chrom]['bindx'][k]
-                                     for k in reg2bins(start,
-                                                       end,
-                                                       self.min_shift,
-                                                       self.depth)
-                                     if k in self.indices[chrom]['bindx']])
-        except ValueError:
+        # binning index: includes records in large interval
+        bins = [self.indices[chrom]['bindx'][k] for k in
+                reg2bins(start, end, self.min_shift, self.depth)
+                if k in self.indices[chrom]['bindx']]
+        if not bins:
             return []
-        # coupled binning and linear indices, filter out low level bins
+        overlap = np.concatenate(bins)
+        # coupled binning and linear indices (if tbi), remove low level bins
         chunk_begin, *_, chunk_end = np.sort(
             np.ravel(overlap[overlap[:, 1] >= min_ioff]))
         if self.reseek or chunk_begin > self.variant_file.tell():
