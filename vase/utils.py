@@ -42,6 +42,8 @@ def read_tbi(tbi):
         header = np.frombuffer(f.read(4 * 8), dtype=np.int32)
         names = f.read(header[7]).split(b'\x00')
         for i in range(len(names)):
+            if names[i] == b'':
+                continue
             bindx = dict()
             for j in range(struct.unpack('<i', f.read(4))[0]):  # n_bins
                 bin_key = struct.unpack('<I', f.read(4))[0]  # bin
