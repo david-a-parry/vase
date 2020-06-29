@@ -51,6 +51,7 @@ def read_tbi(tbi):
                                                    n_chunk, -1)
             d = {'bindx': bindx}
             n_intv = struct.unpack('<i', f.read(4))[0]
+            d['n_intv'] = n_intv
             d['ioff'] = np.frombuffer(f.read(8 * n_intv), dtype=np.uint64)
             ridx[names[i].decode()] = d
     return ridx

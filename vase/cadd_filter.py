@@ -219,20 +219,18 @@ class CaddFilter(object):
         if chrom not in idx:
             return []
         self.prev_walk = (start, end)
-        if 'ioff' in idx[chrom]:
-            min_ioff = idx[chrom]['ioff'][start >> 14]
-        else:
-            min_ioff = 0
-            # binning index: record cluster in large interval
-        try:
-            overlap = np.concatenate([idx[chrom]['bindx'][k]
-                                     for k in reg2bins(start, end)
-                                     if k in idx[chrom]['bindx']])
-            # coupled binning and linear indices, filter out low level bins
-            chunk_begin, *_, chunk_end = np.sort(
-                np.ravel(overlap[overlap[:, 1] >= min_ioff]))
-        except ValueError:
+        si = start >> 14
+        if si >= idx[chrom]['n_intv']:
             return []
+        min_ioff = idx[chrom]['ioff'][si]
+        bins = [idx[chrom]['bindx'][k] for k in reg2bins(start, end)
+                if k in idx[chrom]['bindx']]
+        if not bins:
+            return []
+        overlap = np.concatenate(bins)
+        # coupled binning and linear indices, filter out low level bins
+        chunk_begin, *_, chunk_end = np.sort(
+            np.ravel(overlap[overlap[:, 1] >= min_ioff]))
         if self.reseek or chunk_begin > tbx.tell():
             tbx.seek(chunk_begin)
             self.walk_buffer = []
