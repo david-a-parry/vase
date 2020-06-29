@@ -177,6 +177,8 @@ class CaddFilter(object):
             Return position, ref allele, alt allele, raw and Phred score
             after reducing alleles to their most simple representation.
         '''
+        if cadd.startswith('#'):
+            return None
         cols = cadd.split("\t")
         if len(cols) < 6:
             self.logger.warn("Not enought columns for CADD record: {}"
@@ -255,6 +257,8 @@ class CaddFilter(object):
         if not self.walk_buffer or self.walk_buffer[-1].pos <= end:
             for row in tbx:
                 record = self._simplify_cadd_record(row.decode())
+                if record is None:
+                    continue
                 if record.pos > end or tbx.tell() > chunk_end:
                     if use_buffer and record.chrom == chrom:
                         self.walk_buffer.append(record)
