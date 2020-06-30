@@ -8,6 +8,8 @@ from .vcf_record import VaseRecord
 from .vcf_header import VcfHeader
 from .utils import reg2bins
 
+MAX_INT32 = int(2**31 - 1)
+
 
 class VcfReader(object):
     '''
@@ -53,13 +55,17 @@ class VcfReader(object):
     def __exit__(self, exc_type, exc_value, tb):
         self.variant_file.close()
 
-    def _index_and_set_region(self, chrom, start=None, end=None):
+    def _index_and_set_region(self, chrom, start=None, end=None, walk=False,
+                              walk_region_limit=1000):
         """
             Retrieve records by genomic location rather than reading
             records line-by-line.
 
             Sets self.reader and self.parser to iterators over the
             records retrieved.
+
+            First call to this method will attempt to create an index if
+            it does not already exist.
 
             Args:
                 chrom: chromosome or contig name. Required.
@@ -69,6 +75,20 @@ class VcfReader(object):
 
                 end:   end position on chromosome/contig.
                        Default = None
+
+                walk:  Use "walking" retrieval method which retains file
+                       seek position and uses a buffer to retain the
+                       last retrieved records. This provides a more
+                       efficient method than standard index-based look-ups
+                       when performing multiple look-ups in coordinate
+                       order. Default = False
+
+                walk_region_limit:
+                       If the length of a region is greater than this
+                       value and walk is True, the buffer used for
+                       walking retrieval will not be used and a reseek will
+                       be performed for the next region retrieval.
+                       Default = 1000
 
             >>> v = VcfReader(my_vcf)
             >>> v.set_region('chr1') #get all variants on chr1
@@ -83,7 +103,8 @@ class VcfReader(object):
         """
         self._create_index()
         self.set_region = self._set_region
-        self.set_region(chrom, start, end)
+        self.set_region(chrom, start, end, walk=walk,
+                        walk_region_limit=walk_region_limit)
 
     def _create_index(self):
         if not self._is_reg_file:
@@ -98,7 +119,8 @@ class VcfReader(object):
             pysam.tabix_index(self.filename, preset=preset)
             self.variant_file = pysam.VariantFile(self.filename)
 
-    def _set_region(self, chrom, start=None, end=None):
+    def _set_region(self, chrom, start=None, end=None, walk=False,
+                    walk_region_limit=1000):
         """
             Retrieve records by genomic location rather than reading
             records line-by-line.
@@ -115,6 +137,20 @@ class VcfReader(object):
                 end:   end position on chromosome/contig.
                        Default = None
 
+                walk:  Use "walking" retrieval method which retains file
+                       seek position and uses a buffer to retain the
+                       last retrieved records. This provides a more
+                       efficient method than standard index-based look-ups
+                       when performing multiple look-ups in coordinate
+                       order. Default = False
+
+                walk_region_limit:
+                       If the length of a region is greater than this
+                       value and walk is True, the buffer used for
+                       walking retrieval will not be used and a reseek will
+                       be performed for the next region retrieval.
+                       Default = 1000
+
             >>> v = VcfReader(my_vcf)
             >>> v.set_region('chr1') #get all variants on chr1
             >>> for record in v:
@@ -126,11 +162,14 @@ class VcfReader(object):
             >>> v.set_region(chrom='chr1', start=999999 end=1000000)
 
         """
-        try:
-            region_iter = self.variant_file.fetch(chrom, start, end)
-            self.record_iter = (VaseRecord(r, self) for r in region_iter)
-        except ValueError:
-            self.record_iter = iter([])  # ignore missing contigs
+        if walk:
+            self.record_iter = self.walk(chrom, start, end, walk_region_limit)
+        else:
+            try:
+                region_iter = self.variant_file.fetch(chrom, start, end)
+                self.record_iter = (VaseRecord(r, self) for r in region_iter)
+            except ValueError:
+                self.record_iter = iter([])  # ignore missing contigs
 
     def _read_index(self):
         self._create_index()
@@ -198,7 +237,7 @@ class VcfReader(object):
             csindex[chrom] = d
         return csindex
 
-    def walk(self, chrom, start, end, region_limit=1000):
+    def walk(self, chrom, start=None, end=None, region_limit=1000):
         '''
             Retrieve records given by chromosome, start and end
             coordinates using a method which retains file seek position
@@ -225,6 +264,8 @@ class VcfReader(object):
                        Default = 1000
 
         '''
+        start = 0 if start is None else start
+        end = MAX_INT32 if end is None else end
         if self.indices is None:
             self.indices = self._read_index()
         if self.walk_chrom != chrom or start < self.prev_walk[0]:
@@ -233,7 +274,7 @@ class VcfReader(object):
         if chrom not in self.indices:
             return []
         self.prev_walk = (start, end)
-        use_buffer = 1 + end - start < region_limit
+        use_buffer = end - start < region_limit
         if self.tbi:
             i = start >> 14
             if i >= self.indices[chrom]['n_intv']:
@@ -262,7 +303,7 @@ class VcfReader(object):
                 for i in range(len(self.walk_buffer)):
                     if self.walk_buffer[i].start >= end:
                         break
-                    if self.walk_buffer[i].stop >= start:
+                    if self.walk_buffer[i].stop > start:
                         yield VaseRecord(self.walk_buffer[i], self)
                     else:
                         remove_i.add(i)
@@ -279,7 +320,7 @@ class VcfReader(object):
                         if record.chrom == chrom:
                             self.walk_buffer.append(record)
                     break
-                if record.stop >= start:
+                if record.stop > start:
                     yield VaseRecord(record, self)
                     if use_buffer:
                         self.walk_buffer.append(record)

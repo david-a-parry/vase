@@ -85,6 +85,7 @@ class VcfFilter(object):
         self.extra = annotations
         self.skip_svs = skip_svs
         self.force_walk = force_walk
+        self.walk = not no_walk
         self.allow_missing_annotations = allow_missing_annotations
         if self.freq is not None and self.min_freq is not None:
             if self.freq <= self.min_freq:
@@ -98,35 +99,23 @@ class VcfFilter(object):
         self.added_info = {}
         self.create_header_fields()
         self.prev_coordinate = (None, -1)
-        if no_walk:
-            self.get_overlapping_records = self._fetch_overlapping_records
-        else:
-            self.get_overlapping_records = self._walk_through_records
 
-    def _fetch_overlapping_records(self, record):
+    def get_overlapping_records(self, record):
         '''
             For a given record, returns a list of overlapping records
             in the class's VCF.
         '''
-        self.vcf.set_region(record.chrom, record.start, record.stop)
-        return list(s for s in self.vcf)
-
-    def _walk_through_records(self, record):
-        '''
-            For a given record, returns a list of overlapping records
-            in the class's VCF without re-seeking if possible.
-        '''
-
-        if not self.force_walk:
-            if (record.pos < self.prev_coordinate[1] and
+        if self.walk and not self.force_walk:
+            if (record.start < self.prev_coordinate[1] and
                     record.chrom == self.prev_coordinate[0]):
                 self.logger.warn("Input is not sorted by coordinate, will " +
                                  "fall back to slower indvidual index-based " +
                                  "look-ups.")
-                self.get_overlapping_records = self._fetch_overlapping_records
-                return self.get_overlapping_records(record)
-            self.prev_coordinate = (record.chrom, record.pos)
-        return list(self.vcf.walk(record.chrom, record.start, record.stop))
+                self.walk = False
+            self.prev_coordinate = (record.chrom, record.start)
+        self.vcf.set_region(record.chrom, record.start, record.stop,
+                            walk=self.walk)
+        return list(s for s in self.vcf)
 
     def annotate_and_filter_record(self, record):
         '''

@@ -7,8 +7,9 @@ class GnomadFilter(VcfFilter):
         annotations in a gnomAD or ExAC VCF file.
     '''
 
-    def __init__(self, vcf, prefix, logger=None, freq=None, min_freq=None, pops=None,
-                 max_homozygotes=None, no_walk=False, skip_svs=True):
+    def __init__(self, vcf, prefix, logger=None, freq=None, min_freq=None,
+                 pops=None, max_homozygotes=None, no_walk=False,
+                 force_walk=False, skip_svs=True):
         '''
             Initialize object with a VCF file and optional filtering
             arguments.
@@ -36,12 +37,15 @@ class GnomadFilter(VcfFilter):
 
                 no_walk:  See VcfFilter documentation.
 
+                force_walk:
+                          See VcfFilter documentation.
+
                 skip_svs: See VcfFilter documentation.
 
         '''
         if pops is None:
             pops = ["AFR", "AMR", "EAS", "FIN", "NFE", "SAS"]
-        #v2.1 put pops in lowercase, previously were in uppercase - allow both
+        # v2.1 put pops in lowercase, previously were in uppercase - allow both
         g_pops = [x.lower() for x in pops] + [x.upper() for x in pops]
         freq_info = ["AF_" + p for p in g_pops]
         ac_info = ["AC_" + p for p in g_pops]
@@ -53,7 +57,8 @@ class GnomadFilter(VcfFilter):
                          min_freq=min_freq, freq_fields=freq_info,
                          ac_fields=ac_info, an_fields=an_info,
                          annotations=hom_info+hemi_info,
-                         allow_missing_annotations=True)
+                         allow_missing_annotations=True, no_walk=no_walk,
+                         force_walk=force_walk, skip_svs=skip_svs)
         self.hom_annots = [self.prefix + "_" + f for f in self.extra if f in
                            self.annot_fields]
         self.max_homozygotes = max_homozygotes
