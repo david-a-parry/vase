@@ -37,7 +37,6 @@ class VcfReader(object):
         self.prev_walk = (-1, -1)
         self.walk_buffer = []
         self.reseek = False
-        self.region_limit = 1000
         self.depth = 5
         self.min_shift = 14
         self.tbi = False
@@ -199,7 +198,33 @@ class VcfReader(object):
             csindex[chrom] = d
         return csindex
 
-    def walk(self, chrom, start, end):
+    def walk(self, chrom, start, end, region_limit=1000):
+        '''
+            Retrieve records given by chromosome, start and end
+            coordinates using a method which retains file seek position
+            and uses a buffer to retain the last retrieved records. This
+            provides a more efficient method than the 'set_region' method
+            when performing multiple look-ups in coordinate order where a
+            the same compressed VCF chunk may be accessed multiple times
+            by consecutive look-ups (e.g. if looking up variants in this
+            VCF that overlap variants in another VCF).
+
+            Args:
+                chrom: chromosome or contig name. Required.
+
+                start: start position on chromosome/contig. 0-based
+                       Default = None
+
+                end:   end position on chromosome/contig.
+                       Default = None
+
+                region_limit:
+                       If the length of a region is greater than this
+                       value, buffer will not be used and a reseek will
+                       be performed for the next region retrieval.
+                       Default = 1000
+
+        '''
         if self.indices is None:
             self.indices = self._read_index()
         if self.walk_chrom != chrom or start < self.prev_walk[0]:
@@ -208,7 +233,7 @@ class VcfReader(object):
         if chrom not in self.indices:
             return []
         self.prev_walk = (start, end)
-        use_buffer = 1 + end - start < self.region_limit
+        use_buffer = 1 + end - start < region_limit
         if self.tbi:
             i = start >> 14
             if i >= self.indices[chrom]['n_intv']:

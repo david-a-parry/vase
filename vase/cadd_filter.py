@@ -111,7 +111,6 @@ class CaddFilter(object):
         self.prev_walk = (-1, -1)
         self.walk_buffer = []
         self.reseek = False
-        self.region_limit = 1000
         if self.walk:
             for fh in self.cadd_tabix:
                 fh.close()
@@ -203,10 +202,14 @@ class CaddFilter(object):
         return CaddRecord(cols[0], pos, pos + len(ref) - 1, ref, alt, cols[4],
                           cols[5])
 
-    def walk_coordinates(self, tbx, chrom, start, end):
+    def walk_coordinates(self, tbx, chrom, start, end, region_limit=1000):
+        '''
+            See vase.vcf_reader.VcfReader.walk for explanation of this
+            retrieval method.
+        '''
         recs = []
         idx = self.indices[tbx]
-        use_buffer = 1 + end - start < self.region_limit
+        use_buffer = 1 + end - start < region_limit
         if self.walk_chrom != chrom:
             self.walk_chrom = chrom
             self.reseek = True
