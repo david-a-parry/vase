@@ -200,7 +200,6 @@ class VcfReader(object):
         return csindex
 
     def walk(self, chrom, start, end):
-        recs = []
         if self.indices is None:
             self.indices = self._read_index()
         if self.walk_chrom != chrom or start < self.prev_walk[0]:
@@ -239,7 +238,7 @@ class VcfReader(object):
                     if self.walk_buffer[i].start >= end:
                         break
                     if self.walk_buffer[i].stop >= start:
-                        recs.append(self.walk_buffer[i])
+                        yield VaseRecord(self.walk_buffer[i], self)
                     else:
                         remove_i.add(i)
                 if remove_i:
@@ -256,8 +255,7 @@ class VcfReader(object):
                             self.walk_buffer.append(record)
                     break
                 if record.stop >= start:
-                    recs.append(record)
+                    yield VaseRecord(record, self)
                     if use_buffer:
                         self.walk_buffer.append(record)
         self.reseek = not use_buffer
-        return [VaseRecord(x, self) for x in recs]

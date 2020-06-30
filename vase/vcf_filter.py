@@ -126,7 +126,7 @@ class VcfFilter(object):
                 self.get_overlapping_records = self._fetch_overlapping_records
                 return self.get_overlapping_records(record)
             self.prev_coordinate = (record.chrom, record.pos)
-        return self.vcf.walk(record.chrom, record.start, record.stop)
+        return list(self.vcf.walk(record.chrom, record.start, record.stop))
 
     def annotate_and_filter_record(self, record):
         '''

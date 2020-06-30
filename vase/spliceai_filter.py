@@ -165,9 +165,9 @@ class SpliceAiFilter(object):
             return overlapping
         for vcf, vreader in self.vcfs.items():
             if self.walk:
-                overlapping[vcf] = vreader.walk(record.chrom,
-                                                record.start,
-                                                record.stop)
+                overlapping[vcf] = list(vreader.walk(record.chrom,
+                                                     record.start,
+                                                     record.stop))
             else:
                 vreader.set_region(record.chrom, record.start, record.stop)
                 overlapping[vcf] = list(s for s in vreader)
