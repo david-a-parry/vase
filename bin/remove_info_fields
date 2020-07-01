@@ -1,0 +1,70 @@
+#!/usr/bin/env python3
+import sys
+import re
+import argparse
+import pysam
+from vase.vcf_reader import VcfReader
+
+
+def get_options():
+    parser = argparse.ArgumentParser(
+        description='''Remove specific INFO fields from a VCF file.''')
+    parser.add_argument("-i", "--vcf_input", "--vcf", required=True,
+                        help='Input VCF file')
+    parser.add_argument("-o", "--output", help='''Output VCF file. The
+                        file extension determines format written. Use .bcf to
+                        write BCF format, .vcf.gz to write to bgzip compressed
+                        VCF and .vcf to write uncompressed VCF.''')
+    keep_or_remove = parser.add_mutually_exclusive_group(required=True)
+    keep_or_remove.add_argument('-r', '--remove_fields', nargs='+',
+                                help='One or more INFO fields to remove.')
+    keep_or_remove.add_argument('-k', '--keep_fields', nargs='+',
+                                help='''One or more INFO fields to retain. All
+                                other INFO fields will be removed as long as
+                                they are defined in the VCF header.''')
+    return parser
+
+def main(vcf_input, output, remove_fields=[], keep_fields=[]):
+    '''
+        Remove INFO fields from VCF.
+
+        Args:
+            vcf_input:  input VCF file
+
+            output:     VCF output file. Will write to STDOUT if not
+                        provided.
+
+            remove_fields:
+                        One or more INFO fields to remove. Can not be
+                        used in conjunction with keep_fields argument.
+
+            keep_fields:
+                        One or more INFO fields to keep. All other INFO
+                        fields defined in the VCF header will be removed.
+                        Can not be used in conjunction with remove_fields
+                        argument.
+
+    '''
+    if remove_fields and keep_fields:
+        raise RuntimeError("remove_fields and keep_fields arguments are " +
+                           "mutually exclusive.")
+    vcf = VcfReader(vcf_input)
+    if output is None:
+        output = '-'
+    new_head = []
+    if keep_fields:
+        remove_fields = [x for x in vcf.header.info if x not in keep_fields]
+    new_header = vcf.header.header.copy()
+    for f in remove_fields:
+        new_header.info.remove_header(f)
+    vcf_writer = pysam.VariantFile(output, mode='w', header=new_header)
+    for record in vcf:
+        for f in (x for x in remove_fields if x in record.info):
+            del record.info[f]
+        vcf_writer.write(record.record)
+    vcf_writer.close()
+
+if __name__ == '__main__':
+    argparser = get_options()
+    args = argparser.parse_args()
+    main(**vars(args))
