@@ -3,30 +3,28 @@ try:
 except ImportError:
     from distutils.core import setup
 
+test_requirements = ['nose', 'xlrd']
 setup(
     name="vase",
     packages=["vase"],
-    version="0.3.1",
+    version="0.3.2",
     description="Variant Annotation, Segregation and Exclusion",
     author="David A. Parry",
     author_email="david.parry@igmm.ed.ac.uk",
     url="https://github.com/david-a-parry/vase",
-    download_url='https://github.com/david-a-parry/vase/archive/0.3.1.tar.gz',
+    download_url='https://github.com/david-a-parry/vase/archive/0.3.2.tar.gz',
     license='MIT',
     install_requires=[
           'pysam>=0.14',
           'natsort',
+          'numpy',
     ],
-    test_requires=[
-        'nose',
-        'numpy',
-        'xlrd',
-        'json'
-    ],
+    test_requires=test_requirements,
     extras_require={
         'BGZIP': ['biopython'],
-        'REPORTER': ['xlsxwriter', 'requests', 'json'],
+        'REPORTER': ['xlsxwriter', 'requests'],
         'MYGENEINFO': ['mygene'],
+        'tests': test_requirements,
     },
     scripts=["bin/vase", "bin/burden_test_vase", "bin/vase_reporter",
              "bin/coordinates_from_genes", "bin/filter_gts",

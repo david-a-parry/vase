@@ -182,4 +182,3 @@ def run_args(args, output=None, func_name=None):
         results = convert_results(output)
         expected = get_expected_out(func_name)
         return (results, expected)
-

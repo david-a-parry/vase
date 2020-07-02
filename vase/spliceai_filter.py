@@ -57,7 +57,8 @@ class SpliceAiFilter(object):
     '''
 
     def __init__(self, vcfs, min_delta=None, max_delta=None, to_delta=None,
-                 to_score=None, logging_level=logging.WARNING):
+                 to_score=None, logging_level=logging.WARNING,
+                 no_walk=False, force_walk=False, skip_svs=True):
         '''
             Initialize object with a VCF file and optional filtering
             arguments.
@@ -88,13 +89,23 @@ class SpliceAiFilter(object):
                 logging_level:
                             Logging level to use. Default=logging.WARNING
 
+                no_walk:    See VcfFilter documentation.
+
+                force_walk: See VcfFilter documentation.
+
+                skip_svs:   See VcfFilter documentation.
+
         '''
         self.vcfs = dict()
         self.logger = self._get_logger(logging_level)
+        self.walk = not no_walk
+        self.force_walk = force_walk
+        self.skip_svs = skip_svs
         self.min_delta = min_delta
         self.max_delta = max_delta
         self.to_score = to_score
         self.to_score_file = None
+        self.prev_coordinate = (None, -1)
         for vcf in vcfs:
             self.vcfs[vcf] = VcfReader(vcf)
         self.info_fields = {'SpliceAI': {'Number': '.',
@@ -154,8 +165,19 @@ class SpliceAiFilter(object):
             in the class's VCFs.
         '''
         overlapping = dict()
+        if self.skip_svs and record.IS_SV:
+            return overlapping
+        if self.walk and not self.force_walk:
+            if (record.start < self.prev_coordinate[1] and
+                    record.chrom == self.prev_coordinate[0]):
+                self.logger.warn("Input is not sorted by coordinate, will " +
+                                 "fall back to slower indvidual index-based " +
+                                 "look-ups.")
+                self.walk = False
+            self.prev_coordinate = (record.chrom, record.start)
         for vcf, vreader in self.vcfs.items():
-            vreader.set_region(record.chrom, record.start, record.stop)
+            vreader.set_region(record.chrom, record.start, record.stop,
+                               walk=self.walk)
             overlapping[vcf] = list(s for s in vreader)
         return overlapping
 

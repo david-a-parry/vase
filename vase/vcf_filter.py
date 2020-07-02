@@ -9,7 +9,8 @@ class VcfFilter(object):
 
     def __init__(self, vcf, prefix, logger=None, freq=None, min_freq=None,
                  freq_fields=("AF",), ac_fields=("AC",), an_fields=("AN",),
-                 annotations=[], allow_missing_annotations=False):
+                 annotations=[], allow_missing_annotations=False,
+                 no_walk=False, force_walk=False, skip_svs=True):
         '''
             Initialize object with a VCF file and optional filtering
             arguments.
@@ -51,7 +52,26 @@ class VcfFilter(object):
                         the provided annotations are not present in the
                         VCF.
 
+                no_walk:
+                        If True, do not use walking retrieval method to
+                        find matching records. Walking retrieval reduces
+                        unnecessary seeks if look-ups are performed in
+                        coordinate order. Forces tabix-style 'fetch'
+                        look-ups.
 
+                force_walk:
+                        By default, if look-ups are performed out of
+                        order, record retrieval will fall-back to a
+                        standard tabix-style 'fetch' method. If this
+                        option is set to True, walking style look-ups will
+                        continue to be attempted even if out of order
+                        look-ups are detected. Ignored if no_walk is
+                        True.
+
+                skip_svs:
+                        If True skip comparisons for structural variants
+                        passed to annotate_and_filter_record.
+                        Default=True.
         '''
 
         self.vcf = VcfReader(vcf, logger=logger)
@@ -63,6 +83,9 @@ class VcfFilter(object):
         self.ac_info = ac_fields
         self.an_info = an_fields
         self.extra = annotations
+        self.skip_svs = skip_svs
+        self.force_walk = force_walk
+        self.walk = not no_walk
         self.allow_missing_annotations = allow_missing_annotations
         if self.freq is not None and self.min_freq is not None:
             if self.freq <= self.min_freq:
@@ -75,15 +98,23 @@ class VcfFilter(object):
         self.get_annot_fields()
         self.added_info = {}
         self.create_header_fields()
+        self.prev_coordinate = (None, -1)
 
     def get_overlapping_records(self, record):
         '''
             For a given record, returns a list of overlapping records
             in the class's VCF.
         '''
-        start = record.pos
-        end = record.stop
-        self.vcf.set_region(record.chrom, start - 1, end)
+        if self.walk and not self.force_walk:
+            if (record.start < self.prev_coordinate[1] and
+                    record.chrom == self.prev_coordinate[0]):
+                self.logger.warn("Input is not sorted by coordinate, will " +
+                                 "fall back to slower indvidual index-based " +
+                                 "look-ups.")
+                self.walk = False
+            self.prev_coordinate = (record.chrom, record.start)
+        self.vcf.set_region(record.chrom, record.start, record.stop,
+                            walk=self.walk)
         return list(s for s in self.vcf)
 
     def annotate_and_filter_record(self, record):
@@ -134,6 +165,8 @@ class VcfFilter(object):
                          # do_filter in downstream applications
         annot = {}
         matched = False
+        if self.skip_svs and alt_allele.is_sv:
+            return (do_filter, do_keep, matched, annot)
         for var in var_list:
             for i in range(len(var.DECOMPOSED_ALLELES)):
                 if alt_allele == var.DECOMPOSED_ALLELES[i]:
