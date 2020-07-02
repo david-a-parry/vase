@@ -7,12 +7,12 @@ test_requirements = ['nose', 'xlrd']
 setup(
     name="vase",
     packages=["vase"],
-    version="0.3.2",
+    version="0.4",
     description="Variant Annotation, Segregation and Exclusion",
     author="David A. Parry",
     author_email="david.parry@igmm.ed.ac.uk",
     url="https://github.com/david-a-parry/vase",
-    download_url='https://github.com/david-a-parry/vase/archive/0.3.2.tar.gz',
+    download_url='https://github.com/david-a-parry/vase/archive/0.4.tar.gz',
     license='MIT',
     install_requires=[
           'pysam>=0.14',
