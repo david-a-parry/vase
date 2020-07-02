@@ -88,7 +88,7 @@ def test_vcf_filter_freq():
             output=output,
         )
         results, expected = run_args(test_args, output,
-                                    sys._getframe().f_code.co_name)
+                                     sys._getframe().f_code.co_name)
         assert_equal(results, expected)
         os.remove(output)
 
@@ -189,6 +189,28 @@ def test_gnomad_homozygotes():
         results, expected = run_args(test_args, output,
                                     sys._getframe().f_code.co_name)
         assert_equal(results, expected)
+        os.remove(output)
+
+
+def test_unsorted_input():
+    prefix = os.path.join(dir_path, "test_data", "ex1_shuf")
+    for suffix in ['.vcf.gz', '.bcf']:
+        vcf_in = prefix + suffix
+        for f in [vcf_filter, vcf_filter.replace('.vcf.gz', '.bcf')]:
+            output = get_tmp_out()
+            test_args = dict(
+                input=vcf_in,
+                vcf_filter=[f + ',test_vcf'],
+                filter_novel=True,
+                silent=True,
+                output=output,
+            )
+            results, expected = run_args(test_args,
+                                         output,
+                                         "test_vcf_filter_novel")
+            results.sort()
+            expected.sort()
+            assert_equal(results, expected)
         os.remove(output)
 
 
