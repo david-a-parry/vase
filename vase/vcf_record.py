@@ -211,7 +211,7 @@ class VaseRecord(object):
             except KeyError:
                 raise ValueError("Could not find '{}' label in ".format(lbl) +
                                  "INFO field of record at {}:{}"
-                                 .format(self.CHROM, self.POS))
+                                 .format(self.chrom, self.pos))
             self.__CSQ = []
             for c in csqs:
                 d = OrderedDict([(k, v) for (k, v) in zip(

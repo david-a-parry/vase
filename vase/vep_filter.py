@@ -406,8 +406,8 @@ class VepFilter(object):
                     path.extend((6 > int(x) > 3 for x in assertions))
                 except ValueError:
                     self.logger.warn("Error parsing 'clinvar_clnsig' fields " +
-                                     "at {}:{} - expected".format(record.CHROM,
-                                                                  record.POS) +
+                                     "at {}:{} - expected".format(record.chrom,
+                                                                  record.pos) +
                                      " numeric values.")
             else:
                 benign.extend(('benign' in x for x in assertions))
