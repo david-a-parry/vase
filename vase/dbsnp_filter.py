@@ -116,7 +116,7 @@ class dbSnpFilter(VcfFilter):
                     for f in self.freq_fields:
                         if f not in snp.info:
                             continue
-                        if f == 'CAF':
+                        if f == 'CAF' or f == 'TOPMED':
                             if snp.info[f][i+1] == '.':
                                 val = None
                             else:
@@ -210,7 +210,7 @@ class dbSnpFilter(VcfFilter):
             (clinvar_fields).
         '''
 
-        freq_fields = ("CAF", "G5A", "G5", "COMMON")
+        freq_fields = ("CAF", "G5A", "G5", "COMMON", "TOPMED")
         clinvar_fields = ("CLNSIG", "CLNALLE", "CLNDBN", "CLNDSDBID",
                           "CLNHGVS", "GENEINFO")
         build = ("dbSNPBuildID",)
@@ -250,7 +250,7 @@ class dbSnpFilter(VcfFilter):
         '''
 
         for f, v in self.freq_fields.items():
-            if f == 'CAF':
+            if f == 'CAF' or f == 'TOPMED':
                 v['type'] = 'Float'
             self._make_metadata(f, v)
         for f, v in self.build_fields.items():
