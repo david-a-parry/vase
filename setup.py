@@ -19,7 +19,7 @@ setup(
           'natsort',
           'numpy',
     ],
-    test_requires=test_requirements,
+    tests_require=test_requirements,
     extras_require={
         'BGZIP': ['biopython'],
         'REPORTER': ['xlsxwriter', 'requests'],
