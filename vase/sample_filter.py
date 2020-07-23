@@ -455,56 +455,59 @@ class GtFilter(object):
         self.fields = ['GT']
         self.ab_filter = None
         self.ad_over_threshold = None
+        self.get_allele_balance = None
         ab_field = None
         if not gq and not dp and not max_dp and not het_ab and not hom_ab:
             # if no parameters are set then every genotype passes
             self.gt_is_ok = lambda gt, smp, al: True
         else:
-            ab_field = self._check_header_fields(vcf)
-            if het_ab or hom_ab:
-                if ab_field == 'AD':
-                    self.ab_filter = self._ab_filter_ad
-                elif ab_field == 'RO':
-                    self.ab_filter = self._ab_filter_ro
             self.gt_is_ok = self._gt_is_ok
-        if ref_ab_filter:
-            if ab_field is None:
-                ab_field = self._check_header_fields(vcf)
+        if het_ab or hom_ab or ref_ab_filter:
+            ab_field = self._check_header_fields(vcf)
             if ab_field == 'AD':
-                self.ad_over_threshold = self._alt_ad_over_threshold
+                self.get_allele_balance = self._ab_from_ad
             elif ab_field == 'RO':
-                self.ad_over_threshold = self._alt_ao_over_threshold
+                self.get_allele_balance = self._ab_from_ro_ao
+            if het_ab or hom_ab:
+                self.ab_filter = self._ab_filter
+            if ref_ab_filter:
+                self.ad_over_threshold = self._alt_ad_over_threshold
 
-    def _alt_ad_over_threshold(self, gts, sample, allele):
+    def _ab_from_ad(self, gts, sample, allele):
         ad = gts[sample].get('AD', (None,))
-        if ad == (None,):  # no AD values - assume OK?
-            return True
+        if ad == (None,):
+            return None
         al_dp = ad[allele]
         dp = sum(filter(None, ad))
         if dp > 0 and al_dp is not None:
-            ab = float(al_dp)/dp
-            if ab > self.ref_ab_filter:  # ALT/REF read counts > threshold
-                return True  # filter
-        return False
+            return float(al_dp)/dp
+        return 0.0
 
-    def _alt_ao_over_threshold(self, gts, sample, allele):
-        aos = gts[sample].get('AO', (None,))
-        ro = gts[sample].get('RO', None)
-        if aos != (None,) and ro is not None:
+    def _ab_from_ro_ao(self, gts, sample, allele):
+        aos = gts[sample].get('AO')
+        ro = gts[sample].get('RO')
+        if aos is not None and ro is not None:
             dp = sum(filter(None, aos)) + ro
             if dp > 0:
                 ao = aos[allele-1]
-                ab = float(ao)/ro
-                if ab > self.ref_ab_filter:
-                    return True
+                if ao is None:
+                    return 0.0
+                return float(ao)/dp
+            return 0.0
+        return None
+ 
+    def _alt_ad_over_threshold(self, gts, sample, allele):
+        ab = self.get_allele_balance(gts, sample, allele)
+        if ab is None:  # no AD values - assume OK?
+            return True
+        if ab > self.ref_ab_filter:  # ALT/REF read counts > threshold
+            return True  # filter
         return False
 
-    def _ab_filter_ad(self, gts, sample, allele):
-        ad = gts[sample].get('AD', (None,))
-        if ad == (None,):  # no AD values - assume OK?
+    def _ab_filter(self, gts, sample, allele):
+        ab = self.get_allele_balance(gts, sample, allele)
+        if ab is None:  # no AD values - assume OK?
             return True
-        al_dp = ad[allele]
-        dp = sum(filter(None, ad))
         is_hom_alt = False
         is_het_alt = False
         if len(set(gts[sample]['GT'])) == 1:
@@ -512,38 +515,11 @@ class GtFilter(object):
                 is_hom_alt = True
         elif allele in gts[sample]['GT']:
             is_het_alt = True
-        if al_dp is not None and dp > 0 and (is_het_alt or is_hom_alt):
-            ab = float(al_dp)/dp
+        if is_het_alt or is_hom_alt:
             if is_het_alt and self.het_ab and ab < self.het_ab:
                 return False  # filter
             if is_hom_alt and self.hom_ab and ab < self.hom_ab:
                 return False  # filter
-        return True  # do not filter
-
-    def _ab_filter_ro(self, gts, sample, allele):
-        aos = gts[sample].get('AO', (None,))
-        ro = gts[sample].get('RO', None)
-        if ro is None or aos == (None,):  # no AD values - assume OK?
-            return True
-        is_hom_alt = False
-        is_het_alt = False
-        if len(set(gts[sample]['GT'])) == 1:
-            if allele in gts[sample]['GT']:
-                is_hom_alt = True
-        elif allele in gts[sample]['GT']:
-            is_het_alt = True
-        if aos is not None and ro is not None and (is_hom_alt or is_het_alt):
-            dp = sum(filter(None, aos)) + ro
-            if allele > 0:
-                ao = aos[allele-1]
-            else:
-                ao = ro
-            if dp > 0:
-                ab = float(ao)/dp
-                if is_het_alt and ab < self.het_ab:
-                    return False  # filter
-                if is_hom_alt and ab < self.hom_ab:
-                    return False  # filter
         return True  # do not filter
 
     def _gt_is_ok(self, gts, sample, allele):
