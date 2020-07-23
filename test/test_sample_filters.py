@@ -57,6 +57,22 @@ def test_de_novo3():
     os.remove(output)
 
 
+def test_de_novo_fb():
+    output = get_tmp_out()
+    fb_input = os.path.join(dir_path, 'test_data', 'ex1.fb.vcf')
+    test_args = dict(
+        input=fb_input,
+        ped=os.path.join(dir_path, "test_data", "test.ped"),
+        de_novo=True,
+        het_ab=0.25,
+        max_alt_alleles=1,
+        output=output,
+    )
+    results, expected = run_args(test_args, output, "test_de_novo3")
+    assert_equal(results, expected)
+    os.remove(output)
+
+
 def test_biallelic():
     output = get_tmp_out()
     test_args = dict(
