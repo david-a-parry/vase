@@ -14,7 +14,7 @@ class SampleFilter(object):
                  sv_max_control_dp=None, sv_control_het_ab=None,
                  sv_control_hom_ab=None, sv_con_ref_ab=None, del_dhffc=None,
                  dup_dhbfc=None, control_del_dhffc=None,
-                 control_dup_dhbfc=None):
+                 control_dup_dhbfc=None, ignore_gts=False):
         '''
             Initialize filtering options.
 
@@ -173,10 +173,20 @@ class SampleFilter(object):
                         not no-calls and are above the GQ threshold set
                         by the 'gq' option. Default=False.
 
+                ignore_gts:
+                        If True, determine genotypes based on het_ab
+                        and/or hom_ab thresholds. Ignore GT field.
+                        Requires het_ab (and optionally hom_ab) to be
+                        set.
         '''
 
         self.vcf = vcf
         self.confirm_missing = confirm_missing
+        if ignore_gts and not het_ab:
+            raise ValueError("ignore_gts option can only be used if het_ab " +
+                             "(and optionally hom_ab) arguments are greater " +
+                             "than zero.")
+        self.ignore_gts = ignore_gts
         self._parse_sample_args(cases=cases, controls=controls,
                                 n_cases=n_cases, n_controls=n_controls, gq=gq,
                                 het_ab=het_ab, hom_ab=hom_ab, dp=dp,
@@ -228,7 +238,10 @@ class SampleFilter(object):
                     else:
                         return True
                 continue
-            sgt = gts[s]['GT']
+            if self.ignore_gts:
+                sgt = control_filter.gt_from_ad(gts[s])
+            else:
+                sgt = gts[s]['GT']
             if self.confirm_missing and sgt == (None,) * len(sgt):
                 # no-call and we require confirmed gts for controls
                 if self.n_controls:
@@ -258,6 +271,8 @@ class SampleFilter(object):
                 gt_ok_args.append(svtype)
             if not gt_filter.gt_is_ok(*gt_ok_args):
                 sgt = None
+            elif self.ignore_gts:
+                sgt = gt_filter.gt_from_ad(gts[s])
             else:
                 sgt = gts[s]['GT']
             if sgt is None:
@@ -339,7 +354,8 @@ class SampleFilter(object):
                                "specified by --controls")
         self.samples = self.cases + self.controls
         self.gt_filter = GtFilter(self.vcf, gq=gq, dp=dp, max_dp=max_dp,
-                                  het_ab=het_ab, hom_ab=hom_ab)
+                                  het_ab=het_ab, hom_ab=hom_ab,
+                                  ignore_gts=self.ignore_gts)
         self.gt_fields = set(self.gt_filter.fields)
         if con_gq is None:
             con_gq = gq
@@ -353,7 +369,8 @@ class SampleFilter(object):
             con_hom_ab = hom_ab
         self.con_gt_filter = GtFilter(self.vcf, gq=con_gq, dp=con_dp,
                                       max_dp=con_max_dp, het_ab=con_het_ab,
-                                      hom_ab=hom_ab, ref_ab_filter=con_ref_ab)
+                                      hom_ab=hom_ab, ref_ab_filter=con_ref_ab,
+                                      ignore_gts=self.ignore_gts)
         self.gt_fields.update(self.con_gt_filter.fields)
         if sv_gq is None:
             sv_gq = gq
@@ -382,7 +399,8 @@ class SampleFilter(object):
         self.sv_gt_filter = SvGtFilter(self.vcf, gq=sv_gq, dp=sv_dp,
                                        max_dp=sv_max_dp, het_ab=sv_het_ab,
                                        hom_ab=sv_hom_ab, del_dhffc=del_dhffc,
-                                       dup_dhbfc=dup_dhbfc)
+                                       dup_dhbfc=dup_dhbfc,
+                                       ignore_gts=self.ignore_gts)
         self.sv_gt_fields = set(self.sv_gt_filter.fields)
         self.sv_con_gt_filter = SvGtFilter(self.vcf, gq=sv_con_gq,
                                            dp=sv_con_dp, max_dp=sv_con_max_dp,
@@ -390,7 +408,8 @@ class SampleFilter(object):
                                            hom_ab=sv_hom_ab,
                                            del_dhffc=con_del_dhffc,
                                            dup_dhbfc=con_dup_dhbfc,
-                                           ref_ab_filter=sv_con_ref_ab)
+                                           ref_ab_filter=sv_con_ref_ab,
+                                           ignore_gts=self.ignore_gts)
         self.sv_gt_fields.update(self.sv_con_gt_filter.fields)
         if n_cases:
             self.n_cases = n_cases
@@ -407,10 +426,11 @@ class GtFilter(object):
     '''
 
     __slots__ = ['gq', 'dp', 'max_dp', 'het_ab', 'hom_ab', 'gt_is_ok',
-                 'ab_filter', 'ref_ab_filter', 'ad_over_threshold', 'fields']
+                 'ab_filter', 'ref_ab_filter', 'ad_over_threshold', 'fields',
+                 'get_allele_balance']
 
     def __init__(self, vcf, gq=0, dp=0, max_dp=0, het_ab=0., hom_ab=0.,
-                 ref_ab_filter=None):
+                 ref_ab_filter=None, ignore_gts=False):
         '''
             Args:
                 vcf:    Input VCF, which will be checked to ensure any
@@ -444,6 +464,12 @@ class GtFilter(object):
                         this fraction of ALT alleles it will be
                         filtered (i.e. self.gt_is_ok will return
                         False). Default=None (not used).
+
+                ignore_gts:
+                        If True, determine genotypes based on het_ab
+                        and/or hom_ab thresholds. Ignore GT field.
+                        Requires het_ab (and optionally hom_ab) to be
+                        set.
 
         '''
         self.gq = gq
@@ -565,3 +591,7 @@ class GtFilter(object):
                               "FORMAT fields are defined in your VCF " +
                               "header.")
         return None
+
+    def gt_from_ad(self, gt):
+        #if self.hom_ab and 
+        raise NotImplementedError("GT from AD method not implmented yet!")
