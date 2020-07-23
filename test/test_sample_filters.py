@@ -1,5 +1,8 @@
 from .utils import *
 
+fb_input = os.path.join(dir_path, 'test_data', 'ex1.fb.vcf')
+
+
 def test_case_control():
     output = get_tmp_out()
     test_args = dict(
@@ -11,6 +14,21 @@ def test_case_control():
     )
     results, expected = run_args(test_args, output,
                                  sys._getframe().f_code.co_name)
+    assert_equal(results, expected)
+    os.remove(output)
+
+
+def test_case_control_fb():
+    output = get_tmp_out()
+    test_args = dict(
+        input=fb_input,
+        cases=['Sample3', 'Sample2'],
+        controls=['Sample1'],
+        het_ab=0.005,
+        gq=20,
+        output=output,
+    )
+    results, expected = run_args(test_args, output, "test_case_control")
     assert_equal(results, expected)
     os.remove(output)
 
@@ -48,6 +66,7 @@ def test_de_novo3():
         ped=os.path.join(dir_path, "test_data", "test.ped"),
         de_novo=True,
         het_ab=0.25,
+        control_max_ref_ab=0.05,
         max_alt_alleles=1,
         output=output,
     )
@@ -59,12 +78,12 @@ def test_de_novo3():
 
 def test_de_novo_fb():
     output = get_tmp_out()
-    fb_input = os.path.join(dir_path, 'test_data', 'ex1.fb.vcf')
     test_args = dict(
         input=fb_input,
         ped=os.path.join(dir_path, "test_data", "test.ped"),
         de_novo=True,
         het_ab=0.25,
+        control_max_ref_ab=0.05,
         max_alt_alleles=1,
         output=output,
     )
