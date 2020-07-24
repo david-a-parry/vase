@@ -286,7 +286,8 @@ class InheritanceFilter(object):
                                   dp=gt_args.get('dp'),
                                   max_dp=gt_args.get('max_dp'),
                                   het_ab=gt_args.get('het_ab'),
-                                  hom_ab=gt_args.get('hom_ab'))
+                                  hom_ab=gt_args.get('hom_ab'),
+                                  ignore_gts=gt_args.get('ignore_gts', False))
         self._gt_fields = set(self.gt_filter.fields)
         if gt_args.get('min_control_gq') is None:
             gt_args['min_control_gq'] = gt_args.get('gq')
@@ -902,7 +903,7 @@ class DominantFilter(InheritanceFilter):
                 continue
             allele = i + 1
             for fam, dfilter in self.filters.items():
-                # looking for (potentially shared) de novos in a single family
+                # looking for (potentially shared) vars in a single family
                 is_dom = not dfilter.filter(record, allele)
                 if is_dom:
                     if self.confirm_heterozygous(record, dfilter.cases):
@@ -1028,8 +1029,9 @@ class DeNovoFilter(InheritanceFilter):
         the parents.
     '''
 
-    def __init__(self, family_filter, gt_args, min_families=1, confirm_het=False,
-                 report_file=None):
+    def __init__(self, family_filter, gt_args, min_families=1,
+                 confirm_het=False, report_file=None, header_fields=None,
+                 model='de novo', prefix="VASE_de_novo"):
         '''
             Initialize with parent IDs, children IDs and VcfReader
             object.
@@ -1053,8 +1055,11 @@ class DeNovoFilter(InheritanceFilter):
                         called as heterozygous. Default=False.
 
         '''
-        self.prefix = "VASE_de_novo"
-        self.header_fields = [("VASE_de_novo_samples",
+        self.prefix = prefix
+        if header_fields:
+            self.header_fields = header_fields
+        else:
+            self.header_fields = [("VASE_de_novo_samples",
                    'Samples that carry alleles occurring de novo parsed by ' +
                    '{}' .format(type(self).__name__)),
                     ('VASE_de_novo_families',
@@ -1077,7 +1082,6 @@ class DeNovoFilter(InheritanceFilter):
         self._current_features = set()
         self.confirm_het = confirm_het
         self.filters = defaultdict(list)
-        self.prefix = "VASE_de_novo"
         for fam in self.families:
             f_aff = tuple(x for x in self.ped.families[fam].get_affected()
                           if x in self.affected)
@@ -1097,7 +1101,7 @@ class DeNovoFilter(InheritanceFilter):
                     "Analysing family {} parents ({}) and children ({})"
                     .format(fam, str.join(", ", parents),
                             str.join(", ", children)) +
-                    " combinations under a de novo dominant model")
+                    " combinations under a {} dominant model".format(model))
 
     def process_record(self, record, ignore_alleles=[], ignore_csq=[]):
         '''
@@ -1244,6 +1248,56 @@ class DeNovoFilter(InheritanceFilter):
         for feat in feat_processed:
             del self._potential_denovos[feat]
         return var_to_segregants
+
+
+class MosaicFilter(DeNovoFilter):
+    '''
+        Identify and output variants occuring in a child and absent from
+        the parents using allele depths rather than genotype calls.
+    '''
+
+    def __init__(self, family_filter, gt_args, min_families=1,
+                 report_file=None):
+        '''
+            Initialize with parent IDs, children IDs and VcfReader
+            object.
+
+            Args:
+                family_filter:
+                        FamilyFilter object
+
+                gt_args:
+                        A dict of arguments to use for filtering
+                        genotypes. These should all correspond to
+                        arguments to provide to SampleFilter objects.
+                        Default values of 0.01 for 'het_ab' and 1e3 for
+                        'con_ref_ab' will be used if not provided.
+
+                min_families:
+                        Require at least this many families to have a
+                        qualifying variant in a feature before
+                        outputting. Default=1.
+
+        '''
+        prefix = "VASE_mosaic"
+        header_fields = [("VASE_mosaic_samples",
+                   'Samples that carry mosaic alleles occurring de novo ' +
+                   'parsed by {}' .format(type(self).__name__)),
+                    ('VASE_mosaic_families',
+                    'Family IDs for VASE_mosaic alleles'),
+                    ("VASE_mosaic_features",
+                    'Features (e.g. transcripts) that contain qualifying ' +
+                    'mosaic de novo variants parsed by {}' .format(
+                    type(self).__name__)),]
+        self.annot_fields = ('samples', 'families', 'features')
+        defaults = dict(con_ref_ab=1e3, het_ab=0.01)
+        for k in defaults:
+            if k not in gt_args:
+                gt_args[k] = defaults[k]
+        self.report_file = report_file
+        super().__init__(family_filter, gt_args, header_fields=header_fields,
+                         model='mosaic de novo', prefix=prefix,
+                         min_families=min_families, report_file=report_file,)
 
 
 class ControlFilter(SampleFilter):

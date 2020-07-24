@@ -1038,6 +1038,23 @@ cutoff here.
 
 ''')
 
+    gt_args.add_argument(
+'--mosaic_ab', type=float, default=0.01, metavar='AB', help=
+'''Minimum genotype allele balance for mosaic calls
+for use in with --mosaic filtering. Samples with a
+ratio of the alternate allele vs total depth equal
+to or greater than this value will be treated as
+mosaic calls irrespective of their genotype (GT)
+call.
+
+''')
+    gt_args.add_argument(
+'--mosaic_control_ab', type=float, default=0.001, metavar='AB', help=
+'''Maximum genotype allele balance for control
+reference calls in --mosaic filtering.
+
+''')
+
     sv_gt_args.add_argument(
 '-sv_gq', '--sv_gq', type=int, default=20, help=
 '''Minimum genotype quality score threshold for
@@ -1269,6 +1286,20 @@ dominant inheritance in cases present in the PED
 file specified by the --ped argument.
 
 ''')
+    sample_args.add_argument(
+'--mosaic', action='store_true', help=
+'''Idenfify apparent mosaic de novo variants in cases
+present in the PED file specified by the --ped
+argument. This works similarly to the '--de_novo'
+argument but ignores the genotype (GT) field for
+samples and looks only at the relative allele
+depths of affected individuals as defined by
+mosaic_het_ab and mosaic_control_ab. This requires
+that at least one parent-child trio exists in the
+given PED file.
+
+''')
+
     sample_args.add_argument(
 '--min_families', '-min_families', type=int, default=1, help=
 '''Minimum number of families (or unrelated samples)

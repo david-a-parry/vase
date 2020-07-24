@@ -1,7 +1,7 @@
 from .utils import *
 
 fb_input = os.path.join(dir_path, 'test_data', 'ex1.fb.vcf')
-
+mosaic_input = os.path.join(dir_path, 'test_data', 'ex9.bcf')
 
 def test_case_control():
     output = get_tmp_out()
@@ -182,6 +182,34 @@ def test_dominant():
     assert_equal(results, expected)
     os.remove(output)
 
+
+def test_mosaic():
+    output = get_tmp_out()
+    test_args = dict(
+        input=mosaic_input,
+        ped=os.path.join(dir_path, "test_data", "test.ped"),
+        mosaic=True,
+        output=output,
+    )
+    results, expected = run_args(test_args, output,
+                                 sys._getframe().f_code.co_name)
+    assert_equal(results, expected)
+    os.remove(output)
+
+
+def test_mosaic2():
+    output = get_tmp_out()
+    test_args = dict(
+        input=mosaic_input,
+        ped=os.path.join(dir_path, "test_data", "test.ped"),
+        mosaic=True,
+        mosaic_control_ab=8e-4,
+        output=output,
+    )
+    results, expected = run_args(test_args, output,
+                                 sys._getframe().f_code.co_name)
+    assert_equal(results, expected)
+    os.remove(output)
 
 if __name__ == '__main__':
     import nose

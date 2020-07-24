@@ -12,7 +12,8 @@ from .cadd_filter import CaddFilter
 from .sample_filter import SampleFilter
 from .ped_file import PedFile, Individual, PedError
 from .family_filter import FamilyFilter, ControlFilter
-from .family_filter import RecessiveFilter, DominantFilter, DeNovoFilter
+from .family_filter import RecessiveFilter, DominantFilter
+from .family_filter import DeNovoFilter, MosaicFilter
 from .burden_counter import BurdenCounter
 from .var_by_region import VarByRegion
 from .region_iter import RegionIter
@@ -230,6 +231,7 @@ class VaseRunner(object):
                 confirm_missing=args.confirm_control_gts,
                 **self.gt_args)
         self.de_novo_filter = None
+        self.mosaic_filter = None
         self.dominant_filter = None
         self.recessive_filter = None
         self.family_filter = None
@@ -247,9 +249,11 @@ class VaseRunner(object):
             seg_info.extend(self._get_recessive_filter())
         if args.dominant or args.singleton_dominant:
             seg_info.extend(self._get_dominant_filter())
+        if args.mosaic:
+            seg_info.extend(self._get_mosaic_filter())
         if args.check_g2p_inheritance:
-            if (not self.dominant_filter and not self.recessive_filter
-                    and not self.de_novo_filter):
+            if not any((self.dominant_filter, self.recessive_filter,
+                         self.de_novo_filter, self.mosaic_filter)):
                 raise ValueError("--check_g2p_inheritance option requires " +
                                    "at least one segregation option (e.g. " +
                                    "--recessive, --dominant or --de_novo) " +
@@ -351,6 +355,7 @@ class VaseRunner(object):
                     dom_filter_alleles[i - 1] = True
         self.remove_previous_inheritance_filters(record)
         denovo_hit = False
+        mosaic_hit = False
         dom_hit = False
         recessive_hit = False
         if self.dominant_filter:
@@ -359,22 +364,25 @@ class VaseRunner(object):
         if self.de_novo_filter:
             denovo_hit = self.de_novo_filter.process_record(
                 record, dom_filter_alleles, filter_csq)
+        if self.mosaic_filter:
+            mosaic_hit = self.mosaic_filter.process_record(
+                record, dom_filter_alleles, filter_csq)
         if self.recessive_filter:
             recessive_hit = self.recessive_filter.process_record(
                 record, filter_alleles, filter_csq)
         if self.use_cache:
-            if denovo_hit or dom_hit or recessive_hit:
+            if denovo_hit or mosaic_hit or dom_hit or recessive_hit:
                 keep_record_anyway = False
                 if self.args.min_families < 2:
-                    keep_record_anyway = denovo_hit or dom_hit
+                    keep_record_anyway = denovo_hit or dom_hit or mosaic_hit
                 self.variant_cache.add_record(record, keep_record_anyway)
             else:
                 self.variant_cache.check_record(record)
                 self.var_filtered += 1
             if self.variant_cache.output_ready:
                 self.output_cache()
-        elif self.de_novo_filter or self.dominant_filter:
-            if denovo_hit or dom_hit:
+        elif self.de_novo_filter or self.dominant_filter or self.mosaic_filter:
+            if denovo_hit or dom_hit or mosaic_hit:
                 self.output_record(record)
                 if self.burden_counter:
                     # getting relevant alleles and feats is a bit of a fudge
@@ -392,6 +400,12 @@ class VaseRunner(object):
                         b_filt_al, b_filt_csq = self._seg_alleles_from_record(
                             record,
                             self.de_novo_filter.prefix,
+                            b_filt_al,
+                            b_filt_csq)
+                    if mosaic_hit:
+                        b_filt_al, b_filt_csq = self._seg_alleles_from_record(
+                            record,
+                            self.mosaic_filter.prefix,
                             b_filt_al,
                             b_filt_csq)
                     for i in range(len(b_filt_al)):
@@ -436,6 +450,11 @@ class VaseRunner(object):
             keep_ids.update(vid_to_seg.keys())
             if self.burden_counter:
                 burden_vars['de_novo'] = vid_to_seg
+        if self.mosaic_filter and self.args.min_families > 1:
+            vid_to_seg = self.mosaic_filter.process_de_novos(final=final)
+            keep_ids.update(vid_to_seg.keys())
+            if self.burden_counter:
+                burden_vars['mosaic'] = vid_to_seg
         if final:
             self.variant_cache.add_cache_to_output_ready()
         for var in self.variant_cache.output_ready:
@@ -448,7 +467,7 @@ class VaseRunner(object):
         self.variant_cache.output_ready = []
 
     def _burden_from_cache(self, model_to_vars):
-        for model in ('dominant', 'de_novo'):
+        for model in ('dominant', 'de_novo', 'mosaic'):
             if model in model_to_vars:
                 for v in model_to_vars[model]:
                     for seg in model_to_vars[model][v]:
@@ -1123,6 +1142,7 @@ class VaseRunner(object):
             'recessive': None,
             'dominant': None,
             'de_novo': None,
+            'mosaic': None,
         }
         if self.args.report_prefix is not None:
             if self.args.biallelic or self.args.singleton_recessive:
@@ -1134,6 +1154,9 @@ class VaseRunner(object):
             if self.args.de_novo:
                 f = self.args.report_prefix + ".de_novo.report.tsv"
                 fhs['de_novo'] = open(f, 'w')
+            if self.args.mosaic:
+                f = self.args.report_prefix + ".mosaic.report.tsv"
+                fhs['mosaic'] = open(f, 'w')
         return fhs
 
     def _set_to_true_if_true(self, alist, values):
@@ -1255,9 +1278,10 @@ class VaseRunner(object):
         self.logger.addHandler(ch)
 
     def _check_got_inherit_filter(self):
-        if self.args.de_novo or self.args.biallelic or self.args.dominant:
-            if (not self.recessive_filter and not self.de_novo_filter
-                    and not self.dominant_filter):
+        if any((self.args.de_novo, self.args.biallelic, self.args.dominant,
+                self.args.mosaic)):
+            if not any((self.recessive_filter, self.de_novo_filter,
+                        self.dominant_filter, self.mosaic_filter)):
                 raise ValueError("No inheritance filters could be created " +
                                    "with current settings. Please check your" +
                                    " ped/sample inputs or run without " +
@@ -1294,7 +1318,8 @@ class VaseRunner(object):
         if not self.dominant_filter.affected:
             msg = ("No samples fit a dominant model - can not use dominant " +
                    "filtering")
-            if not self.args.biallelic and not self.args.de_novo:
+            if not any((self.args.biallelic, self.args.de_novo,
+                        self.args.mosaic)):
                 raise ValueError("Error: " + msg)
             else:
                 self.logger.warn(msg + ". Will continue with other models.")
@@ -1338,6 +1363,38 @@ class VaseRunner(object):
                     self.use_cache = True
         return added_info  # so we know which fields to remove if necessary
 
+    def _get_mosaic_filter(self):
+        self._get_family_filter()
+        self._get_control_filter()
+        mosaic_gt_args = self.gt_args.copy()
+        mosaic_gt_args['het_ab'] = self.args.mosaic_ab
+        mosaic_gt_args['con_ref_ab'] = self.args.mosaic_control_ab
+        mosaic_gt_args['ignore_gts'] = True
+        self.mosaic_filter = MosaicFilter(
+            self.family_filter,
+            gt_args=mosaic_gt_args,
+            min_families=self.args.min_families,
+            report_file=self.report_fhs['mosaic'])
+        added_info = list(self.mosaic_filter.get_header_fields().keys())
+        if not self.mosaic_filter.affected:
+            msg = ("No samples fit a de novo model - can not use mosaic de " +
+                   "novo filtering")
+            if not self.args.biallelic and not self.args.dominant:
+                raise ValueError("Error: " + msg)
+            else:
+                self.logger.warn(msg + ". Will continue with other models.")
+                self.mosaic_filter = None
+        else:
+            for f, d in self.mosaic_filter.get_header_fields().items():
+                self.logger.debug(
+                    "Adding MosaicFilter annotation {}".format(f))
+                self.input.header.add_header_field(name=f,
+                                                   dictionary=d,
+                                                   field_type='INFO')
+                if self.args.min_families > 1:
+                    self.use_cache = True
+        return added_info  # so we know which fields to remove if necessary
+
     def _get_recessive_filter(self):
         self._get_family_filter()
         self.recessive_filter = RecessiveFilter(
@@ -1350,7 +1407,8 @@ class VaseRunner(object):
         if not self.recessive_filter.affected:
             msg = ("No samples fit a recessive model - can not use biallelic" +
                    " filtering")
-            if not self.args.de_novo and not self.args.dominant:
+            if not any((self.args.de_novo, self.args.dominant,
+                        self.args.mosaic)):
                 raise ValueError("Error: " + msg)
             else:
                 self.logger.warn(msg + ". Will continue with other models.")
