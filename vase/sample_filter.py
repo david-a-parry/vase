@@ -239,7 +239,7 @@ class SampleFilter(object):
                         return True
                 continue
             if self.ignore_gts:
-                sgt = control_filter.gt_from_ad(gts[s])
+                sgt = control_filter.gt_from_ad(gts, s, allele)
             else:
                 sgt = gts[s]['GT']
             if self.confirm_missing and sgt == (None,) * len(sgt):
@@ -272,7 +272,7 @@ class SampleFilter(object):
             if not gt_filter.gt_is_ok(*gt_ok_args):
                 sgt = None
             elif self.ignore_gts:
-                sgt = gt_filter.gt_from_ad(gts[s])
+                sgt = gt_filter.gt_from_ad(gts, s, allele)
             else:
                 sgt = gts[s]['GT']
             if sgt is None:
@@ -592,6 +592,14 @@ class GtFilter(object):
                               "header.")
         return None
 
-    def gt_from_ad(self, gt):
-        #if self.hom_ab and 
-        raise NotImplementedError("GT from AD method not implmented yet!")
+    def gt_from_ad(self, gts, sample, allele):
+        if not self.het_ab:
+            raise ValueError("het_ab must be >0.0 if using gt_from_ad")
+        ab = self.get_allele_balance(gts, sample, allele)
+        if ab is None:
+            return (None, None)
+        if self.hom_ab and ab >= self.hom_ab:
+            return (allele, allele)
+        if ab >= self.het_ab:
+            return (0, allele)
+        return (0, 0)
