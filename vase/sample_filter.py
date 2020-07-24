@@ -427,10 +427,10 @@ class GtFilter(object):
 
     __slots__ = ['gq', 'dp', 'max_dp', 'het_ab', 'hom_ab', 'gt_is_ok',
                  'ab_filter', 'ref_ab_filter', 'ad_over_threshold', 'fields',
-                 'get_allele_balance']
+                 'get_allele_depths', 'min_support']
 
     def __init__(self, vcf, gq=0, dp=0, max_dp=0, het_ab=0., hom_ab=0.,
-                 ref_ab_filter=None, ignore_gts=False):
+                 ref_ab_filter=None, ignore_gts=False, minimum_support=0):
         '''
             Args:
                 vcf:    Input VCF, which will be checked to ensure any
@@ -471,6 +471,10 @@ class GtFilter(object):
                         Requires het_ab (and optionally hom_ab) to be
                         set.
 
+                minimum_support:
+                        Require at least this many reads supporting ALT
+                        alleles.
+
         '''
         self.gq = gq
         self.dp = dp
@@ -478,30 +482,41 @@ class GtFilter(object):
         self.het_ab = het_ab
         self.hom_ab = hom_ab
         self.ref_ab_filter = ref_ab_filter
+        self.min_support = minimum_support
         self.fields = ['GT']
         self.ab_filter = None
         self.ad_over_threshold = None
-        self.get_allele_balance = None
+        self.get_allele_depths = None
         ab_field = None
-        if not gq and not dp and not max_dp and not het_ab and not hom_ab:
+        if not any((gq, dp, max_dp, het_ab, hom_ab, minimum_support)):
             # if no parameters are set then every genotype passes
             self.gt_is_ok = lambda gt, smp, al: True
         else:
             self.gt_is_ok = self._gt_is_ok
-        if het_ab or hom_ab or ref_ab_filter:
+        if het_ab or hom_ab or ref_ab_filter or minimum_support:
             ab_field = self._check_header_fields(vcf)
             if ab_field == 'AD':
-                self.get_allele_balance = self._ab_from_ad
+                self.get_allele_depths = self._get_allele_depths_from_ad
             elif ab_field == 'RO':
-                self.get_allele_balance = self._ab_from_ro_ao
+                self.get_allele_depths = self._get_allele_depths_from_ro_ao
             if het_ab or hom_ab:
                 self.ab_filter = self._ab_filter
             if ref_ab_filter:
                 self.ad_over_threshold = self._alt_ad_over_threshold
 
-    def _ab_from_ad(self, gts, sample, allele):
-        ad = gts[sample].get('AD', (None,))
-        if ad == (None,):
+    def _get_allele_depths_from_ad(self, gts, sample):
+        return gts[sample].get('AD', (None,))
+
+    def _get_allele_depths_from_ro_ao(self, gts, sample):
+        aos = gts[sample].get('AO')
+        ro = gts[sample].get('RO')
+        if aos is None:
+            return None
+        return (ro,) + aos
+
+    def get_allele_balance(self, gts, sample, allele):
+        ad = self.get_allele_depths(gts, sample)
+        if ad is None or ad == (None,) * len(ad):
             return None
         al_dp = ad[allele]
         dp = sum(filter(None, ad))
@@ -509,19 +524,6 @@ class GtFilter(object):
             return float(al_dp)/dp
         return 0.0
 
-    def _ab_from_ro_ao(self, gts, sample, allele):
-        aos = gts[sample].get('AO')
-        ro = gts[sample].get('RO')
-        if aos is not None and ro is not None:
-            dp = sum(filter(None, aos)) + ro
-            if dp > 0:
-                ao = aos[allele-1]
-                if ao is None:
-                    return 0.0
-                return float(ao)/dp
-            return 0.0
-        return None
- 
     def _alt_ad_over_threshold(self, gts, sample, allele):
         ab = self.get_allele_balance(gts, sample, allele)
         if ab is None:  # no AD values - assume OK?
@@ -567,6 +569,10 @@ class GtFilter(object):
                 return False
         if self.ab_filter is not None:
             if not self.ab_filter(gts, sample, allele):
+                return False
+        if self.min_support:
+            ads = self.get_allele_depths(gts, sample)
+            if ads[allele] is None or ads[allele] < self.min_support:
                 return False
         return True  # passes all filters
 
