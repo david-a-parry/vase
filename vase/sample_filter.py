@@ -361,6 +361,7 @@ class SampleFilter(object):
         self.samples = self.cases + self.controls
         self.gt_filter = GtFilter(self.vcf, gq=gq, dp=dp, max_dp=max_dp,
                                   het_ab=het_ab, hom_ab=hom_ab,
+                                  min_support=min_support,
                                   ignore_gts=self.ignore_gts)
         self.gt_fields = set(self.gt_filter.fields)
         if con_gq is None:
@@ -376,6 +377,7 @@ class SampleFilter(object):
         self.con_gt_filter = GtFilter(self.vcf, gq=con_gq, dp=con_dp,
                                       max_dp=con_max_dp, het_ab=con_het_ab,
                                       hom_ab=hom_ab, ref_ab_filter=con_ref_ab,
+                                      min_support=min_support,
                                       ignore_gts=self.ignore_gts)
         self.gt_fields.update(self.con_gt_filter.fields)
         if sv_gq is None:
@@ -433,10 +435,10 @@ class GtFilter(object):
 
     __slots__ = ['gq', 'dp', 'max_dp', 'het_ab', 'hom_ab', 'gt_is_ok',
                  'ab_filter', 'ref_ab_filter', 'ad_over_threshold', 'fields',
-                 'get_allele_depths', 'min_support']
+                 'get_allele_depths', 'min_support', 'ignore_gts']
 
     def __init__(self, vcf, gq=0, dp=0, max_dp=0, het_ab=0., hom_ab=0.,
-                 ref_ab_filter=None, ignore_gts=False, min_suport=0):
+                 ref_ab_filter=None, ignore_gts=False, min_support=0):
         '''
             Args:
                 vcf:    Input VCF, which will be checked to ensure any
@@ -477,7 +479,7 @@ class GtFilter(object):
                         Requires het_ab (and optionally hom_ab) to be
                         set.
 
-                min_suport:
+                min_support:
                         Require at least this many reads supporting ALT
                         alleles.
 
@@ -488,18 +490,19 @@ class GtFilter(object):
         self.het_ab = het_ab
         self.hom_ab = hom_ab
         self.ref_ab_filter = ref_ab_filter
-        self.min_support = min_suport
+        self.min_support = min_support
         self.fields = ['GT']
         self.ab_filter = None
         self.ad_over_threshold = None
         self.get_allele_depths = None
+        self.ignore_gts = ignore_gts
         ab_field = None
-        if not any((gq, dp, max_dp, het_ab, hom_ab, min_suport)):
+        if not any((gq, dp, max_dp, het_ab, hom_ab, min_support)):
             # if no parameters are set then every genotype passes
             self.gt_is_ok = lambda gt, smp, al: True
         else:
             self.gt_is_ok = self._gt_is_ok
-        if het_ab or hom_ab or ref_ab_filter or min_suport:
+        if het_ab or hom_ab or ref_ab_filter or min_support:
             ab_field = self._check_header_fields(vcf)
             if ab_field == 'AD':
                 self.get_allele_depths = self._get_allele_depths_from_ad
@@ -530,6 +533,28 @@ class GtFilter(object):
             return float(al_dp)/dp
         return 0.0
 
+    def has_min_support(self, gts, sample, allele):
+        ads = self.get_allele_depths(gts, sample)
+        is_het_alt, is_hom_alt = self._is_het_or_hom(gts, sample, allele)
+        if is_het_alt or is_hom_alt:
+            if ads[allele] is None or ads[allele] < self.min_support:
+                return False
+        return True
+
+    def _is_het_or_hom(self, gts, sample, allele):
+        is_het_alt, is_hom_alt = False, False
+        if self.ignore_gts:
+            sgt = self.gt_from_ad(gts, sample, allele)
+        else:
+            sgt = gts[sample]['GT']
+        if len(set(sgt)) == 1:
+            if allele in sgt:
+                is_hom_alt = True
+        elif allele in sgt:
+            is_het_alt = True
+        return (is_het_alt, is_hom_alt)
+
+
     def _alt_ad_over_threshold(self, gts, sample, allele):
         ab = self.get_allele_balance(gts, sample, allele)
         if ab is None:  # no AD values - assume OK?
@@ -542,13 +567,7 @@ class GtFilter(object):
         ab = self.get_allele_balance(gts, sample, allele)
         if ab is None:  # no AD values - assume OK?
             return True
-        is_hom_alt = False
-        is_het_alt = False
-        if len(set(gts[sample]['GT'])) == 1:
-            if allele in gts[sample]['GT']:
-                is_hom_alt = True
-        elif allele in gts[sample]['GT']:
-            is_het_alt = True
+        is_het_alt, is_hom_alt = self._is_het_or_hom(gts, sample, allele)
         if is_het_alt or is_hom_alt:
             if is_het_alt and self.het_ab and ab < self.het_ab:
                 return False  # filter
@@ -577,8 +596,7 @@ class GtFilter(object):
             if not self.ab_filter(gts, sample, allele):
                 return False
         if self.min_support:
-            ads = self.get_allele_depths(gts, sample)
-            if ads[allele] is None or ads[allele] < self.min_support:
+            if not self.has_min_support(gts, sample, allele):
                 return False
         return True  # passes all filters
 
@@ -589,7 +607,8 @@ class GtFilter(object):
             self.fields.append('DP')
         if self.gq:
             self.fields.append('GQ')
-        if self.het_ab or self.hom_ab or self.ref_ab_filter:
+        if any((self.het_ab, self.hom_ab, self.ref_ab_filter,
+                self.min_support)):
             if 'AD' in vcf.header.formats:
                 self.fields.append('AD')
                 return 'AD'
