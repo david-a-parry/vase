@@ -83,6 +83,7 @@ class VaseRunner(object):
             dup_dhbfc=args.duphold_dup_dhbfc,
             control_del_dhffc=args.control_duphold_del_dhffc,
             control_dup_dhbfc=args.control_duphold_dup_dhbfc,
+            min_support=args.min_support,
         )
         # region/bed/gene_bed args are mutually exclusive (handled by parser)
         if args.region is not None:

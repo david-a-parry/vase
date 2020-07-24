@@ -93,6 +93,7 @@ all_args = {
     'max_dp': 0,
     'het_ab': 0.0,
     'hom_ab': 0.0,
+    'min_support': None,
     'control_gq': None,
     'control_dp': None,
     'control_max_dp': None,

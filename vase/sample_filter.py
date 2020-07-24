@@ -7,10 +7,11 @@ class SampleFilter(object):
 
     def __init__(self, vcf, cases=[], controls=[], n_cases=0, n_controls=0,
                  confirm_missing=False, gq=0, dp=0, max_dp=0, het_ab=0.,
-                 hom_ab=0., min_control_gq=None, min_control_dp=None,
-                 max_control_dp=None, control_het_ab=None, control_hom_ab=None,
-                 con_ref_ab=None, sv_gq=0, sv_dp=0, sv_max_dp=0, sv_het_ab=0.,
-                 sv_hom_ab=0., sv_min_control_gq=None, sv_min_control_dp=None,
+                 hom_ab=0., min_support=0, min_control_gq=None,
+                 min_control_dp=None, max_control_dp=None,
+                 control_het_ab=None, control_hom_ab=None, con_ref_ab=None,
+                 sv_gq=0, sv_dp=0, sv_max_dp=0, sv_het_ab=0., sv_hom_ab=0.,
+                 sv_min_control_gq=None, sv_min_control_dp=None,
                  sv_max_control_dp=None, sv_control_het_ab=None,
                  sv_control_hom_ab=None, sv_con_ref_ab=None, del_dhffc=None,
                  dup_dhbfc=None, control_del_dhffc=None,
@@ -63,6 +64,10 @@ class SampleFilter(object):
                         Default=0.0.
 
                 hom_ab: As above but for homozygous genotype calls.
+
+                min_support:
+                        Require genotypes to have at least this many reads
+                        supporting the ALT allele.
 
                 min_control_gq:
                         Same as 'gq' but specific to control samples.
@@ -191,6 +196,7 @@ class SampleFilter(object):
                                 n_cases=n_cases, n_controls=n_controls, gq=gq,
                                 het_ab=het_ab, hom_ab=hom_ab, dp=dp,
                                 max_dp=max_dp, con_gq=min_control_gq,
+                                min_support=min_support,
                                 con_dp=min_control_dp,
                                 con_max_dp=max_control_dp,
                                 con_het_ab=control_het_ab,
@@ -291,14 +297,14 @@ class SampleFilter(object):
 
     def _parse_sample_args(self, cases, controls, n_cases=0, n_controls=0,
                            gq=0, dp=0, max_dp=0, het_ab=0., hom_ab=0.,
-                           con_gq=None, con_dp=None, con_max_dp=None,
-                           con_het_ab=None, con_hom_ab=None, con_ref_ab=None,
-                           sv_gq=0, sv_dp=0, sv_max_dp=None, sv_het_ab=0.,
-                           sv_hom_ab=0., sv_con_gq=None, sv_con_dp=None,
-                           sv_con_max_dp=None, sv_con_het_ab=None,
-                           sv_con_hom_ab=None, sv_con_ref_ab=None,
-                           del_dhffc=None, dup_dhbfc=None, con_del_dhffc=None,
-                           con_dup_dhbfc=None):
+                           min_support=0, con_gq=None, con_dp=None,
+                           con_max_dp=None, con_het_ab=None, con_hom_ab=None,
+                           con_ref_ab=None, sv_gq=0, sv_dp=0, sv_max_dp=None,
+                           sv_het_ab=0., sv_hom_ab=0., sv_con_gq=None,
+                           sv_con_dp=None, sv_con_max_dp=None,
+                           sv_con_het_ab=None, sv_con_hom_ab=None,
+                           sv_con_ref_ab=None, del_dhffc=None, dup_dhbfc=None,
+                           con_del_dhffc=None, con_dup_dhbfc=None):
         not_found = set()
         case_set = set()
         control_set = set()
@@ -430,7 +436,7 @@ class GtFilter(object):
                  'get_allele_depths', 'min_support']
 
     def __init__(self, vcf, gq=0, dp=0, max_dp=0, het_ab=0., hom_ab=0.,
-                 ref_ab_filter=None, ignore_gts=False, minimum_support=0):
+                 ref_ab_filter=None, ignore_gts=False, min_suport=0):
         '''
             Args:
                 vcf:    Input VCF, which will be checked to ensure any
@@ -471,7 +477,7 @@ class GtFilter(object):
                         Requires het_ab (and optionally hom_ab) to be
                         set.
 
-                minimum_support:
+                min_suport:
                         Require at least this many reads supporting ALT
                         alleles.
 
@@ -482,18 +488,18 @@ class GtFilter(object):
         self.het_ab = het_ab
         self.hom_ab = hom_ab
         self.ref_ab_filter = ref_ab_filter
-        self.min_support = minimum_support
+        self.min_support = min_suport
         self.fields = ['GT']
         self.ab_filter = None
         self.ad_over_threshold = None
         self.get_allele_depths = None
         ab_field = None
-        if not any((gq, dp, max_dp, het_ab, hom_ab, minimum_support)):
+        if not any((gq, dp, max_dp, het_ab, hom_ab, min_suport)):
             # if no parameters are set then every genotype passes
             self.gt_is_ok = lambda gt, smp, al: True
         else:
             self.gt_is_ok = self._gt_is_ok
-        if het_ab or hom_ab or ref_ab_filter or minimum_support:
+        if het_ab or hom_ab or ref_ab_filter or min_suport:
             ab_field = self._check_header_fields(vcf)
             if ab_field == 'AD':
                 self.get_allele_depths = self._get_allele_depths_from_ad

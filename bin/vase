@@ -967,6 +967,14 @@ no-calls. Default = 0.
 ''')
 
     gt_args.add_argument(
+'--min_support', type=int, default=0, help=
+'''Minimum number of reads supporting ALT alleles.
+Sample genotype calls with a fewer reads supporting
+the ALT allele will be treated as no-calls.
+Default = 0.
+
+''')
+    gt_args.add_argument(
 '-con_gq', '--control_gq', type=int, help=
 '''Minimum genotype quality score threshold for
 parents/unaffecteds/controls when filtering
