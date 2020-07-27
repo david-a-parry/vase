@@ -17,62 +17,62 @@ def parse_args():
         currently supported for structural variants.''')
     required_args = parser.add_argument_group('Required Arguments')
     opt_args = parser.add_argument_group('Optional Arguments')
-    #required arguments
+    # required arguments
     required_args.add_argument('-i', '--vcf', '--input', required=True,
                                metavar='VCF', help='''Input VCF filename.''')
     required_args.add_argument('-p', '--ped', required=True,
-                                help='''PED file including sample and parental
-                                        IDs for at least each sample.''')
+                               help='''PED file including sample and parental
+                                      IDs for at least each sample.''')
     opt_args.add_argument('-o', '--output',
-                            help='''Filename for tabular output.''')
+                          help='''Filename for tabular output.''')
     opt_args.add_argument('--gq', type=int, default=0,
-                            help='''Minimum genotype quality (GQ) score.
-                                    Genotype calls with lower GQs than this
-                                    will be treated as no-calls.''')
+                          help='''Minimum genotype quality (GQ) score.
+                                  Genotype calls with lower GQs than this
+                                  will be treated as no-calls.''')
     opt_args.add_argument('--dp', type=int, default=0,
-                            help='''Minimum genotype depth. Genotype calls with
-                                    lower depth than this value will be treated
-                                    as no-calls.''')
+                          help='''Minimum genotype depth. Genotype calls with
+                                  lower depth than this value will be treated
+                                  as no-calls.''')
     opt_args.add_argument('--het_ab', type=float, default=0.0,
-                            help='''Minimum allele balance (0.0-0.5) for an ALT
-                                    genotype in a heterozygous call.
-                                    Heterozygous calls with an ALT allele
-                                    balance lower than this value will be
-                                    treated as no-calls.''')
+                          help='''Minimum allele balance (0.0-0.5) for an ALT
+                                  genotype in a heterozygous call.
+                                  Heterozygous calls with an ALT allele
+                                  balance lower than this value will be
+                                  treated as no-calls.''')
     opt_args.add_argument('--hom_ab', type=float, default=0.0,
-                            help='''Minimum allele balance (0.5-1.0) for an ALT
-                                    genotype in a homozygous call. Homozygous
-                                    calls with an ALT allele balance lower than
-                                    this value will be treated as no-calls.''')
+                          help='''Minimum allele balance (0.5-1.0) for an ALT
+                                  genotype in a homozygous call. Homozygous
+                                  calls with an ALT allele balance lower than
+                                  this value will be treated as no-calls.''')
     opt_args.add_argument('--min_phased', type=int, default=0,
-                            help='''Only output variants that have been phased
-                                    in at least this many samples.''')
+                          help='''Only output variants that have been phased
+                                  in at least this many samples.''')
 
     opt_args.add_argument('--frac_phased', type=float, default=0.0,
-                            help='''Only output variants that have been phased
-                                    in this proportion (or higher) of samples
-                                    that have parents and can be phased.''')
-    #help/logging arguments
+                          help='''Only output variants that have been phased
+                                  in this proportion (or higher) of samples
+                                  that have parents and can be phased.''')
+    # help/logging arguments
     opt_args.add_argument('--prog_interval', '-prog_interval', type=int,
-                           default=1000, metavar='N', help='''Report progress
-                           information every N variants. Default=1000.''')
+                          default=1000, metavar='N', help='''Report progress
+                          information every N variants. Default=1000.''')
     opt_args.add_argument('--log_progress', '-log_progress',
-                           action='store_true', help='''Use logging output for
-                           progress rather than wiping progress line after each
-                           update.''')
+                          action='store_true', help='''Use logging output for
+                          progress rather than wiping progress line after each
+                          update.''')
     opt_args.add_argument('--no_progress', action='store_true', help='''Do not
-                           output progress information to STDERR.''')
+                          output progress information to STDERR.''')
     opt_args.add_argument('--quiet', action='store_true', help='''Do not
-                           output INFO messages to STDERR. Warnings will still
-                           be shown.''')
+                          output INFO messages to STDERR. Warnings will still
+                          be shown.''')
     opt_args.add_argument('--debug', action='store_true', help='''Output
-                           debugging level information to STDERR.''')
+                          debugging level information to STDERR.''')
     opt_args.add_argument('--no_warnings', action='store_true', help='''Do not
-                           output INFO or WARN messages to STDERR. Only
-                           program ending errors will appear.''')
-    opt_args.add_argument('--silent', action='store_true', help=
-                           '''Equivalent to specifying both '--no_progress' and
-                           '--no_warnings' options.''')
+                          output INFO or WARN messages to STDERR. Only
+                          program ending errors will appear.''')
+    opt_args.add_argument('--silent', action='store_true', help='''Equivalent to
+                          specifying both '--no_progress' and '--no_warnings'
+                          options.''')
     return parser
 
 
@@ -96,6 +96,7 @@ def get_logger(quiet=False, debug=False, no_warnings=False, silent=False):
     logger.addHandler(ch)
     return logger
 
+
 def set_header(vcf):
     ''' Write VCF header based on input VCF template to filehandle.'''
     vcf.header.add_header_field(name='NonMendelian',
@@ -113,7 +114,7 @@ def set_header(vcf):
                                             'phase_by_transmission program.'},
                                 field_type='INFO')
     vcf.header.add_header_field(name="gt_filter.py",
-                               string='"' + str.join(" ", sys.argv) + '"')
+                                string='"' + str.join(" ", sys.argv) + '"')
 
 
 def report_progress(n, w, prev_string, record, logger, log_progress=False):
@@ -124,9 +125,10 @@ def report_progress(n, w, prev_string, record, logger, log_progress=False):
     else:
         prog_string = '\r' + prog_string
         if len(prev_string) > len(prog_string):
-            sys.stderr.write('\r' + ' ' * len(prev_string) )
+            sys.stderr.write('\r' + ' ' * len(prev_string))
         sys.stderr.write(prog_string)
     return prog_string
+
 
 def phase_alleles(var, trios, gt_filter=None):
     n_phased = 0
@@ -172,22 +174,22 @@ def phase_alleles(var, trios, gt_filter=None):
                 else:
                     maternal = cgt[0]
                     paternal = cgt[0]
-        else: #heterozygous
+        else:  # heterozygous
             for allele in cgt:
-                if mgt and fgt: #both parents
+                if mgt and fgt:  # both parents
                     if allele not in mgt and allele not in fgt:
                         non_mendelian = True
                     elif allele in mgt and allele not in fgt:
                         maternal = allele
                     elif allele in fgt and allele not in mgt:
                         paternal = allele
-                elif mgt: #mother only
+                elif mgt:  # mother only
                     if allele not in mgt:
                         paternal = allele
-                elif fgt: #father only
+                elif fgt:  # father only
                     if allele not in fgt:
                         maternal = allele
-        if maternal is not None or paternal is not None: #can phase
+        if maternal is not None or paternal is not None:  # can phase
             if maternal is not None and paternal is not None:
                 phased_gt = (maternal, paternal)
             elif maternal is not None:
@@ -253,6 +255,8 @@ def main(vcf, ped, output=None, gq=0, dp=0, het_ab=0., hom_ab=0.,
 
     '''
     logger = get_logger(quiet, debug, no_warnings, silent)
+    if silent:
+        no_progress = True
     vreader = VcfReader(vcf)
     ped_file = PedFile(ped)
     trios = defaultdict(dict)
@@ -278,10 +282,10 @@ def main(vcf, ped, output=None, gq=0, dp=0, het_ab=0., hom_ab=0.,
                 trios[s]['sex'] = ped_file.individuals[s].sex
                 if pars == 2:
                     logger.info("Got parent/child trio for sample {}".format(s)
-                               )
+                                )
                 if pars == 1:
                     logger.info("Got parent/child pair for sample {}".format(s)
-                               )
+                                )
     for fam, got_pars in families.items():
         if not got_pars:
             logger.warn("No parent-child pairs/trios for family {}".format(fam)
@@ -314,6 +318,7 @@ def main(vcf, ped, output=None, gq=0, dp=0, het_ab=0., hom_ab=0.,
         sys.stderr.write('\r' + '-' * len(prog_string) + '\n')
     logger.info('Finished Processing {:,} variants. '.format(v) +
                 '{:,} variants written'.format(w))
+
 
 if __name__ == '__main__':
     parser = parse_args()
