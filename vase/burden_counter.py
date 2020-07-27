@@ -53,7 +53,6 @@ class BurdenCounter(object):
         elif not self.use_ac:
             self.gt_filter = GtFilter(vcf, gq=gq, dp=dp, max_dp=max_dp,
                                       het_ab=het_ab, hom_ab=hom_ab)
-            self.gt_fields = self.gt_filter.fields
         self.feat_to_cases = defaultdict(dict)
         self.feat_to_controls = defaultdict(dict)
         self.transcript_to_gene = dict()
