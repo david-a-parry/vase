@@ -212,6 +212,14 @@ class VaseRecord(object):
                 raise ValueError("Could not find '{}' label in ".format(lbl) +
                                  "INFO field of record at {}:{}"
                                  .format(self.chrom, self.pos))
+            except UnicodeDecodeError as e:
+                # theoretically this error could happen with any INFO field
+                # but is much more likely with VEP annotations
+                raise ValueError("Invalid ascii character in CSQ field at " +
+                                 "{}:{}. ".format(self.chrom, self.pos) +
+                                 "Possible fix: try installing pysam>=0.15.3"
+                                ) from e
+
             self.__CSQ = []
             for c in csqs:
                 d = OrderedDict([(k, v) for (k, v) in zip(
