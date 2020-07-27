@@ -146,20 +146,22 @@ def phase_alleles(var, trios, gt_filter=None):
             continue
         if 'mother' in tdict:
             mgt = var.samples[tdict['mother']]['GT']
-            if None in mgt or not gt_filter.gt_is_ok(var.samples, tdict['mother'],
+            if None in mgt or not gt_filter.gt_is_ok(var.samples,
+                                                     tdict['mother'],
                                                      max(mgt)):
                 mgt = ()
         if 'father' in tdict:
             fgt = var.samples[tdict['father']]['GT']
-            if None in fgt or not gt_filter.gt_is_ok(var.samples, tdict['father'],
+            if None in fgt or not gt_filter.gt_is_ok(var.samples,
+                                                     tdict['father'],
                                                      max(fgt)):
                 fgt = ()
-        if not fgt and not mgt: #can't phase
+        if not fgt and not mgt:  # can't phase
             continue
         non_mendelian = False
-        if len(set(cgt)) == 1: #hom/hemizygous
+        if cgt == (cgt[0],) * len(cgt):  # hom/hemizygous
             if chrom == 'X' and tdict['sex'] == 1:
-                #if child is male alleles on X should be from mother
+                # if child is male alleles on X should be from mother
                 if mgt and cgt[0] not in mgt:
                     non_mendelian = True
             elif chrom == 'Y' and tdict['sex'] == 1:
