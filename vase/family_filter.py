@@ -1,5 +1,4 @@
-from .sample_filter import SampleFilter, GtFilter
-from .sv_gt_filter import SvGtFilter
+from .sample_filter import SampleFilter, GtFilter, SvGtFilter
 import logging
 from collections import OrderedDict, defaultdict
 
@@ -288,7 +287,6 @@ class InheritanceFilter(object):
                                   het_ab=gt_args.get('het_ab'),
                                   hom_ab=gt_args.get('hom_ab'),
                                   ignore_gts=gt_args.get('ignore_gts', False))
-        self._gt_fields = set(self.gt_filter.fields)
         if gt_args.get('min_control_gq') is None:
             gt_args['min_control_gq'] = gt_args.get('gq')
         if gt_args.get('min_control_dp') is None:
@@ -306,7 +304,6 @@ class InheritanceFilter(object):
                                       het_ab=gt_args.get('control_het_ab'),
                                       hom_ab=gt_args.get('control_hom_ab'),
                                       ref_ab_filter=gt_args.get('con_ref_ab'))
-        self._gt_fields.update(self.con_gt_filter.fields)
         if gt_args.get('sv_min_control_gq') is None:
             gt_args['sv_min_control_gq'] = gt_args.get('sv_gq')
         if gt_args.get('sv_min_control_dp') is None:
@@ -329,7 +326,6 @@ class InheritanceFilter(object):
                                        hom_ab=gt_args.get('sv_hom_ab'),
                                        del_dhffc=gt_args.get('del_dhffc'),
                                        dup_dhbfc=gt_args.get('dup_dhbfc'))
-        self._sv_gt_fields = set(self.sv_gt_filter.fields)
         self.sv_con_gt_filter = SvGtFilter(
                                     family_filter.vcf,
                                     gq=gt_args.get('sv_min_control_gq'),
@@ -340,7 +336,6 @@ class InheritanceFilter(object):
                                     ref_ab_filter=gt_args.get('sv_con_ref_ab'),
                                     del_dhffc=gt_args.get('control_del_dhffc'),
                                     dup_dhbfc=gt_args.get('control_dup_dhbfc'))
-        self._sv_gt_fields.update(self.sv_con_gt_filter.fields)
         self._prev_coordinate = (None, None)  # to ensure records are processed
         self._processed_contigs = set()       # in coordinate order
         if self.report_file:
