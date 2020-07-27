@@ -1,4 +1,3 @@
-from collections import OrderedDict
 import re
 
 sv_fields = ['SVTYPE', 'CIPOS', 'CIEND', 'SVLEN', 'IMPRECISE',
@@ -219,10 +218,9 @@ class VaseRecord(object):
                                  "{}:{}. ".format(self.chrom, self.pos) +
                                  "Possible fix: try installing pysam>=0.15.3"
                                  ) from e
-
             self.__CSQ = []
             for c in csqs:
-                d = OrderedDict([(k, v) for (k, v) in zip(
+                d = dict([(k, v) for (k, v) in zip(
                     self.header.csq_fields, c.split('|'))])
                 if len(self.record.alleles) == 2:  # only one ALT allele
                     d['alt_index'] = 1
