@@ -1456,11 +1456,11 @@ class PotentialSegregant(object):
                                            record.ref, record.alleles[allele])
         self.features = set(x['Feature'] for x in csqs if x['Feature'] != '')
         if not self.features:
-            # if is intergenic and there is no Feature ID, use var ID
+            # if is intergenic and there is no Feature ID, use alt ID
             # this way we can capture variants at same site if looking for n>1
             # in several families, but won't classify all intergenic variants
             # as the same "Feature"
-            self.features.add(self.var_id)
+            self.features.add(self.alt_id)
         self.csqs = csqs
         self.record = record
 
