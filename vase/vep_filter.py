@@ -16,7 +16,7 @@ class VepFilter(object):
                  loftee=False, splice_filter_unpredicted=False,
                  splice_keep_any_damaging=False, retain_labels=[],
                  filter_flagged_features=False, freq=None, min_freq=None,
-                 afs=[], gene_filter=None, blacklist=None,filter_known=False,
+                 afs=[], gene_filter=None, blacklist=None, filter_known=False,
                  filter_novel=False, pathogenic=False, no_conflicted=False,
                  g2p=None, check_g2p_consequence=False,
                  logging_level=logging.WARNING):
@@ -183,7 +183,7 @@ class VepFilter(object):
             self.impact = set((x.upper() for x in impact))
             valid_impacts = set(['HIGH', 'MODERATE', 'LOW', 'MODIFIER'])
             if not self.impact.issubset(valid_impacts):
-                raise RuntimeError("ERROR: Unrecognised VEP IMPACT provided."+
+                raise RuntimeError("ERROR: Unrecognised VEP IMPACT provided." +
                                    "Valid values are 'HIGH', 'MODERATE', " +
                                    "'LOW' or 'MODIFIER'")
         if len(biotypes) == 0:
@@ -263,20 +263,20 @@ class VepFilter(object):
 
     def filter(self, record):
         filter_alleles = [True] * len(record.alts)
-        #whether an ALT allele should be filtered or not
+        # whether an ALT allele should be filtered or not
         filter_af = [False] * len(record.alts)
         try:
             filter_csq = [True] * len(record.CSQ)
             # whether each csq should be filtered or not
         except KeyError:
             raise RuntimeError("Could not identify CSQ or ANN fields in VCF " +
-                               "header. Please ensure your input is annotated " +
-                               "with Ensembl's VEP")
+                               "header. Please ensure your input is " +
+                               "annotated with Ensembl's VEP")
         i = -1
         for c in record.CSQ:
             i += 1
-            alt_i = c['alt_index'] -1
-            if filter_af[alt_i]: #already filtered on freq for this allele
+            alt_i = c['alt_index'] - 1
+            if filter_af[alt_i]:  # already filtered on freq for this allele
                 continue
             if self.canonical:
                 try:
@@ -291,7 +291,7 @@ class VepFilter(object):
                 except KeyError:
                     pass
             if (self.biotypes is not None and
-                c['BIOTYPE'].lower() not in self.biotypes):
+                    c['BIOTYPE'].lower() not in self.biotypes):
                 continue
             if self.gene_filter:
                 if not self.gene_filter.target_in_csq(c):
@@ -333,7 +333,7 @@ class VepFilter(object):
                     continue
             if (self.csq is None and self.impact is None and
                     not self.check_g2p_consequence):
-                #if only using biotypes/MAF for filtering
+                # if only using biotypes/MAF for filtering
                 filter_alleles[alt_i] = False
                 filter_csq[i] = False
                 continue
@@ -385,7 +385,7 @@ class VepFilter(object):
         return filter_alleles, filter_csq
 
     def _retain_label_matched(self, csq):
-        for k,v in self.retain_labels.items():
+        for k, v in self.retain_labels.items():
             for lbl in csq[k].split('&'):
                 if lbl in v:
                     return True
@@ -399,8 +399,8 @@ class VepFilter(object):
                 continue
             assertions = csq[annot].split('&')
             if annot == 'clinvar_clnsig':
-                #benign = 2, likely benign = 3
-                #likely pathognic = 4, pathogenic = 5
+                # benign = 2, likely benign = 3
+                # likely pathognic = 4, pathogenic = 5
                 try:
                     benign.extend((4 > int(x) > 1 for x in assertions))
                     path.extend((6 > int(x) > 3 for x in assertions))
@@ -448,7 +448,7 @@ class VepFilter(object):
                                  "data",
                                  "vep_maf.tsv")
         values = []
-        with open(data_file,encoding='UTF-8') as fh:
+        with open(data_file, encoding='UTF-8') as fh:
             for line in fh:
                 if line.startswith('#'):
                     continue
@@ -486,7 +486,7 @@ class VepFilter(object):
         '''
         if blacklist is None:
             return None
-        with open (blacklist, 'rt') as bfile:
+        with open(blacklist, 'rt') as bfile:
             features = set(line.split()[0] for line in bfile)
         self.logger.info("{:,} unique feature IDs blacklisted from {}.".format(
                          len(features), blacklist))
