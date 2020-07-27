@@ -286,6 +286,7 @@ class InheritanceFilter(object):
                                   max_dp=gt_args.get('max_dp'),
                                   het_ab=gt_args.get('het_ab'),
                                   hom_ab=gt_args.get('hom_ab'),
+                                  min_support=gt_args.get('min_support'),
                                   ignore_gts=gt_args.get('ignore_gts', False))
         if gt_args.get('min_control_gq') is None:
             gt_args['min_control_gq'] = gt_args.get('gq')
@@ -297,13 +298,16 @@ class InheritanceFilter(object):
             gt_args['control_het_ab'] = gt_args.get('het_ab')
         if gt_args.get('control_hom_ab') is None:
             gt_args['control_hom_ab'] = gt_args.get('hom_ab')
-        self.con_gt_filter = GtFilter(family_filter.vcf,
-                                      gq=gt_args.get('min_control_gq'),
-                                      dp=gt_args.get('min_control_dp'),
-                                      max_dp=gt_args.get('max_control_dp'),
-                                      het_ab=gt_args.get('control_het_ab'),
-                                      hom_ab=gt_args.get('control_hom_ab'),
-                                      ref_ab_filter=gt_args.get('con_ref_ab'))
+        self.con_gt_filter = GtFilter(
+            family_filter.vcf,
+            gq=gt_args.get('min_control_gq'),
+            dp=gt_args.get('min_control_dp'),
+            max_dp=gt_args.get('max_control_dp'),
+            het_ab=gt_args.get('control_het_ab'),
+            hom_ab=gt_args.get('control_hom_ab'),
+            min_support=gt_args.get('min_support'),
+            ignore_gts=gt_args.get('ignore_gts', False),
+            ref_ab_filter=gt_args.get('con_ref_ab'))
         if gt_args.get('sv_min_control_gq') is None:
             gt_args['sv_min_control_gq'] = gt_args.get('sv_gq')
         if gt_args.get('sv_min_control_dp') is None:
@@ -318,24 +322,29 @@ class InheritanceFilter(object):
             gt_args['control_del_dhffc'] = gt_args.get('del_dhffc')
         if gt_args.get('control_dup_dhbfc') is None:
             gt_args['control_dup_dhbfc'] = gt_args.get('dup_dhbfc')
-        self.sv_gt_filter = SvGtFilter(family_filter.vcf,
-                                       gq=gt_args.get('sv_gq'),
-                                       dp=gt_args.get('sv_dp'),
-                                       max_dp=gt_args.get('sv_max_dp'),
-                                       het_ab=gt_args.get('sv_het_ab'),
-                                       hom_ab=gt_args.get('sv_hom_ab'),
-                                       del_dhffc=gt_args.get('del_dhffc'),
-                                       dup_dhbfc=gt_args.get('dup_dhbfc'))
+        self.sv_gt_filter = SvGtFilter(
+            family_filter.vcf,
+            gq=gt_args.get('sv_gq'),
+            dp=gt_args.get('sv_dp'),
+            max_dp=gt_args.get('sv_max_dp'),
+            het_ab=gt_args.get('sv_het_ab'),
+            hom_ab=gt_args.get('sv_hom_ab'),
+            min_support=gt_args.get('sv_min_support'),
+            ignore_gts=gt_args.get('ignore_gts', False),
+            del_dhffc=gt_args.get('del_dhffc'),
+            dup_dhbfc=gt_args.get('dup_dhbfc'))
         self.sv_con_gt_filter = SvGtFilter(
-                                    family_filter.vcf,
-                                    gq=gt_args.get('sv_min_control_gq'),
-                                    dp=gt_args.get('sv_min_control_dp'),
-                                    max_dp=gt_args.get('sv_max_control_dp'),
-                                    het_ab=gt_args.get('sv_control_het_ab'),
-                                    hom_ab=gt_args.get('sv_control_hom_ab'),
-                                    ref_ab_filter=gt_args.get('sv_con_ref_ab'),
-                                    del_dhffc=gt_args.get('control_del_dhffc'),
-                                    dup_dhbfc=gt_args.get('control_dup_dhbfc'))
+            family_filter.vcf,
+            gq=gt_args.get('sv_min_control_gq'),
+            dp=gt_args.get('sv_min_control_dp'),
+            max_dp=gt_args.get('sv_max_control_dp'),
+            het_ab=gt_args.get('sv_control_het_ab'),
+            hom_ab=gt_args.get('sv_control_hom_ab'),
+            ref_ab_filter=gt_args.get('sv_con_ref_ab'),
+            min_support=gt_args.get('sv_min_support'),
+            ignore_gts=gt_args.get('ignore_gts', False),
+            del_dhffc=gt_args.get('control_del_dhffc'),
+            dup_dhbfc=gt_args.get('control_dup_dhbfc'))
         self._prev_coordinate = (None, None)  # to ensure records are processed
         self._processed_contigs = set()       # in coordinate order
         if self.report_file:
