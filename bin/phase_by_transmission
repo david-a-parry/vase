@@ -82,7 +82,6 @@ def get_logger(quiet=False, debug=False, no_warnings=False, silent=False):
     logger = logging.getLogger("phase_by_transmission")
     if silent:
         no_warnings = True
-        no_progress = True
     if debug:
         logger.setLevel(logging.DEBUG)
     elif no_warnings:
