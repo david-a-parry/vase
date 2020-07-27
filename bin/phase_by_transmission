@@ -1,15 +1,13 @@
 #!/usr/bin/env python3
 import sys
 import argparse
-import re
 import logging
-import io
 import pysam
 from collections import defaultdict
 from vase.vcf_reader import VcfReader
-from vase.ped_file import PedFile, Family, Individual, PedError
+from vase.ped_file import PedFile
 from vase.sample_filter import GtFilter
-from vase.gnomad_filter import GnomadFilter
+
 
 def parse_args():
     parser = argparse.ArgumentParser(
