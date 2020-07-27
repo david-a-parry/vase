@@ -78,6 +78,23 @@ def test_sv_de_novo_filters():
     os.remove(output)
 
 
+def test_sv_de_novo_min_support():
+    output = get_tmp_out()
+    test_args = dict(
+        input=input,
+        max_alt_alleles=1,
+        min_support=15,
+        sv_min_support=15,
+        output=output,
+        ped=os.path.join(dir_path, "test_data", "test.ped"),
+        de_novo=True
+    )
+    results, expected = run_args(test_args, output,
+                                 sys._getframe().f_code.co_name)
+    assert_equal(results, expected)
+    os.remove(output)
+
+
 if __name__ == '__main__':
     import nose
     nose.run(defaultTest=__name__)

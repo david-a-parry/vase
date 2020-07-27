@@ -974,6 +974,7 @@ the ALT allele will be treated as no-calls.
 Default = 0.
 
 ''')
+
     gt_args.add_argument(
 '-con_gq', '--control_gq', type=int, help=
 '''Minimum genotype quality score threshold for
@@ -1108,6 +1109,15 @@ genotypes for structural variants. Homozygous
 sample genotype calls with a ratio of reads
 supporting the alternate allele vs total
 supporting reads lower than this threshold will be
+treated as no-calls. Default = 0.
+
+''')
+
+    gt_args.add_argument(
+'--sv_min_support', type=int, default=0, help=
+'''Minimum number of reads supporting ALT alleles for
+structural variants. Sample genotype calls with
+fewer reads supporting the ALT allele will be
 treated as no-calls. Default = 0.
 
 ''')

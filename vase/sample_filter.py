@@ -10,11 +10,12 @@ class SampleFilter(object):
                  min_control_dp=None, max_control_dp=None,
                  control_het_ab=None, control_hom_ab=None, con_ref_ab=None,
                  sv_gq=0, sv_dp=0, sv_max_dp=0, sv_het_ab=0., sv_hom_ab=0.,
-                 sv_min_control_gq=None, sv_min_control_dp=None,
-                 sv_max_control_dp=None, sv_control_het_ab=None,
-                 sv_control_hom_ab=None, sv_con_ref_ab=None, del_dhffc=None,
-                 dup_dhbfc=None, control_del_dhffc=None,
-                 control_dup_dhbfc=None, ignore_gts=False):
+                 sv_min_support=0, sv_min_control_gq=None,
+                 sv_min_control_dp=None, sv_max_control_dp=None,
+                 sv_control_het_ab=None, sv_control_hom_ab=None,
+                 sv_con_ref_ab=None, del_dhffc=None, dup_dhbfc=None,
+                 control_del_dhffc=None, control_dup_dhbfc=None,
+                 ignore_gts=False):
         '''
             Initialize filtering options.
 
@@ -202,6 +203,7 @@ class SampleFilter(object):
                                 con_hom_ab=control_hom_ab,
                                 con_ref_ab=con_ref_ab, sv_gq=sv_gq,
                                 sv_het_ab=sv_het_ab, sv_hom_ab=sv_hom_ab,
+                                sv_min_support=sv_min_support,
                                 sv_dp=sv_dp, sv_max_dp=sv_max_dp,
                                 sv_con_gq=sv_min_control_gq,
                                 sv_con_dp=sv_min_control_dp,
@@ -299,8 +301,8 @@ class SampleFilter(object):
                            min_support=0, con_gq=None, con_dp=None,
                            con_max_dp=None, con_het_ab=None, con_hom_ab=None,
                            con_ref_ab=None, sv_gq=0, sv_dp=0, sv_max_dp=None,
-                           sv_het_ab=0., sv_hom_ab=0., sv_con_gq=None,
-                           sv_con_dp=None, sv_con_max_dp=None,
+                           sv_het_ab=0., sv_hom_ab=0., sv_min_support=0,
+                           sv_con_gq=None, sv_con_dp=None, sv_con_max_dp=None,
                            sv_con_het_ab=None, sv_con_hom_ab=None,
                            sv_con_ref_ab=None, del_dhffc=None, dup_dhbfc=None,
                            con_del_dhffc=None, con_dup_dhbfc=None):
@@ -405,7 +407,7 @@ class SampleFilter(object):
                                        max_dp=sv_max_dp, het_ab=sv_het_ab,
                                        hom_ab=sv_hom_ab, del_dhffc=del_dhffc,
                                        dup_dhbfc=dup_dhbfc,
-                                       min_support=min_support,
+                                       min_support=sv_min_support,
                                        ignore_gts=self.ignore_gts)
         self.sv_con_gt_filter = SvGtFilter(self.vcf, gq=sv_con_gq,
                                            dp=sv_con_dp, max_dp=sv_con_max_dp,
@@ -414,7 +416,7 @@ class SampleFilter(object):
                                            del_dhffc=con_del_dhffc,
                                            dup_dhbfc=con_dup_dhbfc,
                                            ref_ab_filter=sv_con_ref_ab,
-                                           min_support=min_support,
+                                           min_support=sv_min_support,
                                            ignore_gts=self.ignore_gts)
         if n_cases:
             self.n_cases = n_cases
