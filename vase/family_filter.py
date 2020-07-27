@@ -1348,11 +1348,12 @@ class SegregatingVariant(object):
                  de_novos=(), prefix='VASE_segregant'):
         '''
             Initialize with a PotentialSegregant object, an iterable of
-            sample IDs carrying the PotentialSegregant a string
-            indicating the model of inheritance (e.g. 'compound_het'),
-            the name of the associated features (e.g. transcript IDs),
-            prefix for INFO fields and a list of individuals for whom
-            the allele appears to have arisen de novo.
+            sample IDs (i.e. list of samples carrying the
+            PotentialSegregant), a string indicating the model of
+            inheritance (e.g. 'compound_het'), the name of the associated
+            features (e.g. transcript IDs), prefix for INFO fields and a
+            list of individuals for whom the allele appears to have arisen
+            de novo.
         '''
         self.segregant = segregant
         self.samples = list(samples)
