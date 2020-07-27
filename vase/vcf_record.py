@@ -218,7 +218,7 @@ class VaseRecord(object):
                 raise ValueError("Invalid ascii character in CSQ field at " +
                                  "{}:{}. ".format(self.chrom, self.pos) +
                                  "Possible fix: try installing pysam>=0.15.3"
-                                ) from e
+                                 ) from e
 
             self.__CSQ = []
             for c in csqs:
