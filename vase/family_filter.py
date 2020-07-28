@@ -207,7 +207,7 @@ class FamilyFilter(object):
                     for par in shared_pars:
                         if par not in self.vcf_samples:
                             self.logger.info("Can not analyze {}".format(fid) +
-                                             "under a de novo model due to " +
+                                             " under a de novo model due to " +
                                              "missing parents in VCF")
                             denovo = False
                             break
