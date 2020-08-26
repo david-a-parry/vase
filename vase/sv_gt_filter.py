@@ -78,7 +78,7 @@ class SvGtFilter(object):
         ab_fields = None
         if not any([gq, dp, het_ab, hom_ab, del_dhffc, dup_dhbfc]):
             #if no parameters are set then every genotype passes
-            self.gt_is_ok = lambda gt, smp, al: True
+            self.gt_is_ok = lambda gt, smp, al, svtype: True
         else:
             ab_fields = self._check_header_fields(vcf)
             if ab_fields == ('PR', 'SR'):
