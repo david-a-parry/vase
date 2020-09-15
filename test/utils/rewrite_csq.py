@@ -3,18 +3,20 @@ import sys
 import re
 from parse_vcf import VcfReader
 
-csq_fields = ['Allele', 'Consequence', 'IMPACT', 'SYMBOL', 'Gene',
-              'Feature_type', 'Feature', 'BIOTYPE', 'EXON', 'INTRON'
-             ]
+csq_fields = ['Allele', 'Consequence', 'IMPACT', 'SYMBOL', 'Gene', 'CANONICAL',
+              'Feature_type', 'Feature', 'BIOTYPE', 'EXON', 'INTRON',
+              'HGVSc', 'HGVSp']
 csq_format_re = re.compile(r'''.*Format:\s*((\S+\|)*\S+)"''')
 
 transcripts = dict()
 id_conversions = {'SYMBOL': dict(),
                   'Gene': dict(),
-                  'Feature': dict()}
+                  'Feature': dict(),
+                  'ENSP': dict()}
 id_counts = {'SYMBOL': 0,
              'Gene': 0,
-             'Feature': 0}
+             'Feature': 0,
+             'ENSP': 0}
 
 def rewrite_csq(rec):
     annots = []
@@ -27,6 +29,16 @@ def rewrite_csq(rec):
                 n = "{}_{}".format(k.upper(), id_counts[k])
                 id_conversions[k][c[k]] = n
                 c[k] = n
+        if c['HGVSc']:
+            feat, v = c['HGVSc'].split(':')
+            feat = feat.split('.')[0]
+            c['HGVSc'] = "{}:{}".format(id_conversions['Feature'][feat], v)
+        if c['HGVSp']:
+            ensp, v = c['HGVSp'].split(':')
+            if ensp not in id_conversions['ENSP']:
+                id_conversions['ENSP'][ensp] = "ENSP_{}".format(
+                    id_counts['ENSP'])
+            c['HGVSp'] = "{}:{}".format(id_conversions['ENSP'][ensp], v)
         annots.append('|'.join(c[x] for x in c.keys() if x in csq_fields))
     return ','.join(annots)
 
