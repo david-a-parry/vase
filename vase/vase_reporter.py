@@ -203,7 +203,7 @@ class VaseReporter(object):
 
     def _add_info_annotations(self, record, allele):
         annots = []
-        for inf, d  in self.info_annotations.items():
+        for inf, d in self.info_annotations.items():
             if d.number == 'A' or d.number == 'R':
                 i = allele
                 if d.number == 'A':
@@ -219,7 +219,6 @@ class VaseReporter(object):
                     elif d.number == 1:
                         annots.append(record.info[inf])
                     else:
-                        print("Appending {}".format(inf))
                         annots.append(','.join(str(x) for x in
                                                record.info[inf]))
                 except KeyError:
