@@ -1402,7 +1402,7 @@ class PotentialSegregant(object):
             # this way we can capture variants at same site if looking for n>1
             # in several families, but won't classify all intergenic variants
             # as the same "Feature"
-            self.features.add(self.var_id)
+            self.features.add(self.var_id.replace(',', '_'))
         self.csqs = csqs
         self.record = record
 

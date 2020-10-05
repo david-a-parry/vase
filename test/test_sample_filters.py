@@ -57,6 +57,20 @@ def test_de_novo3():
     os.remove(output)
 
 
+def test_de_novo_no_csq():
+    output = get_tmp_out()
+    test_args = dict(
+        input=os.path.join(dir_path, 'test_data', 'ex9.vcf.gz'),
+        ped=os.path.join(dir_path, "test_data", "test.ped"),
+        de_novo=True,
+        output=output,
+    )
+    results, expected = run_args(test_args, output,
+                                 sys._getframe().f_code.co_name)
+    assert_equal(results, expected)
+    os.remove(output)
+
+
 def test_biallelic():
     output = get_tmp_out()
     test_args = dict(
