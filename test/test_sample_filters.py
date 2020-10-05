@@ -1,7 +1,7 @@
 from .utils import *
 
 fb_input = os.path.join(dir_path, 'test_data', 'ex1.fb.vcf')
-mosaic_input = os.path.join(dir_path, 'test_data', 'ex9.bcf')
+mosaic_input = os.path.join(dir_path, 'test_data', 'ex10.bcf')
 
 def test_case_control():
     output = get_tmp_out()
