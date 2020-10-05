@@ -714,7 +714,7 @@ class SvGtFilter(GtFilter):
         ab_fields = None
         if not any([gq, dp, het_ab, hom_ab, del_dhffc, dup_dhbfc, min_support]):
             # if no parameters are set then every genotype passes
-            self.gt_is_ok = lambda gt, smp, al: True
+            self.gt_is_ok = lambda gt, smp, al, svtype: True
         else:
             self.gt_is_ok = self._gt_is_ok
         if het_ab or hom_ab or ref_ab_filter or min_support or ignore_gts:
