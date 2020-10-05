@@ -7,7 +7,7 @@ test_requirements = ['nose', 'xlrd']
 setup(
     name="vase",
     packages=["vase"],
-    version="0.4.1",
+    version="0.4.2",
     description="Variant Annotation, Segregation and Exclusion",
     author="David A. Parry",
     author_email="david.parry@igmm.ed.ac.uk",
