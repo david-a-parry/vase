@@ -2,17 +2,27 @@ try:
     from setuptools import setup, find_packages
 except ImportError:
     from distutils.core import setup
+import re
+v_file="vase/version.py"
+v_line = open(v_file, "rt").read()
+v_re = r"^__version__ = ['\"]([^'\"]*)['\"]"
+match = re.search(v_re, v_line, re.M)
+if match:
+    verstr = match.group(1)
+else:
+    raise RuntimeError("Unable to find version string in {}.".format(v_file))
+
 
 test_requirements = ['nose', 'xlrd']
 setup(
     name="vase",
     packages=["vase"],
-    version="0.4.2",
+    version=verstr,
     description="Variant Annotation, Segregation and Exclusion",
     author="David A. Parry",
     author_email="david.parry@igmm.ed.ac.uk",
     url="https://github.com/david-a-parry/vase",
-    download_url='https://github.com/david-a-parry/vase/archive/0.4.2.tar.gz',
+    download_url='https://github.com/david-a-parry/vase/archive/{}.tar.gz'.format(verstr),
     license='MIT',
     install_requires=[
           'pysam>=0.14',
