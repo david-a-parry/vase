@@ -3,7 +3,7 @@
 import sys
 import argparse
 from vase.vase_runner import VaseRunner
-
+from vase import __version__
 
 def parse_args():
     parser = argparse.ArgumentParser(
@@ -1361,6 +1361,12 @@ STDERR. Only program ending errors will appear.
 '--silent', action='store_true', help=
 '''Equivalent to specifying both '--no_progress' and
 '--no_warnings' options.
+
+''')
+
+    help_args.add_argument(
+'--version', action='version', version=__version__, help=
+'''Show version and exit
 
 ''')
 
