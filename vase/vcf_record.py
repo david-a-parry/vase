@@ -3,8 +3,8 @@ import re
 
 sv_fields = ['SVTYPE', 'CIPOS', 'CIEND', 'SVLEN', 'IMPRECISE',
              'LEFT_SVINSSEQ', 'RIGHT_SVINSSEQ']
-_svalt_re = re.compile(r'''<(\w+)(:\w+)*>''')  # group 1 gives SV type
-_bnd_re = re.compile(r'''^(([ACTGN]*)[\[\]]\w+):\d+[\]\[]([ACGTN]*)$''')
+_svalt_re = re.compile(r'<(\w+)(:\w+)*>')  # group 1 gives SV type
+_bnd_re = re.compile(r'^(([ACTGN]*)[\[\]]\w+):\d+[\]\[]([ACGTN]*)$')
 # group 1 gives VEP CSQ allele
 
 
@@ -552,6 +552,7 @@ class AltAllele(object):
                                        len(self.REF) + self.POS - 1,
                                        self.REF,
                                        self.ALT)
+
     def __eq__(self, other):
         if self.is_sv:
             return self._compare_svs(other)
