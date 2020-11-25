@@ -14,7 +14,7 @@ class VaseRecord(object):
         VCF records.
     """
 
-    __slots__ = ['record', 'caller', 'header', '__CSQ', '__is_sv',
+    __slots__ = ['record', 'caller', 'header', '__CSQ', '__ANN', '__is_sv',
                  '__DECOMPOSED_ALLELES', '_vep_allele']
 
     def __init__(self, record, vcfreader):
@@ -31,6 +31,7 @@ class VaseRecord(object):
         self.caller = vcfreader
         self.header = self.caller.header
         self.__CSQ = None
+        self.__ANN = None
         self.__is_sv = None
         self.__DECOMPOSED_ALLELES = None
         self._vep_allele = {}
@@ -197,11 +198,11 @@ class VaseRecord(object):
     @property
     def CSQ(self):
         '''
-            A list of dicts of CSQ/ANN annotations from VEP to values.
+            A list of dicts of CSQ annotations from VEP to values.
             Empty values are represented by empty Strings. Will raise
             a HeaderError if the associated VCF header does not contain
-            CSQ/ANN information and a ParseError if the record being
-            parsed does not contain a CSQ/ANN annotation in the INFO
+            CSQ information and a ParseError if the record being
+            parsed does not contain a CSQ annotation in the INFO
             field.
         '''
         if self.__CSQ is None:
@@ -228,6 +229,33 @@ class VaseRecord(object):
     @CSQ.setter
     def CSQ(self, c):
         self.__CSQ = c
+
+
+    @property
+    def ANN(self):
+        '''
+            A list of dicts of ANN/EFF annotations from SnpEff to values.
+            Empty values are represented by empty Strings. Will raise
+            a HeaderError if the associated VCF header does not contain
+            ANN/EFF information and a ParseError if the record being
+            parsed does not contain a ANN/EFF annotation in the INFO
+            field.
+        '''
+        if self.__ANN is None:
+            lbl = self.header.ann_label
+            try:
+                anns = self.record.info[lbl]
+            except KeyError:
+                raise ValueError("Could not find '{}' label in ".format(lbl) +
+                                 "INFO field of record at {}:{}"
+                                 .format(self.chrom, self.pos))
+            self.__ANN = [dict(zip(self.header.ann_fields, x.split('|'))) for x
+                          in self.record.info[self.header.ann_label]]
+        return self.__ANN
+
+    @ANN.setter
+    def ANN(self, ann):
+        self.__ANN = ann
 
     def _vep_to_alt(self, csq):
         # figure out how alleles will be handled by looking at the REF vs ALTs

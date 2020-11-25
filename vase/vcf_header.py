@@ -1,8 +1,12 @@
 import re
 
-_csq_format_re = re.compile(r'''.*Format:\s*((\S+\|)*\S+)''')
-# for capturing CSQ format in Description field of metaheader
-_common_csq_fields = ['CSQ', 'ANN', 'BCSQ', 'CQ']
+_csq_format_re = re.compile(r'.*Format:\s*((\S+\|)*\S+)')
+# for capturing VEP CSQ format in Description field of metaheader
+_ann_format_re = re.compile(r".*Functional annotations:\s*'(([^\|]+\|)*[^\|]+)"
+                            )
+# for capturing SnpEff ANN format in Description field of metaheader
+_common_csq_fields = ['CSQ', 'BCSQ', 'CQ', 'vep']
+_common_ann_fields = ['ANN', 'EFF']
 _required_keys = {'info': ['number', 'type', 'description'],
                   'format': ['number', 'type', 'description'],
                   'filter': ['description'],
@@ -16,13 +20,16 @@ _field2pysam = {'info': 'info',
 class VcfHeader(object):
     ''' Header class storing metadata and sample information for a vcf '''
 
-    __slots__ = ['vcfreader', 'header', '__csq_label', '__csq_fields']
+    __slots__ = ['vcfreader', 'header', '__csq_label', '__csq_fields',
+                 '__ann_label', '__ann_fields']
 
     def __init__(self, vcfreader):
         self.vcfreader = vcfreader
         self.header = self.vcfreader.variant_file.header
         self.__csq_fields = None
         self.__csq_label = None
+        self.__ann_fields = None
+        self.__ann_label = None
 
     @property
     def formats(self):
@@ -91,6 +98,58 @@ class VcfHeader(object):
     @csq_fields.setter
     def csq_fields(self, csq):
         self.__csq_fields = csq
+
+    @property
+    def ann_label(self):
+        '''
+            String labelling the INFO field label of SnpEff consequence
+            annotations. Will raise a KeyError if access is attempted
+            but no ANN or EFF field is present in the header.
+        '''
+        if self.__ann_label is None:
+            self.ann_fields
+        return self.__ann_label
+
+    @ann_label.setter
+    def ann_label(self, lbl):
+        self.__ann_label = lbl
+
+    @property
+    def ann_fields(self):
+        '''
+            A list of SnpEff ANN field names in the order they are
+            represented in ANN/EFF INFO field entries. Set to None on
+            initialization. Will raise a KeyError if access is attempted but no
+            SnpEff ANN, or EFF field is present in the header.
+        '''
+
+        if self.__ann_fields is None:
+            if self.__ann_label is None:
+                ann = None
+                for x in _common_ann_fields:
+                    if x in self.info:
+                        ann = x
+                        break
+                if ann is None:
+                    raise KeyError("No common ANN fields found in INFO " +
+                                   "header - unable to retrieve SnpEff " +
+                                   "consequence fields.")
+                self.ann_label = ann
+            else:
+                ann = self.__ann_label
+            ann_header = self.info[ann]
+            match = _ann_format_re.match(ann_header.description)
+            if match:
+                self.__ann_fields = match.group(1).split(' | ')
+            else:
+                raise KeyError("Could not parse {} Format in ".format(ann)
+                               + "header. Unable to retrieve consequence "
+                               + "annotations.")
+        return self.__ann_fields
+
+    @ann_fields.setter
+    def ann_fields(self, ann):
+        self.__ann_fields = ann
 
     def add_header_field(self, name, string=None, field_type=None,
                          dictionary=None):
