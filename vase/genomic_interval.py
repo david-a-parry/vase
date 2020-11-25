@@ -1,5 +1,6 @@
 import operator
 
+
 class GenomicInterval(object):
     '''
         Simple class for representing a genomic interval, potentially
@@ -14,7 +15,7 @@ class GenomicInterval(object):
                 interval:   A list of columns from a BED file.
         '''
         self.contig = interval[0]
-        self.start = int(interval[1]) #should be 0-based
+        self.start = int(interval[1])  # should be 0-based
         self.end = int(interval[2])
         self.regions = [interval]
         if self.start >= self.end:
