@@ -2,8 +2,8 @@ import re
 
 _csq_format_re = re.compile(r'.*Format:\s*((\S+\|)*\S+)')
 # for capturing VEP CSQ format in Description field of metaheader
-_ann_format_re = re.compile(r".*Functional annotations:\s*'(([^\|]+\|)*[^\|]+)"
-                            )
+_ann_format_re = re.compile(
+    r".*Functional annotations:\s*'(([^\|]+\|)*[^\|]+)'")
 # for capturing SnpEff ANN format in Description field of metaheader
 _common_csq_fields = ['CSQ', 'BCSQ', 'CQ', 'vep']
 _common_ann_fields = ['ANN', 'EFF']
