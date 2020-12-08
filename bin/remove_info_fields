@@ -22,9 +22,13 @@ def get_options():
                                 help='''One or more INFO fields to retain. All
                                 other INFO fields will be removed as long as
                                 they are defined in the VCF header.''')
+    keep_or_remove.add_argument("-c", "--clean", action='store_true',
+                                help='''Identify and remove any INFO fields not
+                                present in VCF header.''')
     return parser
 
-def main(vcf_input, output, remove_fields=[], keep_fields=[]):
+
+def main(vcf_input, output, clean=False, remove_fields=[], keep_fields=[]):
     '''
         Remove INFO fields from VCF.
 
@@ -33,6 +37,8 @@ def main(vcf_input, output, remove_fields=[], keep_fields=[]):
 
             output:     VCF output file. Will write to STDOUT if not
                         provided.
+
+            clean:      Remove any INFO fields not present in VCF header.
 
             remove_fields:
                         One or more INFO fields to remove. Can not be
@@ -48,21 +54,35 @@ def main(vcf_input, output, remove_fields=[], keep_fields=[]):
     if remove_fields and keep_fields:
         raise RuntimeError("remove_fields and keep_fields arguments are " +
                            "mutually exclusive.")
+    if clean and (remove_fields or keep_fields):
+        raise RuntimeError("clean and remove/keep_fields arguments are " +
+                           "mutually exclusive.")
     vcf = VcfReader(vcf_input)
     if output is None:
         output = '-'
-    new_head = []
     if keep_fields:
         remove_fields = [x for x in vcf.header.info if x not in keep_fields]
+    if clean:
+        remove_fields = []
+    cleaned_fields = set()
     new_header = vcf.header.header.copy()
     for f in remove_fields:
         new_header.info.remove_header(f)
     vcf_writer = pysam.VariantFile(output, mode='w', header=new_header)
     for record in vcf:
+        if clean:
+            for k in record.info:
+                if k not in vcf_writer.header.info:
+                    del record.info[k]
+                    if k not in cleaned_fields:
+                        sys.stderr.write("Removing INFO field '{}'\n".format(k)
+                                         )
+                        cleaned_fields.add(k)
         for f in (x for x in remove_fields if x in record.info):
             del record.info[f]
         vcf_writer.write(record.record)
     vcf_writer.close()
+
 
 if __name__ == '__main__':
     argparser = get_options()
