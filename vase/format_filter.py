@@ -1,7 +1,7 @@
 from vase.annotation_filter import AnnotationFilter
 
 
-class InfoFilter(AnnotationFilter):
+class FormatFilter(AnnotationFilter):
     '''
         A class for filtering on given INFO fields in a VCF
     '''
@@ -16,4 +16,7 @@ class InfoFilter(AnnotationFilter):
                         values for filtering.
 
         '''
-        super().__init__(vcf=vcf, field='info', filters=filters)
+        super().__init__(vcf=vcf, field='format', filters=filters)
+
+    def filter(self, record, sample):
+        return super().filter(record, key=sample)
