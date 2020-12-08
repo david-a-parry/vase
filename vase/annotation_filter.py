@@ -58,12 +58,14 @@ class AnnotationFilter(object):
             try:
                 op = ops[operand]
             except KeyError:
-                raise ValueError("Unrecognised operand '{}'".format(operand))
+                raise ValueError("Unrecognised operand '{}' ".format(operand) +
+                                 "in filter expression '{} {} {}'".format(
+                                     field, operand, value))
             if field not in self.metadata:
                 raise ValueError("{} field ".format(self.field_name) +
                                  "'{}' not in VCF ".format(field) +
-                                 "header - can not be used for INFO field " +
-                                 "filtering.")
+                                 "header - can not be used for {} ".format(
+                                     self.field_name) + "field filtering.")
             else:
                 ftype = self.metadata[field].type
                 coerc = None
