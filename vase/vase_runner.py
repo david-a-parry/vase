@@ -703,6 +703,8 @@ class VaseRunner(object):
 
     def filter_global(self, record):
         ''' Return True if record fails any global variant filters.'''
+        if record.alts is None:
+            return True
         if self.args.pass_filters:
             if record.filter.keys() != ['PASS']:
                 return True
