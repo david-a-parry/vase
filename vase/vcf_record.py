@@ -230,7 +230,6 @@ class VaseRecord(object):
     def CSQ(self, c):
         self.__CSQ = c
 
-
     @property
     def ANN(self):
         '''
@@ -250,7 +249,9 @@ class VaseRecord(object):
                                  "INFO field of record at {}:{}"
                                  .format(self.chrom, self.pos))
             self.__ANN = [dict(zip(self.header.ann_fields, x.split('|'))) for x
-                          in self.record.info[self.header.ann_label]]
+                          in anns]
+            for d in self.__ANN:
+                d['alt_index'] = self.alleles.index(d['Allele'])
         return self.__ANN
 
     @ANN.setter

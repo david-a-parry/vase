@@ -18,7 +18,7 @@ def csv_to_dict(f, index, fieldnames, delimiter=',', keys_are_unique=False):
         for x in fieldnames:
             if x not in reader.fieldnames:
                 raise ValueError("Missing '{}' ".format(x) + "field in" +
-                                   " file '{}'".format(f))
+                                 " file '{}'".format(f))
         for row in reader:
             if keys_are_unique:
                 if row[index] in d:
@@ -29,6 +29,27 @@ def csv_to_dict(f, index, fieldnames, delimiter=',', keys_are_unique=False):
             else:
                 d[row[index]].append(row)
     return d
+
+
+def get_valid_and_default(data_file):
+    '''
+    Reads tab-delimited file indicating values to be treated as default
+    or valid (e.g. data/biotypes.tsv). Returns list of default values and
+    list of valid values.
+    '''
+    defaults = list()
+    valid = list()
+    with open(data_file, encoding='UTF-8') as fh:
+        for line in fh:
+            if line.startswith('#'):
+                continue
+            cols = line.rstrip().split('\t')
+            if len(cols) < 2:
+                continue
+            valid.append(cols[0].lower())
+            if cols[1] == 'default':
+                defaults.append(cols[0].lower())
+    return defaults, valid
 
 
 def read_tbi(tbi):

@@ -8,6 +8,7 @@ from .dbsnp_filter import dbSnpFilter, clinvar_path_annot
 from .gnomad_filter import GnomadFilter
 from .vcf_filter import VcfFilter
 from .vep_filter import VepFilter
+from .snpeff_filter import SnpEffFilter
 from .cadd_filter import CaddFilter
 from .sample_filter import SampleFilter
 from .ped_file import PedFile, Individual, PedError
@@ -51,7 +52,6 @@ class VaseRunner(object):
         self.ped = None
         if args.ped:
             self.ped = PedFile(args.ped)
-        self.csq_filter = None
         self.g2p = None
         self.gene_filter = None
         self.retrieving_by_region = False
@@ -107,101 +107,16 @@ class VaseRunner(object):
                                            gene_targets=True,
                                            stream=args.stream,
                                            exclude=args.exclude_regions)
-            if args.csq is None:
-                args.csq = ['all']
-            if args.biotypes is None:
-                args.biotypes = ['all']
+            if self.args.csq is None:
+                self.args.csq = ['all']
+            if self.args.biotypes is None:
+                self.args.biotypes = ['all']
             self.var_stream = self.gene_filter
             self.retrieving_by_region = True
             self.logger.info("Finished processing intervals.")
         if args.g2p is not None:
             self.g2p = G2P(args.g2p)
-        if (args.csq is not None or args.impact is not None
-                or self.args.g2p is not None):
-            if args.no_vep_freq:
-                if args.vep_af:
-                    self.logger.warn("Ignoring --vep_af argument because " +
-                                     "--no_vep_af argument is in use.")
-                vep_freq = None
-                vep_min_freq = None
-                vep_af = []
-            else:
-                vep_freq = args.freq
-                vep_min_freq = args.min_freq
-                vep_af = args.vep_af
-            if self.splice_ai_filter or (self.prev_splice_ai and
-                                         (self.args.splice_ai_min_delta
-                                          or self.args.splice_ai_max_delta)):
-                # workaround - need to VepFilter in 2 stages if using SpliceAI 
-                self.csq_filter = VepFilter(
-                    vcf=self.input,
-                    csq=args.csq,
-                    impact=args.impact,
-                    canonical=args.canonical,
-                    biotypes=args.biotypes,
-                    in_silico=args.missense_filters,
-                    filter_unpredicted=args.filter_unpredicted,
-                    keep_any_damaging=args.keep_if_any_damaging,
-                    loftee=args.loftee,
-                    splice_in_silico=args.splice_filters,
-                    splice_filter_unpredicted=args.splice_filter_unpredicted,
-                    splice_keep_any_damaging=args.splice_keep_if_any_damaging,
-                    retain_labels=args.retain_labels,
-                    filter_flagged_features=args.flagged_features,
-                    freq=vep_freq,
-                    min_freq=vep_min_freq,
-                    filter_known=self.args.filter_known,
-                    filter_novel=self.args.filter_novel,
-                    afs=vep_af,
-                    gene_filter=self.gene_filter,
-                    blacklist=args.feature_blacklist,
-                    pathogenic=args.pathogenic,
-                    no_conflicted=args.no_conflicted,
-                    g2p=self.g2p,
-                    check_g2p_consequence=self.args.check_g2p_consequence,
-                    logging_level=self.logger.level)
-                self.post_spliceai_csq_filter = VepFilter(
-                    vcf=self.input,
-                    csq=['all'],
-                    canonical=args.canonical,
-                    biotypes=args.biotypes,
-                    freq=vep_freq,
-                    min_freq=vep_min_freq,
-                    filter_known=self.args.filter_known,
-                    filter_novel=self.args.filter_novel,
-                    afs=vep_af,
-                    gene_filter=self.gene_filter,
-                    blacklist=args.feature_blacklist,
-                    logging_level=self.logger.level)
-            else:
-                self.csq_filter = VepFilter(
-                    vcf=self.input,
-                    csq=args.csq,
-                    impact=args.impact,
-                    canonical=args.canonical,
-                    biotypes=args.biotypes,
-                    in_silico=args.missense_filters,
-                    filter_unpredicted=args.filter_unpredicted,
-                    keep_any_damaging=args.keep_if_any_damaging,
-                    loftee=args.loftee,
-                    splice_in_silico=args.splice_filters,
-                    splice_filter_unpredicted=args.splice_filter_unpredicted,
-                    splice_keep_any_damaging=args.splice_keep_if_any_damaging,
-                    retain_labels=args.retain_labels,
-                    filter_flagged_features=args.flagged_features,
-                    freq=vep_freq,
-                    min_freq=vep_min_freq,
-                    filter_known=self.args.filter_known,
-                    filter_novel=self.args.filter_novel,
-                    afs=vep_af,
-                    gene_filter=self.gene_filter,
-                    blacklist=args.feature_blacklist,
-                    pathogenic=args.pathogenic,
-                    no_conflicted=args.no_conflicted,
-                    g2p=self.g2p,
-                    check_g2p_consequence=self.args.check_g2p_consequence,
-                    logging_level=self.logger.level)
-                self.post_spliceai_csq_filter = None
+        self.csq_filter, self.post_spliceai_csq_filter = self.get_csq_filters()
         self.sample_filter = None
         self.burden_counter = None
         if args.burden_counts:
@@ -810,6 +725,109 @@ class VaseRunner(object):
             if len(record.alleles) == 2 and record.alleles[1] == '*':
                 return True
         return False
+
+    def get_csq_filters(self):
+        if self.args.csq is None and self.args.impact is None \
+           and self.args.g2p is None:
+            return None, None
+        elif self.args.snpeff:
+            return self.get_snpeff_filters()
+        return self.get_vep_filters()
+
+    def get_snpeff_filters(self):
+        for option in ('missense_filters', 'splice_filters', 'loftee',
+                       'vep_af', 'pathogenic'):
+            if getattr(self.args, option):
+                raise ValueError("--{} option is incompatible".format(option) +
+                                 " with --snpeff option. This option " +
+                                 "requires filtering using VEP annotations.")
+        csq_filter = SnpEffFilter(
+            vcf=self.input,
+            csq=self.args.csq,
+            impact=self.args.impact,
+            biotypes=self.args.biotypes,
+            retain_labels=self.args.retain_labels,
+            filter_flagged_features=self.args.flagged_features,
+            gene_filter=self.gene_filter,
+            blacklist=self.args.feature_blacklist,
+            g2p=self.g2p,
+            check_g2p_consequence=self.args.check_g2p_consequence,
+            logging_level=self.logger.level)
+        if self._need_post_spliceai_csq_filter():
+            post_splice_ai_filter = SnpEffFilter(
+                vcf=self.input,
+                csq=['all'],
+                biotypes=self.args.biotypes,
+                gene_filter=self.gene_filter,
+                blacklist=self.args.feature_blacklist,
+                logging_level=self.logger.level)
+        else:
+            post_splice_ai_filter = None
+        return csq_filter, post_splice_ai_filter
+
+    def get_vep_filters(self):
+        if self.args.no_vep_freq:
+            if self.args.vep_af:
+                self.logger.warn("Ignoring --vep_af argument because " +
+                                 "--no_vep_af argument is in use.")
+            vep_freq = None
+            vep_min_freq = None
+            vep_af = []
+        else:
+            vep_freq = self.args.freq
+            vep_min_freq = self.args.min_freq
+            vep_af = self.args.vep_af
+        csq_filter = VepFilter(
+            vcf=self.input,
+            csq=self.args.csq,
+            impact=self.args.impact,
+            canonical=self.args.canonical,
+            biotypes=self.args.biotypes,
+            in_silico=self.args.missense_filters,
+            filter_unpredicted=self.args.filter_unpredicted,
+            keep_any_damaging=self.args.keep_if_any_damaging,
+            loftee=self.args.loftee,
+            splice_in_silico=self.args.splice_filters,
+            splice_filter_unpredicted=self.args.splice_filter_unpredicted,
+            splice_keep_any_damaging=self.args.splice_keep_if_any_damaging,
+            retain_labels=self.args.retain_labels,
+            filter_flagged_features=self.args.flagged_features,
+            freq=vep_freq,
+            min_freq=vep_min_freq,
+            filter_known=self.args.filter_known,
+            filter_novel=self.args.filter_novel,
+            afs=vep_af,
+            gene_filter=self.gene_filter,
+            blacklist=self.args.feature_blacklist,
+            pathogenic=self.args.pathogenic,
+            no_conflicted=self.args.no_conflicted,
+            g2p=self.g2p,
+            check_g2p_consequence=self.args.check_g2p_consequence,
+            logging_level=self.logger.level)
+        if self._need_post_spliceai_csq_filter():
+            # workaround - need to VepFilter in 2 stages if using SpliceAI
+            post_spliceai_csq_filter = VepFilter(
+                vcf=self.input,
+                csq=['all'],
+                canonical=self.args.canonical,
+                biotypes=self.args.biotypes,
+                freq=vep_freq,
+                min_freq=vep_min_freq,
+                filter_known=self.args.filter_known,
+                filter_novel=self.args.filter_novel,
+                afs=vep_af,
+                gene_filter=self.gene_filter,
+                blacklist=self.args.feature_blacklist,
+                logging_level=self.logger.level)
+        else:
+            post_spliceai_csq_filter = None
+        return csq_filter, post_spliceai_csq_filter
+
+    def _need_post_spliceai_csq_filter(self):
+        if self.splice_ai_filter:
+            return True
+        return self.prev_splice_ai and (self.args.splice_ai_min_delta or
+                                        self.args.splice_ai_max_delta)
 
     def get_cadd_filter(self):
         if self.args.cadd_directory or self.args.cadd_files:

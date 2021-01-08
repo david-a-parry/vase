@@ -37,6 +37,7 @@ all_args = {
     'min_ac': None,
     'info_filters': None,
     'csq': None,
+    'snpeff': False,
     'impact': None,
     'canonical': False,
     'flagged_features': False,
