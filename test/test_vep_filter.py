@@ -184,7 +184,6 @@ def test_flags():
     assert_equal(expected_alts, results_alts)
 
 
-
 def test_canonical_stop_gained():
     vcf = VcfReader(is_input)
     csq_filter = VepFilter(

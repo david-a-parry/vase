@@ -5,6 +5,7 @@ import argparse
 from vase.vase_runner import VaseRunner
 from vase import __version__
 
+
 def parse_args():
     parser = argparse.ArgumentParser(
                        description='Variant annotation, segregation and ' +
@@ -266,7 +267,17 @@ Note, that using the --csq option automatically
 turns on biotype filtering (see the --biotypes
 option below).
 
-''' )
+''')
+
+    filter_args.add_argument(
+'--snpeff', action='store_true', help=
+'''Use SnpEff annotations instead of VEP for
+filtering.
+
+TODO: More to follow.
+
+'''
+)
 
     filter_args.add_argument(
 '--impact', nargs='+', help=
