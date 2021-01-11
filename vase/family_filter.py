@@ -251,7 +251,7 @@ class InheritanceFilter(object):
     '''
 
     def __init__(self, family_filter, gt_args, min_families=1,
-                 report_file=None):
+                 report_file=None,  snpeff_mode=False):
         '''
             Create genotype filter objects and initialise family filtering
             arguments.
@@ -274,6 +274,10 @@ class InheritanceFilter(object):
                 report_file:
                         Deprecated. Use vase_reporter to after
                         inheritance filtering to process VCFs instead.
+
+                snpeff_mode:
+                        Use SnpEff annotations instead of VEP annotations
+                        from input VCF.
         '''
 
         self.family_filter = family_filter
@@ -342,6 +346,20 @@ class InheritanceFilter(object):
         self._sv_gt_fields.update(self.sv_con_gt_filter.fields)
         self._prev_coordinate = (None, None)  # to ensure records are processed
         self._processed_contigs = set()       # in coordinate order
+        if snpeff_mode:
+            try:
+                self._csq_header = self.family_filter.vcf.header.ann_fields
+            except KeyError:
+                self._csq_header = None  # only required for report file
+            self.csq_attribute = 'ANN'
+            self.feature_label = 'Feature_ID'
+        else:
+            try:
+                self._csq_header = self.family_filter.vcf.header.csq_fields
+            except KeyError:
+                self._csq_header = None  # only required for report file
+            self.csq_attribute = 'CSQ'
+            self.feature_label = 'Feature'
         if self.report_file:
             self._write_report_header()
 
@@ -423,9 +441,9 @@ class InheritanceFilter(object):
                                    "overriden by child class!")
 
     def _write_report_header(self):
-        header = str.join("\t", (x for x in
-                                 self.family_filter.vcf.header.csq_fields
-                                 if x != 'Allele'))
+        if self._csq_header is not None:
+            header = str.join("\t", (x for x in self._csq_header if x !=
+                                     'Allele'))
         header += "\tALT_No.\t" + str.join("\t", self.annot_fields)
         header += "\tCHROM\tPOS\tID\tREF\tALT\tALLELE\tQUAL\tFILTER"
         self.report_file.write(header + "\n")
@@ -453,8 +471,9 @@ class RecessiveFilter(InheritanceFilter):
         genetic cause of disease. It will not cope with phenocopies,
         pseudodominance or other more complicated inheritance patterns.
     '''
-    def __init__(self, family_filter, gt_args, min_families=1, strict=False,
-                 exclude_denovo=False, report_file=None):
+    def __init__(self, family_filter, gt_args, min_families=1,
+                 snpeff_mode=False, strict=False, exclude_denovo=False,
+                 report_file=None):
         '''
             Args:
                 family_filter:
@@ -464,6 +483,15 @@ class RecessiveFilter(InheritanceFilter):
                         A dict of arguments to use for filtering
                         genotypes. These should all correspond to
                         arguments to provide to SampleFilter objects.
+
+                min_families:
+                        Require at least this many families to have a
+                        qualifying biallelic combination of alleles in
+                        a feature before outputting. Default=1.
+
+                snpeff_mode:
+                        Use SnpEff annotations instead of VEP annotations
+                        from input VCF.
 
                 strict: If True, for any affected sample with
                         parents, require confirmation of parental
@@ -476,11 +504,6 @@ class RecessiveFilter(InheritanceFilter):
                         both parents for an affected individual
                         ignore apparent de novo occuring alleles.
                         Default=False.
-
-                min_families:
-                        Require at least this many families to have a
-                        qualifying biallelic combination of alleles in
-                        a feature before outputting. Default=1.
 
                 report_file:
                         Output filehandle for writing summaries of
@@ -508,7 +531,7 @@ class RecessiveFilter(InheritanceFilter):
                              'families', 'features')
         self.report_file = report_file
         super().__init__(family_filter, gt_args, min_families=min_families,
-                         report_file=report_file,)
+                         snpeff_mode=snpeff_mode, report_file=report_file)
         self.families = tuple(x for x in
                               self.family_filter.inheritance_patterns
                               if 'recessive' in
@@ -560,8 +583,9 @@ class RecessiveFilter(InheritanceFilter):
         '''
         stored = False
         self._check_sorted(record)
-        self._current_features = set(c['Feature'] for c in record.CSQ if
-                                     c['Feature'] != '')
+        record_csqs = getattr(record, self.csq_attribute)
+        self._current_features = set(c[self.feature_label] for c in record_csqs
+                                     if c[self.feature_label] != '')
         ignore_csq = self.check_g2p(record, ignore_csq, 'recessive')
         if ignore_csq and all(ignore_csq):
             return False
@@ -609,19 +633,20 @@ class RecessiveFilter(InheritanceFilter):
                 # store record and consequences
                 try:
                     csqs = []
-                    for j in range(len(record.CSQ)):
+                    for j in range(len(record_csqs)):
                         if ignore_csq and ignore_csq[j]:
                             continue
-                        if record.CSQ[j]['alt_index'] == alt:
+                        if record_csqs[j]['alt_index'] == alt:
                             # store record and csq details
-                            csqs.append(record.CSQ[j])
+                            csqs.append(record_csqs[j])
                     if csqs:
                         stored = True
                         alt_counts = self._get_allele_counts(alt, record)
-                        pr = PotentialSegregant(record=record, allele=alt,
-                                                csqs=csqs,
-                                                allele_counts=alt_counts,
-                                                families=fams_with_allele)
+                        pr = PotentialSegregant(
+                            record=record, allele=alt, csqs=csqs,
+                            allele_counts=alt_counts,
+                            families=fams_with_allele,
+                            feature_label=self.feature_label)
                         for feat in pr.features:
                             if feat in added_prs:
                                 added_prs[feat][pr.alt_id] = pr
@@ -802,7 +827,7 @@ class DominantFilter(InheritanceFilter):
     '''
 
     def __init__(self, family_filter, gt_args, min_families=1,
-                 report_file=None):
+                 snpeff_mode=False, report_file=None):
         '''
             Initialize with parent IDs, children IDs and VcfReader
             object.
@@ -820,6 +845,11 @@ class DominantFilter(InheritanceFilter):
                         Require at least this many families to have a
                         qualifying variant in a feature before
                         outputting. Default=1.
+
+                snpeff_mode:
+                        Use SnpEff annotations instead of VEP annotations
+                        from input VCF.
+
 
         '''
         self.prefix = "VASE_dominant"
@@ -841,7 +871,7 @@ class DominantFilter(InheritanceFilter):
                              'features')
         self.report_file = report_file
         super().__init__(family_filter, gt_args, min_families=min_families,
-                         report_file=report_file,)
+                         snpeff_mode=snpeff_mode, report_file=report_file,)
         self.families = tuple(x for x in
                               self.family_filter.inheritance_patterns
                               if 'dominant' in
@@ -920,13 +950,14 @@ class DominantFilter(InheritanceFilter):
                 continue
             allele = i + 1
             csqs = []
+            record_csqs = getattr(record, self.csq_attribute)
             try:
-                for j in range(len(record.CSQ)):
+                for j in range(len(record_csqs)):
                     if ignore_csq and ignore_csq[j]:
                         continue
-                    if record.CSQ[j]['alt_index'] == allele:
+                    if record_csqs[j]['alt_index'] == allele:
                         # store record and csq details
-                        csqs.append(record.CSQ[j])
+                        csqs.append(record_csqs[j])
             except KeyError:
                 if self.min_families > 1:
                     raise RuntimeError("Could not identify CSQ or ANN fields" +
@@ -937,7 +968,8 @@ class DominantFilter(InheritanceFilter):
                 a_counts = self._get_allele_counts(allele, record)
                 pd = PotentialSegregant(record=record, allele=allele,
                                         csqs=csqs, allele_counts=a_counts,
-                                        families=fam_alleles[i])
+                                        families=fam_alleles[i],
+                                        feature_label=self.feature_label)
                 segs.append(pd)
         if self.min_families > 1:
             for feat, od in self._last_added.items():
@@ -1028,8 +1060,8 @@ class DeNovoFilter(InheritanceFilter):
         the parents.
     '''
 
-    def __init__(self, family_filter, gt_args, min_families=1, confirm_het=False,
-                 report_file=None):
+    def __init__(self, family_filter, gt_args, min_families=1,
+                 confirm_het=False, snpeff_mode=False, report_file=None):
         '''
             Initialize with parent IDs, children IDs and VcfReader
             object.
@@ -1052,6 +1084,10 @@ class DeNovoFilter(InheritanceFilter):
                         If True, apparent de novos are required to be
                         called as heterozygous. Default=False.
 
+                snpeff_mode:
+                        Use SnpEff annotations instead of VEP annotations
+                        from input VCF.
+
         '''
         self.prefix = "VASE_de_novo"
         self.header_fields = [("VASE_de_novo_samples",
@@ -1066,10 +1102,11 @@ class DeNovoFilter(InheritanceFilter):
         self.annot_fields = ('samples', 'families', 'features')
         self.report_file = report_file
         super().__init__(family_filter, gt_args, min_families=min_families,
-                         report_file=report_file,)
-        self.families = tuple(x for x in self.family_filter.inheritance_patterns
-                             if 'de_novo' in
-                             self.family_filter.inheritance_patterns[x])
+                         snpeff_mode=snpeff_mode, report_file=report_file)
+        self.families = tuple(x for x in
+                              self.family_filter.inheritance_patterns if
+                              'de_novo' in
+                              self.family_filter.inheritance_patterns[x])
         self.affected = tuple(x for x in family_filter.vcf_affected if
                              self.ped.individuals[x].fid in self.families)
         self._potential_denovos = dict()
@@ -1152,12 +1189,13 @@ class DeNovoFilter(InheritanceFilter):
             allele = i + 1
             csqs = []
             try:
-                for j in range(len(record.CSQ)):
+                record_csqs = getattr(record, self.csq_attribute)
+                for j in range(len(record_csqs)):
                     if ignore_csq and ignore_csq[j]:
                         continue
-                    if record.CSQ[j]['alt_index'] == allele:
+                    if record_csqs[j]['alt_index'] == allele:
                         # store record and csq details
-                        csqs.append(record.CSQ[j])
+                        csqs.append(record_csqs[j])
             except KeyError:
                 if self.min_families > 1:
                     raise RuntimeError("Could not identify CSQ or ANN fields" +
@@ -1168,7 +1206,8 @@ class DeNovoFilter(InheritanceFilter):
                 a_counts = self._get_allele_counts(allele, record)
                 pd = PotentialSegregant(record=record, allele=allele,
                                         csqs=csqs, allele_counts=a_counts,
-                                        families=fam_alleles[i])
+                                        families=fam_alleles[i],
+                                        feature_label=self.feature_label)
                 segs.append(pd)
         if self.min_families > 1:
             for feat, od in self._last_added.items():
@@ -1240,7 +1279,7 @@ class DeNovoFilter(InheritanceFilter):
                 var_to_segregants[sv.segregant.var_id].append(sv.segregant)
             else:
                 var_to_segregants[sv.segregant.var_id] = [sv.segregant]
-        #clear the cache of processed features
+        # clear the cache of processed features
         for feat in feat_processed:
             del self._potential_denovos[feat]
         return var_to_segregants
@@ -1388,7 +1427,8 @@ class PotentialSegregant(object):
     __slots__ = ['allele', 'allele_counts', 'features', 'families', 'alt_id',
                  'var_id', 'record', 'csqs']
 
-    def __init__(self, record, allele, csqs, allele_counts, families):
+    def __init__(self, record, allele, csqs, allele_counts, families,
+                 feature_label='Feature'):
         self.allele = allele
         self.allele_counts = allele_counts
         self.families = families
@@ -1396,7 +1436,8 @@ class PotentialSegregant(object):
                                            record.ref, record.alt)
         self.alt_id = "{}:{}-{}/{}".format(record.chrom, record.pos,
                                            record.ref, record.alleles[allele])
-        self.features = set(x['Feature'] for x in csqs if x['Feature'] != '')
+        self.features = set(x[feature_label] for x in csqs if
+                            x[feature_label] != '')
         if not self.features:
             # if is intergenic and there is no Feature ID, use var ID
             # this way we can capture variants at same site if looking for n>1

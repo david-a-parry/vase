@@ -150,7 +150,7 @@ class VaseRunner(object):
         self.recessive_filter = None
         self.family_filter = None
         self.control_filter = None
-        self.variant_cache = VariantCache()
+        self.variant_cache = VariantCache(snpeff_mode=args.snpeff)
         self.use_cache = False
         self.prog_interval = args.prog_interval
         self.log_progress = args.log_progress
@@ -1310,6 +1310,7 @@ class VaseRunner(object):
             self.family_filter,
             self.gt_args,
             min_families=self.args.min_families,
+            snpeff_mode=self.args.snpeff,
             report_file=self.report_fhs['dominant'])
         added_info = list(self.dominant_filter.get_header_fields().keys())
         if not self.dominant_filter.affected:
@@ -1338,6 +1339,7 @@ class VaseRunner(object):
             self.family_filter,
             self.gt_args,
             min_families=self.args.min_families,
+            snpeff_mode=self.args.snpeff,
             report_file=self.report_fhs['de_novo'])
         added_info = list(self.de_novo_filter.get_header_fields().keys())
         if not self.de_novo_filter.affected:
@@ -1366,6 +1368,7 @@ class VaseRunner(object):
             self.gt_args,
             min_families=self.args.min_families,
             strict=self.strict_recessive_inheritance,
+            snpeff_mode=self.args.snpeff,
             report_file=self.report_fhs['recessive'])
         added_info = list(self.recessive_filter.get_header_fields().keys())
         if not self.recessive_filter.affected:
@@ -1410,12 +1413,16 @@ class VariantCache(object):
         current record is outside of the relevant features.
     '''
 
-    __slots__ = ['cache', 'features', 'output_ready']
+    __slots__ = ['cache', 'features', 'output_ready', 'features_from_record']
 
-    def __init__(self):
+    def __init__(self, snpeff_mode=False):
         self.cache = []
         self.features = set()
         self.output_ready = []
+        if snpeff_mode:
+            self.features_from_record = self._get_snpeff_annotation_features
+        else:
+            self.features_from_record = self._get_vep_annotation_features
 
     def check_record(self, record):
         '''
@@ -1423,13 +1430,13 @@ class VariantCache(object):
             those in cache and if so move variants from cache to
             output_ready. The given record is NOT added to the cache.
         '''
-        these_feats = set([x['Feature'] for x in record.CSQ])
+        these_feats = self.features_from_record(record)
         if self.features and these_feats.isdisjoint(self.features):
             self.add_cache_to_output_ready()
             self.features.clear()
 
     def add_record(self, record, can_output=False):
-        these_feats = set([x['Feature'] for x in record.CSQ])
+        these_feats = self.features_from_record(record)
         if self.features and these_feats.isdisjoint(self.features):
             self.add_cache_to_output_ready()
             self.features = these_feats
@@ -1441,6 +1448,12 @@ class VariantCache(object):
         ''' Adds items in cache to output_ready and clears cache.'''
         self.output_ready.extend(self.cache)
         self.cache = []
+
+    def _get_snpeff_annotation_features(self, record):
+        return set([x['Feature_ID'] for x in record.ANN])
+
+    def _get_vep_annotation_features(self, record):
+        return set([x['Feature'] for x in record.CSQ])
 
 
 class CachedVariant(object):
