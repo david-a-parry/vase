@@ -29,6 +29,7 @@ if __name__ == '__main__':
             ann = dict((csq2ann[k], v) for k, v in csq.items() if k in csq2ann)
             if not ann['Rank']:
                 ann['Rank'] = csq['INTRON']
+            ann['Allele'] = record.alleles[record._vep_to_alt(csq)]
             annots.append("|".join(ann[k] for k in ann_fields))
         _ = record.info.pop('CSQ')
         record.info['ANN'] = annots
