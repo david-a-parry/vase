@@ -213,7 +213,7 @@ class VaseRunner(object):
             for vase_record in self.var_stream:
                 self.process_record(vase_record)
                 self.var_count += 1
-                self.update_progress(vase_record)
+                self.update_progress(vase_record.record)
         self.finish_up()
         if (self.prog_string and not self.log_progress and
                 not self.args.no_progress):
@@ -228,29 +228,29 @@ class VaseRunner(object):
             self.var_written,
             self._var_or_vars(self.var_written)))
 
-    def process_record(self, record):
-        if self.filter_global(record):
+    def process_record(self, vase_record):
+        if self.filter_global(vase_record):
             self.var_filtered += 1
             return
         filter_alleles = None
         if self.var_types:
             filter_alleles = [
                 x.var_type not in self.var_types
-                for x in record.DECOMPOSED_ALLELES
+                for x in vase_record.DECOMPOSED_ALLELES
             ]
             if all(filter_alleles):
                 # no ALT matches any variant type asked for
                 self.var_filtered += 1
                 return
         filter_alleles, filter_csq = self.filter_alleles_external(
-            record, filter_alleles)
+            vase_record, filter_alleles)
         if all(filter_alleles):
             # all alleles should be filtered
             self.var_filtered += 1
             return
         if self.sample_filter:
-            for i in range(1, len(record.alleles)):
-                r = self.sample_filter.filter(record, i)
+            for i in range(1, len(vase_record.record.alleles)):
+                r = self.sample_filter.filter(vase_record, i)
                 if r:
                     filter_alleles[i - 1] = True
                 if all(filter_alleles):
@@ -259,64 +259,64 @@ class VaseRunner(object):
                     return
         dom_filter_alleles = list(filter_alleles)
         if self.control_filter:
-            for i in range(1, len(record.alleles)):
+            for i in range(1, len(vase_record.record.alleles)):
                 if dom_filter_alleles[i - 1]:  # no need to filter again
                     continue
-                r = self.control_filter.filter(record, i)
+                r = self.control_filter.filter(vase_record, i)
                 if r:
                     dom_filter_alleles[i - 1] = True
-        self.remove_previous_inheritance_filters(record)
+        self.remove_previous_inheritance_filters(vase_record.record)
         denovo_hit = False
         dom_hit = False
         recessive_hit = False
         if self.dominant_filter:
             dom_hit = self.dominant_filter.process_record(
-                record, dom_filter_alleles, filter_csq)
+                vase_record, dom_filter_alleles, filter_csq)
         if self.de_novo_filter:
             denovo_hit = self.de_novo_filter.process_record(
-                record, dom_filter_alleles, filter_csq)
+                vase_record, dom_filter_alleles, filter_csq)
         if self.recessive_filter:
             recessive_hit = self.recessive_filter.process_record(
-                record, filter_alleles, filter_csq)
+                vase_record, filter_alleles, filter_csq)
         if self.use_cache:
             if denovo_hit or dom_hit or recessive_hit:
                 keep_record_anyway = False
                 if self.args.min_families < 2:
                     keep_record_anyway = denovo_hit or dom_hit
-                self.variant_cache.add_record(record, keep_record_anyway)
+                self.variant_cache.add_record(vase_record, keep_record_anyway)
             else:
-                self.variant_cache.check_record(record)
+                self.variant_cache.check_record(vase_record)
                 self.var_filtered += 1
             if self.variant_cache.output_ready:
                 self.output_cache()
         elif self.de_novo_filter or self.dominant_filter:
             if denovo_hit or dom_hit:
-                self.output_record(record)
+                self.output_record(vase_record)
                 if self.burden_counter:
                     # getting relevant alleles and feats is a bit of a fudge
                     # using annotations added by dom/denovo filter
-                    b_filt_al = [True] * len(record.alts)
-                    b_filt_csq = [[True] * len(record.CSQ)] * len(
+                    b_filt_al = [True] * len(vase_record.record.alts)
+                    b_filt_csq = [[True] * len(vase_record.CSQ)] * len(
                         b_filt_al)
                     if dom_hit:
                         b_filt_al, b_filt_csq = self._seg_alleles_from_record(
-                            record,
+                            vase_record,
                             self.dominant_filter.prefix,
                             b_filt_al,
                             b_filt_csq)
                     if denovo_hit:
                         b_filt_al, b_filt_csq = self._seg_alleles_from_record(
-                            record,
+                            vase_record,
                             self.de_novo_filter.prefix,
                             b_filt_al,
                             b_filt_csq)
                     for i in range(len(b_filt_al)):
                         if not b_filt_al[i]:
-                            feat = (record.CSQ[j]['Feature']
-                                    for j in range(len(record.CSQ))
+                            feat = (vase_record.CSQ[j]['Feature']
+                                    for j in range(len(vase_record.CSQ))
                                     if not b_filt_csq[i][j])
                             self.burden_counter.count_samples(
-                                record, feat, i, 1)
+                                vase_record, feat, i, 1)
             else:
                 self.var_filtered += 1
         else:
@@ -324,8 +324,9 @@ class VaseRunner(object):
                 self.var_filtered += 1
                 return
             if self.burden_counter:
-                self.burden_counter.count(record, filter_alleles, filter_csq)
-            self.output_record(record)
+                self.burden_counter.count(vase_record, filter_alleles,
+                                          filter_csq)
+            self.output_record(vase_record)
 
     def output_record(self, vase_record):
         for gt_anno in self.gt_annotators:
@@ -388,7 +389,7 @@ class VaseRunner(object):
             if fh is not None:
                 fh.close()
 
-    def filter_alleles_external(self, record, remove_alleles=None):
+    def filter_alleles_external(self, vase_record, remove_alleles=None):
         '''
             Return True or False for each allele indicating whether an
             allele should be filtered based on information from VEP,
@@ -401,24 +402,24 @@ class VaseRunner(object):
         # remove_csq indicates for each VEP CSQ whether that CSQ should be
         # ignored
         if not remove_alleles:
-            remove_alleles = [False] * len(record.alts)
-        keep_alleles = [False] * len(record.alts)
-        matched_alleles = [False] * len(record.alts)
+            remove_alleles = [False] * len(vase_record.record.alts)
+        keep_alleles = [False] * len(vase_record.record.alts)
+        matched_alleles = [False] * len(vase_record.record.alts)
         remove_csq = None
         # if allele is '*' should be set to filtered
-        for i in range(1, len(record.alleles)):
-            if record.alleles[i] == '*':
+        for i in range(1, len(vase_record.record.alleles)):
+            if vase_record.record.alleles[i] == '*':
                 remove_alleles[i - 1] = True
         # filter on provided INFO field filters
         if self.info_filter:
-            r_alts = self.info_filter.filter(record)
+            r_alts = self.info_filter.filter(vase_record.record)
             self._set_to_true_if_true(remove_alleles, r_alts)
             if all(remove_alleles):
                 # bail out now if no valid allele and not keeping clinvar
                 return remove_alleles, remove_csq
         # check VCF's internal AF
         if self.args.af or self.args.min_af:
-            r_alts = self.filter_on_af(record)
+            r_alts = self.filter_on_af(vase_record.record)
             self._set_to_true_if_true(remove_alleles, r_alts)
             if (not self.args.clinvar_path and all(remove_alleles)):
                 # bail out now if no valid allele and not keeping clinvar
@@ -427,19 +428,19 @@ class VaseRunner(object):
                 return remove_alleles, remove_csq
         # check VCF's internal AC
         if self.args.ac or self.args.min_ac:
-            r_alts = self.filter_on_ac(record)
+            r_alts = self.filter_on_ac(vase_record.record)
             self._set_to_true_if_true(remove_alleles, r_alts)
             if (not self.args.clinvar_path and all(remove_alleles)):
                 # bail out now if no valid allele and not keeping clinvar
                 return remove_alleles, remove_csq
         # check functional consequences
         if self.csq_filter:
-            r_alts, remove_csq = self.csq_filter.filter(record)
+            r_alts, remove_csq = self.csq_filter.filter(vase_record)
             self._set_to_true_if_true(remove_alleles, r_alts)
             if self.prev_splice_ai and (self.args.splice_ai_min_delta
                                         or self.args.splice_ai_max_delta):
                 splice_alleles, splice_csq = filter_on_splice_ai(
-                    record,
+                    vase_record,
                     min_delta=self.args.splice_ai_min_delta,
                     max_delta=self.args.splice_ai_max_delta,
                     check_symbol=True,
@@ -449,7 +450,7 @@ class VaseRunner(object):
             if self.splice_ai_filter:
                 splice_alleles, splice_csq = (
                     self.splice_ai_filter.annotate_or_filter(
-                        record, True, self.args.canonical))
+                        vase_record, True, self.args.canonical))
                 if (self.args.splice_ai_min_delta
                         or self.args.splice_ai_max_delta):
                     # RETAIN Alleles/csq if SpliceAI scores meet threshold
@@ -458,7 +459,7 @@ class VaseRunner(object):
             if self.post_spliceai_csq_filter:
                 # filter with VEP annots again in case of AF/biotype failures
                 r_alts, r_csq = self.post_spliceai_csq_filter.filter(
-                    record)
+                    vase_record)
                 self._set_to_true_if_true(remove_alleles, r_alts)
                 self._set_to_true_if_true(remove_csq, r_csq)
             if (not self.args.clinvar_path and all(remove_alleles)):
@@ -471,7 +472,7 @@ class VaseRunner(object):
             if self.prev_splice_ai and (self.args.splice_ai_min_delta
                                         or self.args.splice_ai_max_delta):
                 splice_alleles, splice_csq = filter_on_splice_ai(
-                    record,
+                    vase_record,
                     min_delta=self.args.splice_ai_min_delta,
                     max_delta=self.args.splice_ai_max_delta,
                     check_symbol=True,
@@ -480,19 +481,19 @@ class VaseRunner(object):
                                                               remove_alleles)]
             else:
                 splice_alleles, splice_csq = (
-                    self.splice_ai_filter.annotate_or_filter(record))
+                    self.splice_ai_filter.annotate_or_filter(vase_record))
                 if (self.args.splice_ai_min_delta
                         or self.args.splice_ai_max_delta):
                     remove_alleles = [not(x) or y for x, y in
                                       zip(splice_alleles, remove_alleles)]
         if self.prev_cadd_phred and self.args.cadd_phred:
-            r_alts = self.filter_on_existing_cadd_phred(record)
+            r_alts = self.filter_on_existing_cadd_phred(vase_record)
             self._set_to_true_if_true(remove_alleles, r_alts)
         if self.prev_cadd_raw and self.args.cadd_raw:
-            r_alts = self.filter_on_existing_cadd_raw(record)
+            r_alts = self.filter_on_existing_cadd_raw(vase_record)
             self._set_to_true_if_true(remove_alleles, r_alts)
         if self.cadd_filter:
-            r_alts = self.cadd_filter.annotate_or_filter(record)
+            r_alts = self.cadd_filter.annotate_or_filter(vase_record)
             self._set_to_true_if_true(remove_alleles, r_alts)
             if (not self.args.clinvar_path and all(remove_alleles)):
                 # bail out now if no valid consequence and not keeping clinvar
@@ -500,7 +501,7 @@ class VaseRunner(object):
                 # haven't got a path variant with a non-qualifying consequence
                 return remove_alleles, remove_csq
         for f in self.vcf_filters:
-            r, k, m = f.annotate_and_filter_record(record)
+            r, k, m = f.annotate_and_filter_record(vase_record)
             # should only overwrite value of remove_alleles[i] or
             # keep_alleles[i] with True, not False (e.g. if already set to
             # be filtered because of a freq in ExAC we shouldn't set to
@@ -509,19 +510,19 @@ class VaseRunner(object):
             self._set_to_true_if_true(matched_alleles, m)
             self._set_to_true_if_true(keep_alleles, k)
         if self.prev_freqs:
-            r, m = self.filter_on_existing_freq(record)
+            r, m = self.filter_on_existing_freq(vase_record.record)
             self._set_to_true_if_true(remove_alleles, r)
             self._set_to_true_if_true(matched_alleles, m)
         if self.prev_homs:
-            r, m = self.filter_on_existing_homs(record)
+            r, m = self.filter_on_existing_homs(vase_record.record)
             self._set_to_true_if_true(remove_alleles, r)
             self._set_to_true_if_true(matched_alleles, m)
         if self.prev_builds:
-            r, m = self.filter_on_existing_build(record)
+            r, m = self.filter_on_existing_build(vase_record.record)
             self._set_to_true_if_true(remove_alleles, r)
             self._set_to_true_if_true(matched_alleles, m)
         if self.prev_clinvar:
-            k, m = self.filter_on_existing_clnsig(record)
+            k, m = self.filter_on_existing_clnsig(vase_record.record)
             self._set_to_true_if_true(matched_alleles, m)
             self._set_to_true_if_true(keep_alleles, k)
         verdict = []

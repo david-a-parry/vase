@@ -387,31 +387,31 @@ class InheritanceFilter(object):
                 return False
         return True
 
-    def _get_allele_counts(self, allele, record):
+    def _get_allele_counts(self, allele, rec):
         a_counts = dict()
         gt_filter_args = dict()
-        if record.IS_SV:
+        if rec.IS_SV:
             gt_filter = self.sv_gt_filter
             control_filter = self.sv_con_gt_filter
-            gt_filter_args['svtype'] = record.info.get('SVTYPE', '')
+            gt_filter_args['svtype'] = rec.record.info.get('SVTYPE', '')
         else:
             gt_filter = self.gt_filter
             control_filter = self.con_gt_filter
         for samp in self.unaffected:
-            if control_filter.gt_is_ok(record.samples, samp, allele,
+            if control_filter.gt_is_ok(rec.record.samples, samp, allele,
                                        **gt_filter_args):
-                a_counts[samp] = record.samples[samp]['GT'].count(allele)
+                a_counts[samp] = rec.record.samples[samp]['GT'].count(allele)
             else:
                 a_counts[samp] = None
-            if (record.samples[samp]['GT'] == (0, 0) and
+            if (rec.record.samples[samp]['GT'] == (0, 0) and
                     control_filter.ad_over_threshold is not None):
-                if control_filter.ad_over_threshold(record.samples, samp,
+                if control_filter.ad_over_threshold(rec.record.samples, samp,
                                                     allele):
                     a_counts[samp] = 1
         for samp in self.affected:
-            if gt_filter.gt_is_ok(record.samples, samp, allele,
+            if gt_filter.gt_is_ok(rec.record.samples, samp, allele,
                                   **gt_filter_args):
-                a_counts[samp] = record.samples[samp]['GT'].count(allele)
+                a_counts[samp] = rec.record.samples[samp]['GT'].count(allele)
             else:
                 a_counts[samp] = None
         return a_counts
@@ -582,7 +582,7 @@ class RecessiveFilter(InheritanceFilter):
 
         '''
         stored = False
-        self._check_sorted(record)
+        self._check_sorted(record.record)
         record_csqs = getattr(record, self.csq_attribute)
         self._current_features = set(c[self.feature_label] for c in record_csqs
                                      if c[self.feature_label] != '')
@@ -920,14 +920,14 @@ class DominantFilter(InheritanceFilter):
                         classes.
 
         '''
-        dom_alleles = ([[] for i in range(len(record.alts))])
-        fam_alleles = ([[] for i in range(len(record.alts))])
+        dom_alleles = ([[] for i in range(len(record.record.alts))])
+        fam_alleles = ([[] for i in range(len(record.record.alts))])
         ignore_csq = self.check_g2p(record, ignore_csq, 'dominant')
         if ignore_csq and all(ignore_csq):
             return False
         if self.min_families > 1:
-            self._check_sorted(record)
-        for i in range(len(record.alts)):
+            self._check_sorted(record.record)
+        for i in range(len(record.record.alts)):
             if ignore_alleles[i]:
                 continue
             allele = i + 1
@@ -935,13 +935,14 @@ class DominantFilter(InheritanceFilter):
                 # looking for (potentially shared) de novos in a single family
                 is_dom = not dfilter.filter(record, allele)
                 if is_dom:
-                    if self.confirm_heterozygous(record, dfilter.cases):
+                    if self.confirm_heterozygous(record.record, dfilter.cases):
                         dom_alleles[i].extend(dfilter.cases)
                         fam_alleles[i].append(fam)
                         self.family_filter.logger.debug(
                             "Apparent dominant allele {}:{}-{}/{} ".format(
-                                record.chrom, record.pos, record.ref,
-                                record.alleles[allele]) +
+                                record.record.chrom, record.record.pos,
+                                record.record.ref,
+                                record.record.alleles[allele]) +
                             "present in {} ".format(dfilter.cases) +
                             "and absent in {}".format(dfilter.controls))
         segs = []
@@ -1108,7 +1109,7 @@ class DeNovoFilter(InheritanceFilter):
                               'de_novo' in
                               self.family_filter.inheritance_patterns[x])
         self.affected = tuple(x for x in family_filter.vcf_affected if
-                             self.ped.individuals[x].fid in self.families)
+                              self.ped.individuals[x].fid in self.families)
         self._potential_denovos = dict()
         self._last_added = OrderedDict()
         self._current_features = set()
@@ -1154,12 +1155,12 @@ class DeNovoFilter(InheritanceFilter):
 
         '''
         if self.min_families > 1:
-            self._check_sorted(record)
+            self._check_sorted(record.record)
         ignore_csq = self.check_g2p(record, ignore_csq, 'de novo')
         if ignore_csq and all(ignore_csq):
             return False
-        denovo_alleles = ([[] for i in range(len(record.alts))])
-        fam_alleles = ([[] for i in range(len(record.alts))])
+        denovo_alleles = ([[] for i in range(len(record.record.alts))])
+        fam_alleles = ([[] for i in range(len(record.record.alts))])
         for i in range(len(record.alts)):
             if ignore_alleles[i]:
                 continue
@@ -1171,14 +1172,15 @@ class DeNovoFilter(InheritanceFilter):
                     is_denovo = not dfilter.filter(record, allele)
                     if is_denovo:
                         if (not self.confirm_het or self.confirm_heterozygous(
-                                record, dfilter.cases)):
+                                record.record, dfilter.cases)):
                             dns.append(dfilter.cases)
-                            self.family_filter.logger.debug("Apparent de " +
-                                "novo allele {}:{}-{}/{} ".format(
-                                record.chrom, record.pos, record.ref,
-                                record.alleles[allele]) + "present in {} "
-                                .format(dfilter.cases) + "and absent in {}"
-                                .format(dfilter.controls))
+                            self.family_filter.logger.debug(
+                                "Apparent de novo allele {}:{}-{}/{} ".format(
+                                    record.record.chrom, record.record.pos,
+                                    record.record.ref,
+                                    record.record.alleles[allele]) +
+                                "present in {} ".format(dfilter.cases) +
+                                "and absent in {}".format(dfilter.controls))
                 if len(dns) == len(filters):  # all affecteds in fam have dnm
                     ([denovo_alleles[i].extend(x) for x in dns])
                     fam_alleles[i].append(fam)

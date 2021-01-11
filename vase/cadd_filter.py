@@ -127,7 +127,7 @@ class CaddFilter(object):
             below threshold).
         '''
         if self.skip_svs and record.IS_SV:
-            return [False] * len(record.alts)
+            return [False] * len(record.record.alts)
         filter_alleles = []
         scores = self.score_record(record)
         info_to_add = defaultdict(list)
@@ -155,7 +155,9 @@ class CaddFilter(object):
             Returns the scores for the first matching record encountered
             in cadd files.
         '''
-        hits = self.search_coordinates(record.chrom, record.start, record.stop)
+        hits = self.search_coordinates(record.record.chrom,
+                                       record.record.start,
+                                       record.record.stop)
         scores = []
         for i in range(len(record.DECOMPOSED_ALLELES)):
             s = (None, None)
