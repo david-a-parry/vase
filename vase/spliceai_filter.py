@@ -11,27 +11,27 @@ annot_order = ["ALLELE", "SYMBOL", "DS_AG", "DS_AL", "DS_DG", "DS_DL", "DP_AG",
 
 def filter_on_splice_ai(record, min_delta=None, max_delta=None,
                         check_symbol=False, canonical_csq=False):
-    keep_alleles = [False] * len(record.alts)
+    keep_alleles = [False] * len(record.record.alts)
     keep_csq = []
     if check_symbol:
         keep_csq = [False] * len(record.CSQ)
-    if 'SpliceAI' not in record.info:
+    if 'SpliceAI' not in record.record.info:
         return keep_alleles, keep_csq
     info_dicts = list()
-    for s in record.info['SpliceAI']:
+    for s in record.record.info['SpliceAI']:
         scores = s.split('|')
         idict = dict((k, v) for k, v in zip(annot_order, scores))
         idict.update(dict((k, float(idict[k])) if idict[k] != '.' else
                           (k, None) for k in annot_order[2:6]))
         info_dicts.append(idict)
-    for i in range(1, len(record.alleles)):
+    for i in range(1, len(record.record.alleles)):
         if check_symbol:
             csqs = [(n,x) for n,x in enumerate(record.CSQ) if
                     x['alt_index'] == i]
             if canonical_csq:
                 csqs = [x for x in csqs if x[1]['CANONICAL'] == 'YES']
         for idict in info_dicts:
-            if idict['ALLELE'] != record.alleles[i]:
+            if idict['ALLELE'] != record.record.alleles[i]:
                 continue
             if min_delta:
                 over_threshold = [ds for ds in annot_order[2:6] if idict[ds] is
@@ -168,15 +168,17 @@ class SpliceAiFilter(object):
         if self.skip_svs and record.IS_SV:
             return overlapping
         if self.walk and not self.force_walk:
-            if (record.start < self.prev_coordinate[1] and
-                    record.chrom == self.prev_coordinate[0]):
+            if (record.record.start < self.prev_coordinate[1] and
+                    record.recordchrom == self.prev_coordinate[0]):
                 self.logger.warn("Input is not sorted by coordinate, will " +
                                  "fall back to slower indvidual index-based " +
                                  "look-ups.")
                 self.walk = False
-            self.prev_coordinate = (record.chrom, record.start)
+            self.prev_coordinate = (record.record.chrom, record.record.start)
         for vcf, vreader in self.vcfs.items():
-            vreader.set_region(record.chrom, record.start, record.stop,
+            vreader.set_region(record.record.chrom,
+                               record.record.start,
+                               record.record.stop,
                                walk=self.walk)
             overlapping[vcf] = list(s for s in vreader)
         return overlapping
@@ -254,7 +256,7 @@ class SpliceAiFilter(object):
                         check_symbol option.
 
         '''
-        keep_alleles = [False] * len(record.alts)
+        keep_alleles = [False] * len(record.record.alts)
         keep_csq = []
         if check_symbol:
             try:
@@ -272,7 +274,7 @@ class SpliceAiFilter(object):
                 if self.to_score_file:
                     self._write_for_scoring(record, i)
                 continue
-            annotation.extend(record.alts[i] + "|" + x for x in
+            annotation.extend(record.record.alts[i] + "|" + x for x in
                               info_strings)
             over_threshold = []
             if self.min_delta or self.max_delta:
@@ -320,7 +322,7 @@ class SpliceAiFilter(object):
     def _write_for_scoring(self, record, alt):
         if record.DECOMPOSED_ALLELES[alt].ALT != '*':
             self.to_score_file.write("{}\t{}\t.\t{}\t{}\t.\t.\t.\n".format(
-                                           record.chrom,
+                                           record.record.chrom,
                                            record.DECOMPOSED_ALLELES[alt].POS,
                                            record.DECOMPOSED_ALLELES[alt].REF,
                                            record.DECOMPOSED_ALLELES[alt].ALT))
