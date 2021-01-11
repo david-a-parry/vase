@@ -105,6 +105,7 @@ class VaseRunner(object):
             self.gene_filter = VarByRegion(self.input,
                                            bed=args.gene_bed,
                                            gene_targets=True,
+                                           snpeff_mode=args.snpeff,
                                            stream=args.stream,
                                            exclude=args.exclude_regions)
             if self.args.csq is None:

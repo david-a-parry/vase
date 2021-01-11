@@ -7,6 +7,11 @@ ENST = re.compile(r'''^ENS\w*T\d{11}(\.\d+)?''')
 ENSP = re.compile(r'''^ENS\w*P\d{11}(\.\d+)?''')
 ENSR = re.compile(r'''^ENS\w*R\d{11}(\.\d+)?''')
 
+VEP_COLS = {'feature': 'Feature', 'gene': 'Gene', 'protein': 'ENSP',
+            'symbol': 'SYMBOL'}
+SNPEFF_COLS = {'feature': 'Feature_ID', 'gene': 'Gene_ID',
+               'symbol': 'Gene_Name'}
+
 
 class RegionFinder(object):
     '''
@@ -20,7 +25,7 @@ class RegionFinder(object):
     def __init__(self, interval_iter, window_size=100000):
         self.regions = defaultdict(dict)
         self.window_size = window_size
-        for gi in interval_iter:#these should already be coordinate sorted
+        for gi in interval_iter:  # these should already be coordinate sorted
             r_start = int(gi.start/window_size) * window_size
             r_end = int(gi.end/window_size) * window_size
             for i in range(r_start, r_end + window_size, window_size):
@@ -82,10 +87,12 @@ class VarByRegion(object):
 
     '''
     __slots__ = ['vcfreader', 'region_iter', 'current_region', 'exclude',
-                 'current_targets', 'gene_targets', 'region_finder']
+                 'current_targets', 'gene_targets', 'region_finder',
+                 '_feature_keys']
 
     def __init__(self, vcfreader, bed=None, region_iter=None,
-                 gene_targets=False, stream=False, exclude=False):
+                 gene_targets=False, stream=False, exclude=False,
+                 snpeff_mode=False):
         '''
             Args:
                 vcfreader:
@@ -119,6 +126,11 @@ class VarByRegion(object):
                     will be returned instead. This forces streaming of
                     variants.
 
+                snpeff_mode:
+                    If True, input VCF is annotated with SnpEff, not VEP.
+                    Expected gene/transcript annotation columns will be set
+                    accordingly.
+
         '''
         self.gene_targets = gene_targets
         if region_iter:
@@ -134,9 +146,10 @@ class VarByRegion(object):
         self.vcfreader = vcfreader
         self.exclude = exclude
         self.current_region = None
-        self.current_targets = defaultdict(list)  # keys are VEP columns,
-                                                  # values are lists of IDs
+        self.current_targets = defaultdict(list)
+        # keys = VEP/SnpEff columns, values = lists of IDs
         self.region_finder = None
+        self._feature_keys = SNPEFF_COLS if snpeff_mode else VEP_COLS
         if self.exclude:
             stream = True
         if stream:
@@ -232,16 +245,16 @@ class VarByRegion(object):
             self._append_targets_from_region(reg)
 
     def _append_targets_from_region(self, region):
-            for x in region[3].split('/'):
-                if ENST.match(x) or ENSR.match(x):
-                    i,c = x,'Feature'
-                elif ENSG.match(x):
-                    i,c= x,'Gene'
-                elif ENSP.match(x):
-                    i,c = x,'ENSP'
-                else:
-                    i,c = x,'SYMBOL'
-                self.current_targets[c].append(i)
+        for x in region[3].split('/'):
+            if ENST.match(x) or ENSR.match(x):
+                i, c = x, self._feature_keys['feature']
+            elif ENSG.match(x):
+                i, c = x, self._feature_keys['gene']
+            elif ENSP.match(x):
+                i, c = x, self._feature_keys['protein']
+            else:
+                i, c = x, self._feature_keys['symbol']
+            self.current_targets[c].append(i)
 
     def target_in_csq(self, csq):
         '''
@@ -253,7 +266,7 @@ class VarByRegion(object):
                         single item from VcfRecord.CSQ attribute)
 
         '''
-        for k,v in self.current_targets.items():
+        for k, v in self.current_targets.items():
             if csq[k] in v:
                 return True
         return False

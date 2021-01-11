@@ -56,6 +56,11 @@ def test_var_from_gene_bed():
     results, expected = run_args(test_args, output,
                                  sys._getframe().f_code.co_name)
     assert_equal(results, expected)
+    test_args['input'] = input_prefix + '.snpeff.vcf.gz'
+    test_args['snpeff'] = True
+    snpeff_results, expected = run_args(test_args, output,
+                                        sys._getframe().f_code.co_name)
+    assert_equal(snpeff_results, expected)
     not_expected = get_expected_out('test_var_by_region')
     assert_not_equal(results, not_expected)
     os.remove(output)
