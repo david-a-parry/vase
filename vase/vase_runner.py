@@ -116,7 +116,7 @@ class VaseRunner(object):
             self.retrieving_by_region = True
             self.logger.info("Finished processing intervals.")
         if args.g2p is not None:
-            self.g2p = G2P(args.g2p)
+            self.g2p = G2P(args.g2p, snpeff_mode=args.snpeff)
         self.csq_filter, self.post_spliceai_csq_filter = self.get_csq_filters()
         self.sample_filter = None
         self.burden_counter = None

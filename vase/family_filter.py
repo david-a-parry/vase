@@ -448,16 +448,18 @@ class InheritanceFilter(object):
         header += "\tCHROM\tPOS\tID\tREF\tALT\tALLELE\tQUAL\tFILTER"
         self.report_file.write(header + "\n")
 
-    def check_g2p(self, record, ignore_csq, inheritance):
+    def check_g2p(self, record, ignore_csq, inheritance, csqs=None):
         if self.family_filter.g2p:
+            if csqs is None:
+                csqs = getattr(record, self.csq_attribute)
             if self.family_filter.check_g2p_consequence:
                 fail = (not x for x in
                         self.family_filter.g2p.csq_and_allelic_requirement_met(
-                            record, inheritance))
+                            csqs, inheritance))
             else:
                 fail = (not x for x in
                         self.family_filter.g2p.allelic_requirement_met(
-                                     record, inheritance))
+                                     csqs, inheritance))
             if ignore_csq:
                 ignore_csq = [x or y for x, y in zip(ignore_csq, fail)]
             else:
@@ -586,7 +588,8 @@ class RecessiveFilter(InheritanceFilter):
         record_csqs = getattr(record, self.csq_attribute)
         self._current_features = set(c[self.feature_label] for c in record_csqs
                                      if c[self.feature_label] != '')
-        ignore_csq = self.check_g2p(record, ignore_csq, 'recessive')
+        ignore_csq = self.check_g2p(record, ignore_csq, 'recessive',
+                                    csqs=record_csqs)
         if ignore_csq and all(ignore_csq):
             return False
         gt_filter_args = dict()
