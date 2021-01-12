@@ -21,29 +21,43 @@ mutation_to_csq = {
                                             'splice_acceptor_variant',
                                             'splice_donor_variant',
                                             'transcript_ablation',
+                                            'feature_ablation',  # SnpEff only
                                             'feature_truncation'],
     'uncertain':                           None,
     '':                                    None,
     'all missense/in frame':               ['missense_variant',
                                             'inframe_deletion',
-                                            'inframe_insertion'],
+                                            'inframe_insertion',
+                                            # SnpEff only classes below
+                                            'disruptive_inframe_deletion',
+                                            'disruptive_inframe_insertion'],
     'dominant negative':                   ['missense_variant',
                                             'inframe_deletion',
                                             'inframe_insertion'],
     'activating':                          ['missense_variant',
                                             'inframe_deletion',
-                                            'inframe_insertion'],
+                                            'inframe_insertion',
+                                            # SnpEff only classes below
+                                            'disruptive_inframe_deletion',
+                                            'disruptive_inframe_insertion'],
     'cis-regulatory or promotor mutation': ['regulatory_region_ablation',
                                             'regulatory_region_amplification',
                                             'regulatory_region_variant',
                                             'TFBS_ablation',
                                             'TFBS_amplification',
                                             'TF_binding_site_variant'],
-    'part of contiguous gene duplication': [],
-    'increased gene dosage':               [],
+    'part of contiguous gene duplication': ['transcript_amplification',
+                                            'duplication'  # SnpEff
+                                            ],
+    'increased gene dosage':               ['transcript_amplification',
+                                            'duplication'  # SnpEff
+                                            ],
     'gain of function':                    ['missense_variant',
                                             'inframe_deletion',
-                                            'inframe_insertion'],
+                                            'inframe_insertion',
+                                            # SnpEff only classes below
+                                            'disruptive_inframe_deletion',
+                                            'disruptive_inframe_insertion'],
     '5_prime or 3_prime UTR mutation':     ['3_prime_UTR_variant',
                                             '5_prime_UTR_variant'],
 }
@@ -52,8 +66,14 @@ mutation_to_csq = {
 class G2P(object):
     ''' Filter variants based on requirements from a G2P CSV file.'''
 
-    def __init__(self, g2p_file):
+    def __init__(self, g2p_file, snpeff_mode=False):
         self.g2p = self._read_g2p_csv(g2p_file)
+        if snpeff_mode:
+            self._symbol_key = 'Gene_Name'
+            self._csq_key = 'Annotation'
+        else:
+            self._symbol_key = 'SYMBOL'
+            self._csq_key = 'Consequence'
 
     def _read_g2p_csv(self, g2p):
         required_fields = ['gene symbol', 'disease name', 'DDD category',
@@ -68,15 +88,15 @@ class G2P(object):
         g2p.update(prev_symbol_d)
         return g2p
 
-    def consequence_requirement_met(self, record):
+    def consequence_requirement_met(self, csqs):
         '''
-            For a given VcfRecord, for each CSQ annotation from Ensembl
-            VEP return True or False indicating whether the consequence
-            annotation matches a 'mutation consequence' requirement from
-            the gene's G2P annotations.
+            For a given set of consequences (from VaseRecord.CSQ or
+            VaseRecord.ANN property), return True or False indicating whether
+            the consequence annotation matches a 'mutation consequence'
+            requirement from the gene's G2P annotations.
         '''
         try:
-            return [self.csq_matches_requirement(x) for x in record.CSQ]
+            return [self.csq_matches_requirement(x) for x in csqs]
         except KeyError:
             raise RuntimeError("Could not identify CSQ or ANN fields in VCF " +
                                "header. Please ensure your input is " +
@@ -84,12 +104,12 @@ class G2P(object):
 
     def csq_matches_requirement(self, csq, keep_uncertain=True):
         '''
-            For a single CSQ annotation (from a VcfRecord) return True
-            if the consequence annotation matches a 'mutation
-            consequence' requirement from the gene's G2P annotations.
+            For a single CSQ/ANN annotation (from a VaseRecord) return True
+            if the consequence annotation matches a 'mutation consequence'
+            requirement from the gene's G2P annotations.
 
             Args:
-                csq:    A single item from a VcfRecord's CSQ property.
+                csq:    A single item from a VcfRecord's CSQ or ANN property.
 
                 keep_uncertain:
                         If True return True for any consequence for G2P
@@ -97,15 +117,15 @@ class G2P(object):
                         'mutation consequence' column. If False return
                         False for these consequences.
         '''
-        if csq['SYMBOL'] in self.g2p:
+        if csq[self._symbol_key] in self.g2p:
             for req in (x['mutation consequence'] for x in
-                        self.g2p[csq['SYMBOL']]):
+                        self.g2p[csq[self._symbol_key]]):
                 if mutation_to_csq[req] is None:
                     if keep_uncertain:
                         return True
                     else:
                         return False
-                elif any(x in csq['Consequence'].split('&') for x in
+                elif any(x in csq[self._csq_key].split('&') for x in
                          mutation_to_csq[req]):
                     return True
         return False
@@ -132,14 +152,16 @@ class G2P(object):
                 csqs.update(mutation_to_csq[d['mutation consequence']])
         return csqs
 
-    def allelic_requirement_met(self, record, inheritance):
+    def allelic_requirement_met(self, csqs, inheritance):
         '''
-            Return True or False for each CSQ annotation in a record
-            indicating whether the consequence affects a gene in the G2P
-            data associated with the given inheritance pattern.
+            For a given set of consequences (from VaseRecord.CSQ or
+            VaseRecord.ANN property), return True or False indicating whether
+            the consequence affects a gene in the G2P data associated with the
+            given inheritance pattern.
 
             Args:
-                record: VcfRecord object with VEP annotations.
+                csqs: list of consequences as obtained from VaseRecord's 'CSQ'
+                      or 'ANN' property object.
 
                 inheritance:
                         Inheritance patten to check - i.e. one of
@@ -147,20 +169,20 @@ class G2P(object):
 
         '''
         return (any(inheritance in allelic_req_to_label[y] for x in
-                    self.g2p[csq['SYMBOL']] for y in
-                    self.g2p[csq['SYMBOL']] for y in
-                    x['allelic requirement'].split(',')) for csq in record.CSQ)
+                    self.g2p[csq[self._symbol_key]] for y in
+                    x['allelic requirement'].split(',')) for csq in csqs)
 
-    def csq_and_allelic_requirement_met(self, record, inheritance,
+    def csq_and_allelic_requirement_met(self, csqs, inheritance,
                                         keep_uncertain=True):
         '''
-            Return True or False for each CSQ annotation in a record
-            indicating whether the consequence affects a gene in the G2P
-            data associated with the given inheritance pattern with a
-            matching consequence type.
+            For a given set of consequences (from VaseRecord.CSQ or
+            VaseRecord.ANN property), return True or False indicating whether
+            the consequence affects a gene in the G2P data associated with the
+            given inheritance pattern with a matching consequence type.
 
             Args:
-                record: VcfRecord object with VEP annotations.
+                csqs: list of consequences as obtained from VaseRecord's 'CSQ'
+                      or 'ANN' property object.
 
                 inheritance:
                         Inheritance patten to check - i.e. one of
@@ -173,9 +195,9 @@ class G2P(object):
                         False for these consequences.
         '''
         met = []
-        for csq in record.CSQ:
+        for csq in csqs:
             verdict = False
-            for d in self.g2p[csq['SYMBOL']]:
+            for d in self.g2p[csq[self._symbol_key]]:
                 req = d['allelic requirement']
                 if any(inheritance in allelic_req_to_label[r] for r in
                        req.split(',')):
@@ -183,7 +205,7 @@ class G2P(object):
                         if keep_uncertain:
                             verdict = True
                             break
-                    elif any(x in csq['Consequence'].split('&') for x in
+                    elif any(x in csq[self._csq_key].split('&') for x in
                              mutation_to_csq[d['mutation consequence']]):
                         verdict = True
                         break
