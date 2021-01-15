@@ -45,7 +45,6 @@ def test_gt_annot():
     expected_annots = get_annotated_gts(anno_vcf, 'RND')
     check_annots(output.filename, 'RND', expected_annots)
     os.remove(output.filename)
-    os.remove(anno_vcf + '.csi')
 
 
 def test_dng_annot():
@@ -60,7 +59,6 @@ def test_dng_annot():
         expected_annots = get_annotated_gts(anno_vcf, pp)
         check_annots(output, pp, expected_annots)
     os.remove(output)
-    os.remove(anno_vcf + '.csi')
 
 
 if __name__ == '__main__':
