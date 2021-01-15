@@ -5,6 +5,7 @@ import json
 from collections import defaultdict
 
 rep_input = os.path.join(dir_path, 'test_data', 'ex7.bcf')
+rep_snpeff_input = os.path.join(dir_path, 'test_data', 'ex7.snpeff.bcf')
 ped = os.path.join(dir_path, "test_data", "test4.ped")
 g2p = os.path.join(dir_path, "test_data", "test_g2p.csv")
 
@@ -30,7 +31,7 @@ def test_reporter_no_overwrite():
 
 def test_reporter_json():
     output = get_tmp_out(suffix='.json')
-    vr  = VaseReporter(
+    vr = VaseReporter(
         vcf=rep_input,
         out=output,
         ped=ped,
@@ -49,7 +50,7 @@ def test_reporter_json():
 
 def test_reporter_xlsx():
     output = get_tmp_out(suffix='.xlsx')
-    vr  = VaseReporter(
+    vr = VaseReporter(
         vcf=rep_input,
         out=output,
         ped=ped,
@@ -67,7 +68,7 @@ def test_reporter_xlsx():
 
 def test_reporter_info_annotations():
     output = get_tmp_out(suffix='.xlsx')
-    vr  = VaseReporter(
+    vr = VaseReporter(
         vcf=rep_input,
         out=output,
         ped=ped,
@@ -88,7 +89,7 @@ def test_reporter_info_annotations():
 
 def test_reporter_choose_transcript():
     output = get_tmp_out(suffix='.xlsx')
-    vr  = VaseReporter(
+    vr = VaseReporter(
         vcf=rep_input,
         out=output,
         ped=ped,
@@ -109,7 +110,7 @@ def test_reporter_choose_transcript():
 
 def test_reporter_g2p():
     output = get_tmp_out(suffix='.xlsx')
-    vr  = VaseReporter(
+    vr = VaseReporter(
         vcf=rep_input,
         out=output,
         ped=ped,
@@ -130,7 +131,7 @@ def test_reporter_g2p():
 
 def test_reporter_g2p_allelic():
     output = get_tmp_out(suffix='.xlsx')
-    vr  = VaseReporter(
+    vr = VaseReporter(
         vcf=rep_input,
         out=output,
         ped=ped,
@@ -149,9 +150,32 @@ def test_reporter_g2p_allelic():
         expected = _get_xlsx_output(expect_xlsx, f)
         assert_equal(results, expected)
 
+
+def test_reporter_g2p_allelic_snpeff():
+    output = get_tmp_out(suffix='.xlsx')
+    vr = VaseReporter(
+        vcf=rep_snpeff_input,
+        out=output,
+        ped=ped,
+        g2p=g2p,
+        allelic_requirement=True,
+        force=True,
+        quiet=True,
+        )
+    vr.write_report()
+    expect_xlsx = os.path.join(dir_path,
+                               "test_data",
+                               "expected_outputs",
+                               sys._getframe().f_code.co_name + ".xlsx")
+    for f in ['Fam1', 'Fam2']:
+        results = _get_xlsx_output(output, f)
+        expected = _get_xlsx_output(expect_xlsx, f)
+        assert_equal(results, expected)
+
+
 def test_reporter_filter_g2p():
     output = get_tmp_out(suffix='.xlsx')
-    vr  = VaseReporter(
+    vr = VaseReporter(
         vcf=rep_input,
         out=output,
         ped=ped,
@@ -171,10 +195,35 @@ def test_reporter_filter_g2p():
         results = _get_xlsx_output(output, f)
         expected = _get_xlsx_output(expect_xlsx, f)
         assert_equal(results, expected)
+ 
+
+def test_reporter_filter_g2p_snpeff():
+    output = get_tmp_out(suffix='.xlsx')
+    vr = VaseReporter(
+        vcf=rep_snpeff_input,
+        out=output,
+        ped=ped,
+        g2p=g2p,
+        allelic_requirement=True,
+        mutation_requirement=True,
+        filter_non_g2p=True,
+        force=True,
+        quiet=True,
+        )
+    vr.write_report()
+    expect_xlsx = os.path.join(dir_path,
+                               "test_data",
+                               "expected_outputs",
+                               sys._getframe().f_code.co_name + ".xlsx")
+    for f in ['Fam1', 'Fam2']:
+        results = _get_xlsx_output(output, f)
+        expected = _get_xlsx_output(expect_xlsx, f)
+        assert_equal(results, expected)
+
 
 def test_reporter_singleton():
     output = get_tmp_out(suffix='.xlsx')
-    vr  = VaseReporter(
+    vr = VaseReporter(
         vcf=os.path.join(dir_path, 'test_data', 'ex8.bcf'),
         out=output,
         singletons=['Sample4'],
