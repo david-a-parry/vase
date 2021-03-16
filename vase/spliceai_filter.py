@@ -18,6 +18,7 @@ def filter_on_splice_ai(record, min_delta=None, max_delta=None,
     if check_symbol:
         csq = record.ANN if snpeff_mode else record.CSQ
         keep_csq = [False] * len(csq)
+        symbol_k = 'Gene_Name' if snpeff_mode else 'SYMBOL'
     if 'SpliceAI' not in record.record.info:
         return keep_alleles, keep_csq
     info_dicts = list()
@@ -31,7 +32,7 @@ def filter_on_splice_ai(record, min_delta=None, max_delta=None,
         if check_symbol:
             i_csqs = [(n, x) for n, x in enumerate(csq) if x['alt_index'] == i]
             if canonical_csq:
-                i_csqs = [x for x in i_csqs if x['CANONICAL'] == 'YES']
+                i_csqs = [x for x in i_csqs if x[1]['CANONICAL'] == 'YES']
         for idict in info_dicts:
             if idict['ALLELE'] != record.record.alleles[i]:
                 continue
@@ -45,7 +46,7 @@ def filter_on_splice_ai(record, min_delta=None, max_delta=None,
                 keep_alleles[i-1] = True
                 if check_symbol:
                     for c in (x for x in i_csqs if idict['SYMBOL'] ==
-                              x[1]['SYMBOL']):
+                              x[1][symbol_k]):
                         keep_csq[c[0]] = True
                 else:
                     continue
