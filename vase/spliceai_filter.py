@@ -10,11 +10,14 @@ annot_order = ["ALLELE", "SYMBOL", "DS_AG", "DS_AL", "DS_DG", "DS_DL", "DP_AG",
 
 
 def filter_on_splice_ai(record, min_delta=None, max_delta=None,
-                        check_symbol=False, canonical_csq=False):
+                        check_symbol=False, canonical_csq=False,
+                        snpeff_mode=False):
     keep_alleles = [False] * len(record.record.alts)
     keep_csq = []
+    csq = None
     if check_symbol:
-        keep_csq = [False] * len(record.CSQ)
+        csq = record.ANN if snpeff_mode else record.CSQ
+        keep_csq = [False] * len(csq)
     if 'SpliceAI' not in record.record.info:
         return keep_alleles, keep_csq
     info_dicts = list()
@@ -26,10 +29,9 @@ def filter_on_splice_ai(record, min_delta=None, max_delta=None,
         info_dicts.append(idict)
     for i in range(1, len(record.record.alleles)):
         if check_symbol:
-            csqs = [(n,x) for n,x in enumerate(record.CSQ) if
-                    x['alt_index'] == i]
+            i_csqs = [(n, x) for n, x in enumerate(csq) if x['alt_index'] == i]
             if canonical_csq:
-                csqs = [x for x in csqs if x[1]['CANONICAL'] == 'YES']
+                i_csqs = [x for x in i_csqs if x['CANONICAL'] == 'YES']
         for idict in info_dicts:
             if idict['ALLELE'] != record.record.alleles[i]:
                 continue
@@ -42,7 +44,7 @@ def filter_on_splice_ai(record, min_delta=None, max_delta=None,
             if over_threshold:
                 keep_alleles[i-1] = True
                 if check_symbol:
-                    for c in (x for x in csqs if idict['SYMBOL'] ==
+                    for c in (x for x in i_csqs if idict['SYMBOL'] ==
                               x[1]['SYMBOL']):
                         keep_csq[c[0]] = True
                 else:
@@ -142,21 +144,22 @@ class SpliceAiFilter(object):
             self.to_score_file.close()
 
     def _check_vcf_info(self):
-       for vcf, vreader in self.vcfs.items():
+        for vcf, vreader in self.vcfs.items():
             if 'SpliceAI' in vreader.header.info:
                 if vreader.header.info['SpliceAI'].number == '.':
-                   # VCF is in SpliceAI annotated format
-                   self.vcf_is_prescored[vcf] = False
+                    # VCF is in SpliceAI annotated format
+                    self.vcf_is_prescored[vcf] = False
             else:  # not annotated by SpliceAI, check if has prescored fields
                 for f in pre_scored_fields:
                     if f not in vreader.header.info:
                         raise RuntimeError("ERROR: neither SpliceAI or " +
-                                           "individual delta score annotations " +
-                                           "found in SpliceAI VCF. Please " +
-                                           "ensure you are either using a VCF " +
-                                           "annotated using the SpliceAI " +
-                                           "program or in the pre-scored format " +
-                                           "from the SpliceAI paper")
+                                           "individual delta score " +
+                                           "annotations found in SpliceAI " +
+                                           "VCF. Please ensure you are " +
+                                           "either using a VCF annotated " +
+                                           "using the SpliceAI program or " +
+                                           "in the pre-scored format from " +
+                                           "the SpliceAI paper")
                 self.vcf_is_prescored[vcf] = True
 
     def get_overlapping_records(self, record):
@@ -169,7 +172,7 @@ class SpliceAiFilter(object):
             return overlapping
         if self.walk and not self.force_walk:
             if (record.record.start < self.prev_coordinate[1] and
-                    record.recordchrom == self.prev_coordinate[0]):
+                    record.record.chrom == self.prev_coordinate[0]):
                 self.logger.warn("Input is not sorted by coordinate, will " +
                                  "fall back to slower indvidual index-based " +
                                  "look-ups.")
@@ -233,7 +236,7 @@ class SpliceAiFilter(object):
         return None, None
 
     def annotate_or_filter(self, record, check_symbol=False,
-                           canonical_csq=False):
+                           canonical_csq=False, snpeff_mode=False):
         '''
             Add SpliceAI annotation for each ALT allele in record. If
             min_delta or max_delta are set return True/False for each
@@ -255,13 +258,19 @@ class SpliceAiFilter(object):
                         CANONICAL field is 'YES' when running with
                         check_symbol option.
 
+                snpeff_mode:
+                        Use SnpEff annotations instead of VEP for checking gene
+                        symbol and marking of CSQ/ANN annotations.
+
         '''
         keep_alleles = [False] * len(record.record.alts)
         keep_csq = []
+        csq = []
         if check_symbol:
             try:
-                keep_csq = [False] * len(record.CSQ)
-            except HeaderError:
+                csq = record.ANN if snpeff_mode else record.CSQ
+                keep_csq = [False] * len(csq)
+            except KeyError:
                 raise RuntimeError("Could not identify CSQ or ANN fields in " +
                                    "VCF header. Please ensure your input is " +
                                    "annotated with Ensembl's VEP")
@@ -294,23 +303,25 @@ class SpliceAiFilter(object):
                     keep_alleles[i] = False
                     continue
             if check_symbol and (self.min_delta or self.max_delta):
-                for j in range(len(record.CSQ)):
-                    if canonical_csq and record.CSQ[j]['CANONICAL'] != 'YES':
+                for j in range(len(csq)):
+                    if canonical_csq and csq[j]['CANONICAL'] != 'YES':
                         continue
+                    symbol = csq[j]['Gene_Name'] if snpeff_mode \
+                        else csq[j]['SYMBOL']
                     gene_match = []
-                    alt_j = record.CSQ[j]['alt_index'] - 1
+                    alt_j = csq[j]['alt_index'] - 1
                     if alt_j == i:
                         for ds in annot_order[2:]:
                             if self.min_delta:
                                 gene_match.extend((x for x in info_dict[ds] if
                                                    x >= self.min_delta and
                                                    info_dict['SYMBOL'] ==
-                                                   record.CSQ[j]['SYMBOL']))
+                                                   symbol))
                             if self.max_delta:
                                 gene_match.extend((x for x in info_dict[ds] if
                                                    x <= self.max_delta and
                                                    info_dict['SYMBOL'] ==
-                                                   record.CSQ[j]['SYMBOL']))
+                                                   symbol))
                             if gene_match:
                                 break
                     if gene_match:

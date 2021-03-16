@@ -443,6 +443,7 @@ class VaseRunner(object):
                     vase_record,
                     min_delta=self.args.splice_ai_min_delta,
                     max_delta=self.args.splice_ai_max_delta,
+                    snpeff_mode=self.args.snpeff,
                     check_symbol=True,
                     canonical_csq=self.args.canonical)
                 self._set_to_false_if_true(remove_alleles, splice_alleles)
@@ -450,7 +451,10 @@ class VaseRunner(object):
             if self.splice_ai_filter:
                 splice_alleles, splice_csq = (
                     self.splice_ai_filter.annotate_or_filter(
-                        vase_record, True, self.args.canonical))
+                        vase_record,
+                        check_symbol=True,
+                        canonical_csq=self.args.canonical,
+                        snpeff_mode=self.args.snpeff))
                 if (self.args.splice_ai_min_delta
                         or self.args.splice_ai_max_delta):
                     # RETAIN Alleles/csq if SpliceAI scores meet threshold
@@ -475,6 +479,7 @@ class VaseRunner(object):
                     vase_record,
                     min_delta=self.args.splice_ai_min_delta,
                     max_delta=self.args.splice_ai_max_delta,
+                    snpeff_mode=self.args.snpeff,
                     check_symbol=True,
                     canonical_csq=self.args.canonical)
                 remove_alleles = [not(x) or y for x, y in zip(splice_alleles,

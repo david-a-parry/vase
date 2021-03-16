@@ -2,6 +2,7 @@ from .utils import *
 
 splice_ai_vcf = os.path.join(dir_path, "test_data", "splice_ai_scores.vcf.gz")
 prescored_vcf = os.path.join(dir_path, "test_data", "splice_ai_prescored.vcf.gz")
+snpeff_vcf = input_prefix + '.snpeff.vcf.gz'
 
 
 def teardown_module():
@@ -97,6 +98,36 @@ def test_filter_splice_ai_multi():
         splice_ai_min_delta=0.5,
     )
     results, expected = run_args(test_args, output, "test_filter_splice_ai")
+    assert_equal(results, expected)
+    os.remove(output)
+
+
+def test_filter_splice_ai_vep():
+    output = get_tmp_out()
+    test_args = dict(
+        splice_ai_vcfs=[splice_ai_vcf],
+        output=output,
+        splice_ai_min_delta=0.5,
+        impact=["HIGH"],
+    )
+    results, expected = run_args(test_args, output,
+                                 sys._getframe().f_code.co_name)
+    assert_equal(results, expected)
+    os.remove(output)
+
+
+def test_filter_splice_ai_snpeff():
+    output = get_tmp_out()
+    test_args = dict(
+        input=snpeff_vcf,
+        snpeff=True,
+        splice_ai_vcfs=[splice_ai_vcf],
+        output=output,
+        splice_ai_min_delta=0.5,
+        impact=["HIGH"],
+    )
+    results, expected = run_args(test_args, output,
+                                 sys._getframe().f_code.co_name)
     assert_equal(results, expected)
     os.remove(output)
 
