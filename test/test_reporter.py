@@ -108,6 +108,27 @@ def test_reporter_choose_transcript():
         assert_equal(results, expected)
 
 
+def test_reporter_choose_transcript_snpeff():
+    output = get_tmp_out(suffix='.xlsx')
+    vr = VaseReporter(
+        vcf=rep_snpeff_input,
+        out=output,
+        ped=ped,
+        choose_transcript=True,
+        force=True,
+        quiet=True,
+        )
+    vr.write_report()
+    expect_xlsx = os.path.join(dir_path,
+                               "test_data",
+                               "expected_outputs",
+                               sys._getframe().f_code.co_name + ".xlsx")
+    for f in ['Fam1', 'Fam2']:
+        results = _get_xlsx_output(output, f)
+        expected = _get_xlsx_output(expect_xlsx, f)
+        assert_equal(results, expected)
+
+
 def test_reporter_g2p():
     output = get_tmp_out(suffix='.xlsx')
     vr = VaseReporter(
