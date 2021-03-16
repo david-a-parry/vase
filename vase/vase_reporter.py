@@ -34,7 +34,7 @@ vep_keys = {'biotype': 'BIOTYPE',
             'gene': 'Gene',
             'feature': 'Feature'}
 
-snpeff_keys = {'biotype': 'Transcript_Biotype',
+snpeff_keys = {'biotype': 'Transcript_BioType',
                'impact': 'Annotation_Impact',
                'symbol': 'Gene_Name',
                'gene': 'Gene_ID',
@@ -692,6 +692,8 @@ class VaseReporter(object):
         if 'CANONICAL' in csq[0]:
             sorted_csq = sorted(feat_csq, key=lambda x: x['CANONICAL'],
                                 reverse=True)
+        else:
+            sorted_csq = feat_csq
         sorted_csq = sorted(sorted_csq, key=lambda x:
                             self.biotype_order[x[self._csq_keys['biotype']]])
         sorted_csq = sorted(sorted_csq, key=lambda x:
