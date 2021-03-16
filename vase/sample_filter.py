@@ -6,12 +6,15 @@ class SampleFilter(object):
     ''' A class for filtering VCF records on sample calls'''
 
     def __init__(self, vcf, cases=[], controls=[], n_cases=0, n_controls=0,
-                 confirm_missing=False, gq=0, dp=0, max_dp=0, het_ab=0.,
-                 hom_ab=0., min_control_gq=None, min_control_dp=None,
-                 max_control_dp=None, control_het_ab=None, control_hom_ab=None,
-                 con_ref_ab=None, sv_gq=0, sv_dp=0, sv_max_dp=0, sv_het_ab=0.,
-                 sv_hom_ab=0., sv_min_control_gq=None, sv_min_control_dp=None,
-                 sv_max_control_dp=None, sv_control_het_ab=None,
+                 confirm_missing=False, gq=0, dp=0, max_dp=0, ad=0, max_ad=0,
+                 het_ab=0., hom_ab=0., min_control_gq=None,
+                 min_control_dp=None, max_control_dp=None, min_control_ad=None,
+                 max_control_ad=None, control_het_ab=None, control_hom_ab=None,
+                 con_ref_ab=None, sv_gq=0, sv_dp=0, sv_max_dp=0, sv_ad=0,
+                 sv_max_ad=0, sv_het_ab=0., sv_hom_ab=0.,
+                 sv_min_control_gq=None, sv_min_control_dp=None,
+                 sv_max_control_dp=None, sv_min_control_ad=None,
+                 sv_max_control_ad=None, sv_control_het_ab=None,
                  sv_control_hom_ab=None, sv_con_ref_ab=None, del_dhffc=None,
                  dup_dhbfc=None, control_del_dhffc=None,
                  control_dup_dhbfc=None):
@@ -52,15 +55,24 @@ class SampleFilter(object):
                         a DP higher than this value will be treated as
                         no-calls. Default=0 (i.e. not used).
 
+                ad:     Minimum allele depth for a genotype. Genotype calls
+                        with fewer than this many reads supporting a variant
+                        allele will be treated as no-calls. Default=0.
+
+                max_ad: Maximum allele depth for a genotype. Genotype calls
+                        with more than this many reads supporting a variant
+                        allele will be treated as no-calls. Default=0 (i.e. not
+                        used).
+
                 het_ab: Minimum genotype allele balance for heterozygous
                         calls. Genotype calls with an allele balance
                         lower than this value will be treated as
                         no-calls. The allele balance is calculated using
                         'AD' fields if present, otherwise 'AO' and 'RO'
-                        fields (e.g. from freebayes). If none of these
-                        fields are present in the VCF header and ab is
-                        not 0.0 a RuntimeError will be thrown.
-                        Default=0.0.
+                        fields (e.g. from freebayes) or 'NR' and 'NV' fields
+                        from Platypus. If none of these fields are present in
+                        the VCF header and ab is not 0.0 a RuntimeError will be
+                        thrown. Default=0.0.
 
                 hom_ab: As above but for homozygous genotype calls.
 
@@ -75,6 +87,14 @@ class SampleFilter(object):
                 max_control_dp:
                         Same as 'max_dp' but specific to control samples.
                         Defaults to the same as 'max_dp'.
+
+                min_control_ad:
+                        Same as 'ad' but specific to control samples.
+                        Defaults to the same as 'ad'.
+
+                max_control_ad:
+                        Same as 'max_ad' but specific to control samples.
+                        Defaults to the same as 'max_ad'.
 
                 control_het_ab:
                         Same as 'het_ab' but specific to control samples.
@@ -103,7 +123,18 @@ class SampleFilter(object):
                         Maximum number of supporting reads (SR + PR) for
                         structural variant calls. Genotype calls with
                         a more supporting reads than this value will be
-                        treated as no-calls. Defaults to same as 'dp'.
+                        treated as no-calls. Defaults to same as 'max_dp'.
+
+                sv_ad:  Minimum number of supporting reads (SR + PR) for
+                        the ALT allele in structural variant calls. Genotype
+                        calls with a fewer supporting reads than this value
+                        will be treated as no-calls. Defaults to same as 'ad'.
+
+                sv_max_ad:
+                        Maximum number of supporting reads (SR + PR) for
+                        the ALT allele in structural variant calls. Genotype
+                        calls with a more supporting reads than this value will
+                        be treated as no-calls. Defaults to same as 'max_ad'.
 
                 sv_het_ab:
                         Minimum allele balance for heterozygous
@@ -130,6 +161,14 @@ class SampleFilter(object):
                 sv_max_control_dp:
                         Same as 'sv_max dp' but specific to control
                         samples. Defaults to the same as 'sv_max_dp'.
+
+                sv_min_control_ad:
+                        Same as 'sv_ad' but specific to control samples.
+                        Defaults to the same as 'sv_ad'.
+
+                sv_max_control_ad:
+                        Same as 'sv_max ad' but specific to control
+                        samples. Defaults to the same as 'sv_max_ad'.
 
                 sv_control_het_ab:
                         Same as 'sv_het_ab' but specific to control
@@ -180,17 +219,22 @@ class SampleFilter(object):
         self._parse_sample_args(cases=cases, controls=controls,
                                 n_cases=n_cases, n_controls=n_controls, gq=gq,
                                 het_ab=het_ab, hom_ab=hom_ab, dp=dp,
-                                max_dp=max_dp, con_gq=min_control_gq,
-                                con_dp=min_control_dp,
+                                max_dp=max_dp, ad=ad, max_ad=max_ad,
+                                con_gq=min_control_gq, con_dp=min_control_dp,
+                                con_ad=min_control_ad,
+                                con_max_ad=max_control_ad,
                                 con_max_dp=max_control_dp,
                                 con_het_ab=control_het_ab,
                                 con_hom_ab=control_hom_ab,
                                 con_ref_ab=con_ref_ab, sv_gq=sv_gq,
                                 sv_het_ab=sv_het_ab, sv_hom_ab=sv_hom_ab,
                                 sv_dp=sv_dp, sv_max_dp=sv_max_dp,
+                                sv_ad=sv_ad, sv_max_ad=sv_max_ad,
                                 sv_con_gq=sv_min_control_gq,
                                 sv_con_dp=sv_min_control_dp,
                                 sv_con_max_dp=sv_max_control_dp,
+                                sv_con_ad=sv_min_control_ad,
+                                sv_con_max_ad=sv_max_control_ad,
                                 sv_con_het_ab=sv_control_het_ab,
                                 sv_con_hom_ab=sv_control_hom_ab,
                                 sv_con_ref_ab=sv_con_ref_ab,
@@ -275,15 +319,17 @@ class SampleFilter(object):
         return False
 
     def _parse_sample_args(self, cases, controls, n_cases=0, n_controls=0,
-                           gq=0, dp=0, max_dp=0, het_ab=0., hom_ab=0.,
-                           con_gq=None, con_dp=None, con_max_dp=None,
+                           gq=0, dp=0, max_dp=0, ad=0, max_ad=0, het_ab=0.,
+                           hom_ab=0., con_gq=None, con_dp=None,
+                           con_max_dp=None, con_ad=None, con_max_ad=None,
                            con_het_ab=None, con_hom_ab=None, con_ref_ab=None,
-                           sv_gq=0, sv_dp=0, sv_max_dp=None, sv_het_ab=0.,
-                           sv_hom_ab=0., sv_con_gq=None, sv_con_dp=None,
-                           sv_con_max_dp=None, sv_con_het_ab=None,
-                           sv_con_hom_ab=None, sv_con_ref_ab=None,
-                           del_dhffc=None, dup_dhbfc=None, con_del_dhffc=None,
-                           con_dup_dhbfc=None):
+                           sv_gq=0, sv_dp=0, sv_max_dp=None, sv_ad=0,
+                           sv_max_ad=None, sv_het_ab=0., sv_hom_ab=0.,
+                           sv_con_gq=None, sv_con_dp=None, sv_con_max_dp=None,
+                           sv_con_ad=None, sv_con_max_ad=None,
+                           sv_con_het_ab=None, sv_con_hom_ab=None,
+                           sv_con_ref_ab=None, del_dhffc=None, dup_dhbfc=None,
+                           con_del_dhffc=None, con_dup_dhbfc=None):
         not_found = set()
         case_set = set()
         control_set = set()
@@ -338,8 +384,8 @@ class SampleFilter(object):
                                "is greater than the number of controls " +
                                "specified by --controls")
         self.samples = self.cases + self.controls
-        self.gt_filter = GtFilter(self.vcf, gq=gq, dp=dp, max_dp=max_dp,
-                                  het_ab=het_ab, hom_ab=hom_ab)
+        self.gt_filter = GtFilter(self.vcf, gq=gq, dp=dp, max_dp=max_dp, ad=ad,
+                                  max_ad=max_ad, het_ab=het_ab, hom_ab=hom_ab)
         self.gt_fields = set(self.gt_filter.fields)
         if con_gq is None:
             con_gq = gq
@@ -347,12 +393,17 @@ class SampleFilter(object):
             con_dp = dp
         if con_max_dp is None:
             con_max_dp = max_dp
+        if con_ad is None:
+            con_ad = ad
+        if con_max_ad is None:
+            con_max_ad = max_ad
         if con_het_ab is None:
             con_het_ab = het_ab
         if con_hom_ab is None:
             con_hom_ab = hom_ab
         self.con_gt_filter = GtFilter(self.vcf, gq=con_gq, dp=con_dp,
-                                      max_dp=con_max_dp, het_ab=con_het_ab,
+                                      max_dp=con_max_dp, ad=con_ad,
+                                      max_ad=con_max_ad, het_ab=con_het_ab,
                                       hom_ab=hom_ab, ref_ab_filter=con_ref_ab)
         self.gt_fields.update(self.con_gt_filter.fields)
         if sv_gq is None:
@@ -361,6 +412,10 @@ class SampleFilter(object):
             sv_dp = dp
         if sv_max_dp is None:
             sv_max_dp = max_dp
+        if sv_ad is None:
+            sv_ad = ad
+        if sv_max_ad is None:
+            sv_max_ad = max_ad
         if sv_het_ab is None:
             sv_het_ab = het_ab
         if sv_hom_ab is None:
@@ -380,12 +435,14 @@ class SampleFilter(object):
         if con_dup_dhbfc is None:
             con_dup_dhbfc = dup_dhbfc
         self.sv_gt_filter = SvGtFilter(self.vcf, gq=sv_gq, dp=sv_dp,
-                                       max_dp=sv_max_dp, het_ab=sv_het_ab,
+                                       max_dp=sv_max_dp, ad=sv_ad,
+                                       max_ad=sv_max_ad, het_ab=sv_het_ab,
                                        hom_ab=sv_hom_ab, del_dhffc=del_dhffc,
                                        dup_dhbfc=dup_dhbfc)
         self.sv_gt_fields = set(self.sv_gt_filter.fields)
         self.sv_con_gt_filter = SvGtFilter(self.vcf, gq=sv_con_gq,
                                            dp=sv_con_dp, max_dp=sv_con_max_dp,
+                                           ad=sv_con_ad, max_ad=sv_con_max_ad,
                                            het_ab=sv_con_het_ab,
                                            hom_ab=sv_hom_ab,
                                            del_dhffc=con_del_dhffc,
@@ -406,12 +463,13 @@ class GtFilter(object):
         etc.) established on initialisation.
     '''
 
-    __slots__ = ['gq', 'dp', 'max_dp', 'het_ab', 'hom_ab', 'gt_is_ok',
-                 'ab_filter', 'ref_ab_filter', 'ad_over_threshold', 'fields',
-                 '_get_gq', '_format_ref_dp', '_format_alt_dp']
+    __slots__ = ['gq', 'dp', 'max_dp', 'ad', 'max_ad', 'het_ab', 'hom_ab',
+                 'gt_is_ok', 'get_ad', 'ab_filter', 'ref_ab_filter',
+                 'ad_over_threshold', 'fields', '_get_gq', '_format_ref_dp',
+                 '_format_alt_dp']
 
-    def __init__(self, vcf, gq=0, dp=0, max_dp=0, het_ab=0., hom_ab=0.,
-                 ref_ab_filter=None):
+    def __init__(self, vcf, gq=0, dp=0, max_dp=0, ad=0, max_ad=0, het_ab=0.,
+                 hom_ab=0., ref_ab_filter=None):
         '''
             Args:
                 vcf:    Input VCF, which will be checked to ensure any
@@ -426,6 +484,11 @@ class GtFilter(object):
 
                 max_dp: Maximum depth (DP) for a genotype. Default=0 (i.e. not
                         used).
+
+                ad:     Minimum allele depth for a genotype. Default=0.
+
+                max_ad: Maximum allele depth for a genotype. Default=0 (i.e.
+                        not used).
 
                 het_ab: Minimum allele balance for a heterozygous
                         genotype. This is calculated using AD FORMAT
@@ -450,21 +513,29 @@ class GtFilter(object):
         self.gq = gq
         self.dp = dp
         self.max_dp = max_dp
+        self.ad = ad
+        self.max_ad = max_ad
         self.het_ab = het_ab
         self.hom_ab = hom_ab
         self.ref_ab_filter = ref_ab_filter
         self.fields = ['GT']
         self._get_gq = self._get_gq_standard
+        self.get_ad = None
         self.ab_filter = None
         self.ad_over_threshold = None
         self._format_ref_dp = None
         self._format_alt_dp = None
         ab_field = None
-        if not gq and not dp and not max_dp and not het_ab and not hom_ab:
+        if not any((gq, dp, max_dp, ad, max_ad, het_ab, hom_ab)):
             # if no parameters are set then every genotype passes
             self.gt_is_ok = lambda gt, smp, al: True
         else:
             ab_field = self._check_header_fields(vcf)
+            if self.ad or self.max_ad:
+                if ab_field == 'AD':
+                    self.get_ad = self._get_ad
+                else:
+                    self.get_ad = self._get_nonstandard_ad
             if het_ab or hom_ab:
                 if ab_field == 'AD':
                     self.ab_filter = self._ab_filter_ad
@@ -485,6 +556,18 @@ class GtFilter(object):
     def _get_gq_from_tuple(self, gts, sample):
         gq = gts[sample].get('GQ', (None, ))
         return gq[0]
+
+    def _get_ad(self, gts, sample, allele):
+        ad = gts[sample].get('AD', (None,))
+        if ad != (None,):
+            return ad[allele]
+        return None
+
+    def _get_nonstandard_ad(self, gts, sample, allele):
+        ad = gts[sample].get(self._format_alt_dp)
+        if ad is not None:
+            return ad[allele - 1]
+        return None
 
     def _alt_ad_over_threshold(self, gts, sample, allele):
         ad = gts[sample].get('AD', (None,))
@@ -574,6 +657,14 @@ class GtFilter(object):
             if self.max_dp:
                 if dp is not None and dp > self.max_dp:
                     return False
+        if (self.ad or self.max_ad) and allele in gts[sample]['GT']:
+            ad = self.get_ad(gts, sample, allele)
+            if self.ad:
+                if ad is not None and ad < self.ad:
+                    return False
+            if self.max_ad:
+                if ad is not None and ad > self.max_ad:
+                    return False
         if self.gq:  # if GQ is None do not filter(?)
             gq = self._get_gq(gts, sample)
             if gq is not None and gq < self.gq:
@@ -593,7 +684,8 @@ class GtFilter(object):
             if 'GQ' in vcf.header.formats:
                 if vcf.header.formats['GQ'].number == '.':  # Platypus formats
                     self._get_gq = self._get_gq_from_tuple
-        if self.het_ab or self.hom_ab or self.ref_ab_filter:
+        if any((self.ad, self.max_ad, self.het_ab or self.hom_ab or
+                self.ref_ab_filter)):
             if 'AD' in vcf.header.formats:
                 self.fields.append('AD')
                 return 'AD'

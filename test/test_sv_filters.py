@@ -58,6 +58,22 @@ def test_sv_de_novo():
     os.remove(output)
 
 
+def test_sv_de_novo_ad():
+    output = get_tmp_out()
+    test_args = dict(
+        input=input,
+        max_alt_alleles=1,
+        output=output,
+        ad=12,
+        ped=os.path.join(dir_path, "test_data", "test.ped"),
+        de_novo=True
+    )
+    results, expected = run_args(test_args, output,
+                                 sys._getframe().f_code.co_name)
+    assert_equal(results, expected)
+    os.remove(output)
+
+
 def test_sv_de_novo_filters():
     output = get_tmp_out()
     test_args = dict(
