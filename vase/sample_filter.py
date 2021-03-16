@@ -407,7 +407,8 @@ class GtFilter(object):
     '''
 
     __slots__ = ['gq', 'dp', 'max_dp', 'het_ab', 'hom_ab', 'gt_is_ok',
-                 'ab_filter', 'ref_ab_filter', 'ad_over_threshold', 'fields']
+                 'ab_filter', 'ref_ab_filter', 'ad_over_threshold', 'fields',
+                 '_get_gq', '_format_ref_dp', '_format_alt_dp']
 
     def __init__(self, vcf, gq=0, dp=0, max_dp=0, het_ab=0., hom_ab=0.,
                  ref_ab_filter=None):
@@ -453,8 +454,11 @@ class GtFilter(object):
         self.hom_ab = hom_ab
         self.ref_ab_filter = ref_ab_filter
         self.fields = ['GT']
+        self._get_gq = self._get_gq_standard
         self.ab_filter = None
         self.ad_over_threshold = None
+        self._format_ref_dp = None
+        self._format_alt_dp = None
         ab_field = None
         if not gq and not dp and not max_dp and not het_ab and not hom_ab:
             # if no parameters are set then every genotype passes
@@ -464,7 +468,7 @@ class GtFilter(object):
             if het_ab or hom_ab:
                 if ab_field == 'AD':
                     self.ab_filter = self._ab_filter_ad
-                elif ab_field == 'RO':
+                elif ab_field == 'RO' or ab_field == 'NR':
                     self.ab_filter = self._ab_filter_ro
             self.gt_is_ok = self._gt_is_ok
         if ref_ab_filter:
@@ -472,8 +476,15 @@ class GtFilter(object):
                 ab_field = self._check_header_fields(vcf)
             if ab_field == 'AD':
                 self.ad_over_threshold = self._alt_ad_over_threshold
-            elif ab_field == 'RO':
+            elif ab_field == 'RO' or ab_field == 'NR':
                 self.ad_over_threshold = self._alt_ao_over_threshold
+
+    def _get_gq_standard(self, gts, sample):
+        return gts[sample].get('GQ', None)
+
+    def _get_gq_from_tuple(self, gts, sample):
+        gq = gts[sample].get('GQ', (None, ))
+        return gq[0]
 
     def _alt_ad_over_threshold(self, gts, sample, allele):
         ad = gts[sample].get('AD', (None,))
@@ -488,8 +499,10 @@ class GtFilter(object):
         return False
 
     def _alt_ao_over_threshold(self, gts, sample, allele):
-        aos = gts[sample].get('AO', (None,))
-        ro = gts[sample].get('RO', None)
+        aos = gts[sample].get(self._format_alt_dp, (None,))
+        ro = gts[sample].get(self._format_ref_dp, None)
+        if isinstance(ro, tuple):  # platypus
+            ro = ro[0]
         if aos != (None,) and ro is not None:
             dp = sum(filter(None, aos)) + ro
             if dp > 0:
@@ -521,8 +534,10 @@ class GtFilter(object):
         return True  # do not filter
 
     def _ab_filter_ro(self, gts, sample, allele):
-        aos = gts[sample].get('AO', (None,))
-        ro = gts[sample].get('RO', None)
+        aos = gts[sample].get(self._format_alt_dp, (None,))
+        ro = gts[sample].get(self._format_ref_dp, None)
+        if isinstance(ro, tuple):  # platypus
+            ro = ro[0]
         if ro is None or aos == (None,):  # no AD values - assume OK?
             return True
         is_hom_alt = False
@@ -560,7 +575,7 @@ class GtFilter(object):
                 if dp is not None and dp > self.max_dp:
                     return False
         if self.gq:  # if GQ is None do not filter(?)
-            gq = gts[sample].get('GQ', None)
+            gq = self._get_gq(gts, sample)
             if gq is not None and gq < self.gq:
                 return False
         if self.ab_filter is not None:
@@ -575,6 +590,9 @@ class GtFilter(object):
             self.fields.append('DP')
         if self.gq:
             self.fields.append('GQ')
+            if 'GQ' in vcf.header.formats:
+                if vcf.header.formats['GQ'].number == '.':  # Platypus formats
+                    self._get_gq = self._get_gq_from_tuple
         if self.het_ab or self.hom_ab or self.ref_ab_filter:
             if 'AD' in vcf.header.formats:
                 self.fields.append('AD')
@@ -582,10 +600,18 @@ class GtFilter(object):
             elif ('AO' in vcf.header.formats and 'RO' in vcf.header.formats):
                 self.fields.append('AO')
                 self.fields.append('RO')
+                self._format_ref_dp = 'RO'
+                self._format_alt_dp = 'AO'
                 return 'RO'
+            elif ('NV' in vcf.header.formats and 'NR' in vcf.header.formats):
+                self.fields.append('NV')
+                self.fields.append('NR')
+                self._format_ref_dp = 'NR'
+                self._format_alt_dp = 'NV'
+                return 'NR'
             else:
                 warnings.warn("Genotype filtering on allele balance is " +
-                              "set but neither 'AD' nor 'RO' plus 'AO' " +
-                              "FORMAT fields are defined in your VCF " +
-                              "header.")
+                              "set but neither 'AD' nor standard supported " +
+                              "FORMAT fields from Freebayes or Platypus are " +
+                              "defined in your VCF header.")
         return None
