@@ -1079,13 +1079,33 @@ controls/unaffected in order to filter a variant.
 
     gt_args.add_argument(
 '-con_ref_ab', '--control_max_ref_ab', type=float, metavar='AB', help=
-'''Maximum genotype allele balance for
+'''Genotype allele balance threshold for
 parents/unaffecteds/controls with reference (0/0)
-genotypes when filtering variants. If you wish to
-count/exclude variants where controls/unaffecteds
-are called as homozygous reference but still have a
-low proportion of ALT alleles specify a suitable
-cutoff here.
+genotypes when filtering variants. Samples with
+homozygous genotypes will be considered to carry
+an ALT allele if the ratio of ALT/DEPTH is equal
+to or greater than this value.
+
+If you wish to count/exclude variants where
+controls/unaffecteds are called as homozygous
+reference but still have a low proportion of ALT
+alleles specify a suitable cutoff here.
+
+''')
+
+    gt_args.add_argument(
+'-con_ref_ad', '--control_max_ref_ad', type=float, metavar='AD', help=
+'''ALT allele depth threshold for
+parents/unaffecteds/controls with reference (0/0)
+genotypes when filtering variants. Samples with
+homozygous genotypes will be considered to carry
+an ALT allele if the number of ALT reads is equal
+to or greater than this value.
+
+If you wish to count/exclude variants where
+controls/unaffecteds are called as homozygous
+reference but still have a low proportion of ALT
+alleles specify a suitable cutoff here.
 
 ''')
 
@@ -1249,10 +1269,32 @@ filter a variant.
 
     sv_gt_args.add_argument(
 '-sv_con_ref_ab', '--sv_control_max_ref_ab', type=float, metavar='AB', help=
-'''Maximum genotype allele balance for
+'''Genotype allele balance threshold for
 parents/unaffecteds/controls with reference (0/0)
-genotypes when filtering structural variants. If
-you wish to count/exclude variants where
+genotypes when filtering structural variants.
+Samples with homozygous genotypes will be
+considered to carry an ALT allele if the ratio of
+ALT/TOTAL supporting reads is equal to or greater than this value.
+
+If you wish to count/exclude variants where
+controls/unaffecteds are called as homozygous
+reference but still have a low proportion of ALT
+alleles specify a suitable cutoff here.
+
+''')
+
+
+    sv_gt_args.add_argument(
+'-sv_con_ref_ad', '--sv_control_max_ref_ad', type=float, metavar='AD', help=
+'''Genotype allele count threshold for
+parents/unaffecteds/controls with reference (0/0)
+genotypes when filtering structural variants.
+Samples with homozygous genotypes will be
+considered to carry an ALT allele if the number of
+ALT supporting reads is equal to or greater than
+this value.
+
+If you wish to count/exclude variants where
 controls/unaffecteds are called as homozygous
 reference but still have a low proportion of ALT
 alleles specify a suitable cutoff here.

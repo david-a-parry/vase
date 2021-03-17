@@ -104,6 +104,22 @@ def test_de_novo_no_csq():
     os.remove(output)
 
 
+
+def test_de_novo_ref_ad():
+    output = get_tmp_out()
+    test_args = dict(
+        input=os.path.join(dir_path, 'test_data', 'ex9.vcf.gz'),
+        ped=os.path.join(dir_path, "test_data", "test.ped"),
+        de_novo=True,
+        control_max_ref_ad=2,
+        output=output,
+    )
+    results, expected = run_args(test_args, output,
+                                 sys._getframe().f_code.co_name)
+    assert_equal(results, expected)
+    os.remove(output)
+
+
 def test_biallelic():
     for vcf, snpeff in vep_and_snpeff_inputs:
         output = get_tmp_out()

@@ -289,6 +289,8 @@ class InheritanceFilter(object):
                                   gq=gt_args.get('gq'),
                                   dp=gt_args.get('dp'),
                                   max_dp=gt_args.get('max_dp'),
+                                  ad=gt_args.get('ad'),
+                                  max_ad=gt_args.get('max_ad'),
                                   het_ab=gt_args.get('het_ab'),
                                   hom_ab=gt_args.get('hom_ab'))
         self._gt_fields = set(self.gt_filter.fields)
@@ -298,6 +300,10 @@ class InheritanceFilter(object):
             gt_args['min_control_dp'] = gt_args.get('dp')
         if gt_args.get('max_control_dp') is None:
             gt_args['max_control_dp'] = gt_args.get('max_dp')
+        if gt_args.get('min_control_ad') is None:
+            gt_args['min_control_ad'] = gt_args.get('ad')
+        if gt_args.get('max_control_ad') is None:
+            gt_args['max_control_ad'] = gt_args.get('max_ad')
         if gt_args.get('control_het_ab') is None:
             gt_args['control_het_ab'] = gt_args.get('het_ab')
         if gt_args.get('control_hom_ab') is None:
@@ -306,9 +312,12 @@ class InheritanceFilter(object):
                                       gq=gt_args.get('min_control_gq'),
                                       dp=gt_args.get('min_control_dp'),
                                       max_dp=gt_args.get('max_control_dp'),
+                                      ad=gt_args.get('min_control_ad'),
+                                      max_ad=gt_args.get('max_control_ad'),
                                       het_ab=gt_args.get('control_het_ab'),
                                       hom_ab=gt_args.get('control_hom_ab'),
-                                      ref_ab_filter=gt_args.get('con_ref_ab'))
+                                      ref_ab_filter=gt_args.get('con_ref_ab'),
+                                      ref_ad_filter=gt_args.get('con_ref_ad'))
         self._gt_fields.update(self.con_gt_filter.fields)
         if gt_args.get('sv_min_control_gq') is None:
             gt_args['sv_min_control_gq'] = gt_args.get('sv_gq')
@@ -316,6 +325,10 @@ class InheritanceFilter(object):
             gt_args['sv_min_control_dp'] = gt_args.get('sv_dp')
         if gt_args.get('sv_max_control_dp') is None:
             gt_args['sv_max_control_dp'] = gt_args.get('sv_max_dp')
+        if gt_args.get('sv_min_control_ad') is None:
+            gt_args['sv_min_control_ad'] = gt_args.get('sv_ad')
+        if gt_args.get('sv_max_control_ad') is None:
+            gt_args['sv_max_control_ad'] = gt_args.get('sv_max_ad')
         if gt_args.get('sv_control_het_ab') is None:
             gt_args['sv_control_het_ab'] = gt_args.get('sv_het_ab')
         if gt_args.get('sv_control_hom_ab') is None:
@@ -328,6 +341,8 @@ class InheritanceFilter(object):
                                        gq=gt_args.get('sv_gq'),
                                        dp=gt_args.get('sv_dp'),
                                        max_dp=gt_args.get('sv_max_dp'),
+                                       ad=gt_args.get('sv_ad'),
+                                       max_ad=gt_args.get('sv_max_ad'),
                                        het_ab=gt_args.get('sv_het_ab'),
                                        hom_ab=gt_args.get('sv_hom_ab'),
                                        del_dhffc=gt_args.get('del_dhffc'),
@@ -341,6 +356,7 @@ class InheritanceFilter(object):
                                     het_ab=gt_args.get('sv_control_het_ab'),
                                     hom_ab=gt_args.get('sv_control_hom_ab'),
                                     ref_ab_filter=gt_args.get('sv_con_ref_ab'),
+                                    ref_ad_filter=gt_args.get('sv_con_ref_ad'),
                                     del_dhffc=gt_args.get('control_del_dhffc'),
                                     dup_dhbfc=gt_args.get('control_dup_dhbfc'))
         self._sv_gt_fields.update(self.sv_con_gt_filter.fields)
@@ -403,11 +419,17 @@ class InheritanceFilter(object):
                 a_counts[samp] = rec.record.samples[samp]['GT'].count(allele)
             else:
                 a_counts[samp] = None
-            if (rec.record.samples[samp]['GT'] == (0, 0) and
-                    control_filter.ad_over_threshold is not None):
-                if control_filter.ad_over_threshold(rec.record.samples, samp,
-                                                    allele):
-                    a_counts[samp] = 1
+            if rec.record.samples[samp]['GT'] == (0, 0):
+                if control_filter.ref_ab_filter:
+                    if control_filter.ab_over_threshold(rec.record.samples,
+                                                        samp,
+                                                        allele):
+                        a_counts[samp] = 1
+                if a_counts[samp] != 1 and control_filter.ref_ad_filter:
+                    if control_filter.ad_over_threshold(rec.record.samples,
+                                                        samp,
+                                                        allele):
+                        a_counts[samp] = 1
         for samp in self.affected:
             if gt_filter.gt_is_ok(rec.record.samples, samp, allele,
                                   **gt_filter_args):

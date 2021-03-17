@@ -6,13 +6,13 @@ class SvGtFilter(object):
     '''
 
     __slots__ = ['gq', 'dp', 'max_dp', 'ad', 'max_ad', 'het_ab', 'hom_ab',
-                 'gt_is_ok', 'ab_filter', 'ref_ab_filter', 'ad_over_threshold',
-                 'fields', 'enough_support', 'del_dhffc', 'dup_dhbfc',
-                 'duphold_filter']
+                 'gt_is_ok', 'ab_filter', 'ref_ab_filter', 'ref_ad_filter',
+                 'ab_over_threshold', 'fields', 'enough_support', 'del_dhffc',
+                 'dup_dhbfc', 'duphold_filter']
 
     def __init__(self, vcf, gq=0, dp=0, max_dp=0, ad=0, max_ad=0, het_ab=0.,
-                 hom_ab=0., ref_ab_filter=None, del_dhffc=None,
-                 dup_dhbfc=None):
+                 hom_ab=0., ref_ab_filter=None, ref_ad_filter=None,
+                 del_dhffc=None, dup_dhbfc=None):
         '''
             Args:
                 vcf:    Input VCF, which will be checked to ensure any
@@ -52,11 +52,19 @@ class SvGtFilter(object):
                         fields, such as provided by Manta. Default=0.
 
                 ref_ab_filter:
-                        Maximum ALT allele balance of homozygous
+                        ALT allele balance threshold for homozygous
                         reference calls. If a 0/0 genotype call has
                         this fraction of supporting reads (as calculated
                         using SR + PR FORMAT fields) it will be filtered
                         (i.e. self.gt_is_ok will return False).
+                        Default=None (not used).
+
+                ref_ad_filter:
+                        ALT allele count threshold for homozygous
+                        reference calls. If a 0/0 genotype call has
+                        this many reads supporting the ALT allele (as
+                        calculated using SR + PR FORMAT fields) it will be
+                        filtered (i.e. self.gt_is_ok will return False).
                         Default=None (not used).
 
                 del_dhffc:
@@ -82,11 +90,12 @@ class SvGtFilter(object):
         self.het_ab = het_ab
         self.hom_ab = hom_ab
         self.ref_ab_filter = ref_ab_filter
+        self.ref_ad_filter = ref_ad_filter
         self.del_dhffc = del_dhffc
         self.dup_dhbfc = dup_dhbfc
         self.fields = ['GT']
         self.ab_filter = None
-        self.ad_over_threshold = None
+        self.ab_over_threshold = None
         self.enough_support = None
         self.duphold_filter = None
         ab_fields = None
@@ -108,7 +117,7 @@ class SvGtFilter(object):
                 ab_fields = self._check_header_fields(vcf)
             if ab_fields == ('PR', 'SR'):
                 # only option now, but may support other annotations in future
-                self.ad_over_threshold = self._alt_prsr_over_threshold
+                self.ab_over_threshold = self._alt_prsr_over_threshold
 
     def _duphold_filter(self, gts, sample, allele, svtype):
         is_hom_alt = False
@@ -129,6 +138,10 @@ class SvGtFilter(object):
             if fc is not None:
                 return fc < self.del_dhffc
         return True  # do not filter
+
+    def ad_over_threshold(self, gts, sample, allele):
+        support = self._get_pr_sr(gts, sample)
+        return support[allele] >= self.ref_ad_filter
 
     def _alt_prsr_over_threshold(self, gts, sample, allele):
         support = self._get_pr_sr(gts, sample)

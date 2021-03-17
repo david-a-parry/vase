@@ -10,14 +10,14 @@ class SampleFilter(object):
                  het_ab=0., hom_ab=0., min_control_gq=None,
                  min_control_dp=None, max_control_dp=None, min_control_ad=None,
                  max_control_ad=None, control_het_ab=None, control_hom_ab=None,
-                 con_ref_ab=None, sv_gq=0, sv_dp=0, sv_max_dp=0, sv_ad=0,
-                 sv_max_ad=0, sv_het_ab=0., sv_hom_ab=0.,
+                 con_ref_ab=None, con_ref_ad=None, sv_gq=0, sv_dp=0,
+                 sv_max_dp=0, sv_ad=0, sv_max_ad=0, sv_het_ab=0., sv_hom_ab=0.,
                  sv_min_control_gq=None, sv_min_control_dp=None,
                  sv_max_control_dp=None, sv_min_control_ad=None,
                  sv_max_control_ad=None, sv_control_het_ab=None,
-                 sv_control_hom_ab=None, sv_con_ref_ab=None, del_dhffc=None,
-                 dup_dhbfc=None, control_del_dhffc=None,
-                 control_dup_dhbfc=None):
+                 sv_control_hom_ab=None, sv_con_ref_ab=None,
+                 sv_con_ref_ad=None, del_dhffc=None, dup_dhbfc=None,
+                 control_del_dhffc=None, control_dup_dhbfc=None):
         '''
             Initialize filtering options.
 
@@ -110,6 +110,12 @@ class SampleFilter(object):
                         this control sample as carrying this allele
                         despite being called as 0/0.
 
+                con_ref_ad:
+                        If a control sample has an ALT allele count
+                        equal to or greater than this value, consider
+                        this control sample as carrying this allele
+                        despite being called as 0/0.
+
                 sv_gq:  Minimum genotype quality score (GQ) for
                         structural variants only. Defaults to the same
                         value as 'gq'.
@@ -185,6 +191,13 @@ class SampleFilter(object):
                         consider this control sample as carrying this
                         allele despite being called as 0/0.
 
+                sv_con_ref_ad:
+                        If a control sample has an ALT allele count
+                        equal to or greater than this value (as
+                        calculated using SR + PR FORMAT fields),
+                        consider this control sample as carrying this
+                        allele despite being called as 0/0.
+
                 del_dhffc:
                         Maximum fold-change for deletion calls relative
                         to flanking regions as annotated by duphold
@@ -226,10 +239,11 @@ class SampleFilter(object):
                                 con_max_dp=max_control_dp,
                                 con_het_ab=control_het_ab,
                                 con_hom_ab=control_hom_ab,
-                                con_ref_ab=con_ref_ab, sv_gq=sv_gq,
-                                sv_het_ab=sv_het_ab, sv_hom_ab=sv_hom_ab,
-                                sv_dp=sv_dp, sv_max_dp=sv_max_dp,
-                                sv_ad=sv_ad, sv_max_ad=sv_max_ad,
+                                con_ref_ab=con_ref_ab, con_ref_ad=con_ref_ad,
+                                sv_gq=sv_gq, sv_het_ab=sv_het_ab,
+                                sv_hom_ab=sv_hom_ab, sv_dp=sv_dp,
+                                sv_max_dp=sv_max_dp, sv_ad=sv_ad,
+                                sv_max_ad=sv_max_ad,
                                 sv_con_gq=sv_min_control_gq,
                                 sv_con_dp=sv_min_control_dp,
                                 sv_con_max_dp=sv_max_control_dp,
@@ -238,6 +252,7 @@ class SampleFilter(object):
                                 sv_con_het_ab=sv_control_het_ab,
                                 sv_con_hom_ab=sv_control_hom_ab,
                                 sv_con_ref_ab=sv_con_ref_ab,
+                                sv_con_ref_ad=sv_con_ref_ad,
                                 del_dhffc=del_dhffc, dup_dhbfc=dup_dhbfc,
                                 con_del_dhffc=control_del_dhffc,
                                 con_dup_dhbfc=control_dup_dhbfc)
@@ -285,10 +300,20 @@ class SampleFilter(object):
                     control_matches += 1
                 else:
                     return True
-            elif control_filter.ad_over_threshold is not None:
-                # check hom ref for ALT allele counts
-                if control_filter.ad_over_threshold(record.samples, s, allele):
+            else:
+                ab_over, ad_over = False, False
+                if control_filter.ref_ab_filter:
+                    # check hom ref for ALT allele counts
+                    ab_over = control_filter.ab_over_threshold(record.samples,
+                                                               s,
+                                                               allele)
+                if control_filter.ref_ad_filter:
+                    ad_over = control_filter.ad_over_threshold(record.samples,
+                                                               s,
+                                                               allele)
+                if ab_over or ad_over:
                     if 'AD' not in record.format or gts[s]['AD'] != (None,):
+                        # filter if no AD FORMAT field but not if 'AD' is "."
                         if self.n_controls:
                             control_matches += 1
                         else:
@@ -323,13 +348,14 @@ class SampleFilter(object):
                            hom_ab=0., con_gq=None, con_dp=None,
                            con_max_dp=None, con_ad=None, con_max_ad=None,
                            con_het_ab=None, con_hom_ab=None, con_ref_ab=None,
-                           sv_gq=0, sv_dp=0, sv_max_dp=None, sv_ad=0,
-                           sv_max_ad=None, sv_het_ab=0., sv_hom_ab=0.,
+                           con_ref_ad=None, sv_gq=0, sv_dp=0, sv_max_dp=None,
+                           sv_ad=0, sv_max_ad=None, sv_het_ab=0., sv_hom_ab=0.,
                            sv_con_gq=None, sv_con_dp=None, sv_con_max_dp=None,
                            sv_con_ad=None, sv_con_max_ad=None,
                            sv_con_het_ab=None, sv_con_hom_ab=None,
-                           sv_con_ref_ab=None, del_dhffc=None, dup_dhbfc=None,
-                           con_del_dhffc=None, con_dup_dhbfc=None):
+                           sv_con_ref_ab=None, sv_con_ref_ad=None,
+                           del_dhffc=None, dup_dhbfc=None, con_del_dhffc=None,
+                           con_dup_dhbfc=None):
         not_found = set()
         case_set = set()
         control_set = set()
@@ -404,7 +430,8 @@ class SampleFilter(object):
         self.con_gt_filter = GtFilter(self.vcf, gq=con_gq, dp=con_dp,
                                       max_dp=con_max_dp, ad=con_ad,
                                       max_ad=con_max_ad, het_ab=con_het_ab,
-                                      hom_ab=hom_ab, ref_ab_filter=con_ref_ab)
+                                      hom_ab=hom_ab, ref_ab_filter=con_ref_ab,
+                                      ref_ad_filter=con_ref_ad)
         self.gt_fields.update(self.con_gt_filter.fields)
         if sv_gq is None:
             sv_gq = gq
@@ -447,7 +474,8 @@ class SampleFilter(object):
                                            hom_ab=sv_hom_ab,
                                            del_dhffc=con_del_dhffc,
                                            dup_dhbfc=con_dup_dhbfc,
-                                           ref_ab_filter=sv_con_ref_ab)
+                                           ref_ab_filter=sv_con_ref_ab,
+                                           ref_ad_filter=sv_con_ref_ad)
         self.sv_gt_fields.update(self.sv_con_gt_filter.fields)
         if n_cases:
             self.n_cases = n_cases
@@ -465,11 +493,11 @@ class GtFilter(object):
 
     __slots__ = ['gq', 'dp', 'max_dp', 'ad', 'max_ad', 'het_ab', 'hom_ab',
                  'gt_is_ok', 'get_ad', 'ab_filter', 'ref_ab_filter',
-                 'ad_over_threshold', 'fields', '_get_gq', '_format_ref_dp',
-                 '_format_alt_dp']
+                 'ref_ad_filter', 'ab_over_threshold', 'fields', '_get_gq',
+                 '_format_ref_dp', '_format_alt_dp']
 
     def __init__(self, vcf, gq=0, dp=0, max_dp=0, ad=0, max_ad=0, het_ab=0.,
-                 hom_ab=0., ref_ab_filter=None):
+                 hom_ab=0., ref_ab_filter=None, ref_ad_filter=None):
         '''
             Args:
                 vcf:    Input VCF, which will be checked to ensure any
@@ -503,9 +531,16 @@ class GtFilter(object):
                         throws a RuntimeError. Default=0.
 
                 ref_ab_filter:
-                        Maximum ALT allele balance of homozygous
+                        ALT allele balance threshold for homozygous
                         reference calls. If a 0/0 genotype call has
-                        this fraction of ALT alleles it will be
+                        more than this fraction of ALT alleles it will
+                        be filtered (i.e. self.gt_is_ok will return
+                        False). Default=None (not used).
+
+                ref_ad_filter:
+                        ALT allele count threshold for homozygous
+                        reference calls. If a 0/0 genotype call has
+                        this many of ALT alleles it will be
                         filtered (i.e. self.gt_is_ok will return
                         False). Default=None (not used).
 
@@ -518,11 +553,12 @@ class GtFilter(object):
         self.het_ab = het_ab
         self.hom_ab = hom_ab
         self.ref_ab_filter = ref_ab_filter
+        self.ref_ad_filter = ref_ad_filter
         self.fields = ['GT']
         self._get_gq = self._get_gq_standard
         self.get_ad = None
         self.ab_filter = None
-        self.ad_over_threshold = None
+        self.ab_over_threshold = None
         self._format_ref_dp = None
         self._format_alt_dp = None
         ab_field = None
@@ -542,13 +578,15 @@ class GtFilter(object):
                 elif ab_field == 'RO' or ab_field == 'NR':
                     self.ab_filter = self._ab_filter_ro
             self.gt_is_ok = self._gt_is_ok
-        if ref_ab_filter:
+        if ref_ab_filter or ref_ad_filter:
             if ab_field is None:
                 ab_field = self._check_header_fields(vcf)
             if ab_field == 'AD':
-                self.ad_over_threshold = self._alt_ad_over_threshold
+                self.ab_over_threshold = self._alt_ab_ad_over_threshold
+                self.get_ad = self._get_ad
             elif ab_field == 'RO' or ab_field == 'NR':
-                self.ad_over_threshold = self._alt_ao_over_threshold
+                self.ab_over_threshold = self._alt_ab_ao_over_threshold
+                self.get_ad = self._get_nonstandard_ad
 
     def _get_gq_standard(self, gts, sample):
         return gts[sample].get('GQ', None)
@@ -569,19 +607,25 @@ class GtFilter(object):
             return ad[allele - 1]
         return None
 
-    def _alt_ad_over_threshold(self, gts, sample, allele):
+    def ad_over_threshold(self, gts, sample, allele):
+        ad = self.get_ad(gts, sample, allele)
+        if ad is None:  # no AD values - filter?
+            return True
+        return ad >= self.ref_ad_filter
+
+    def _alt_ab_ad_over_threshold(self, gts, sample, allele):
         ad = gts[sample].get('AD', (None,))
-        if ad == (None,):  # no AD values - assume OK?
+        if ad == (None,):  # no AD values - filter?
             return True
         al_dp = ad[allele]
         dp = sum(filter(None, ad))
         if dp > 0 and al_dp is not None:
             ab = float(al_dp)/dp
-            if ab > self.ref_ab_filter:  # ALT/REF read counts > threshold
+            if ab >= self.ref_ab_filter:  # ALT/REF read counts > threshold
                 return True  # filter
         return False
 
-    def _alt_ao_over_threshold(self, gts, sample, allele):
+    def _alt_ab_ao_over_threshold(self, gts, sample, allele):
         aos = gts[sample].get(self._format_alt_dp, (None,))
         ro = gts[sample].get(self._format_ref_dp, None)
         if isinstance(ro, tuple):  # platypus
@@ -591,7 +635,7 @@ class GtFilter(object):
             if dp > 0:
                 ao = aos[allele-1]
                 ab = float(ao)/ro
-                if ab > self.ref_ab_filter:
+                if ab >= self.ref_ab_filter:
                     return True
         return False
 
@@ -685,7 +729,7 @@ class GtFilter(object):
                 if vcf.header.formats['GQ'].number == '.':  # Platypus formats
                     self._get_gq = self._get_gq_from_tuple
         if any((self.ad, self.max_ad, self.het_ab or self.hom_ab or
-                self.ref_ab_filter)):
+                self.ref_ab_filter or self.ref_ad_filter)):
             if 'AD' in vcf.header.formats:
                 self.fields.append('AD')
                 return 'AD'
