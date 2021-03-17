@@ -958,6 +958,24 @@ used).
 ''')
 
     gt_args.add_argument(
+'-ad', '--ad', type=int, default=0, help=
+'''Minimum ALT allele depth threshold. Sample ALT
+calls with an ALT allele depth lower than this
+threshold will be treated as no-calls. Default = 0.
+
+''')
+
+    gt_args.add_argument(
+'-max_ad', '--max_ad', type=int, default=0, help=
+'''Maximum A:T allele depth threshold. Sample ALT
+calls with an ALT allele depth higher than this
+threshold will be treated as no-calls. Default = 0
+(i.e. not used).
+
+''')
+
+
+    gt_args.add_argument(
 '-het_ab', '--het_ab', type=float, default=0., metavar='AB', help=
 '''Minimum genotype allele balance for heterozygous
 genotypes. Heterozygous sample genotype calls
@@ -1012,6 +1030,28 @@ variants. Defaults to the same value as --max_dp.
 ''')
 
     gt_args.add_argument(
+'-con_ad', '--control_ad', type=int, help=
+'''Minimum ALT allele depth threshold for
+parents/unaffecteds/controls when filtering
+variants. Defaults to the same value as --ad but
+you may wish to set this to a lower value if, for
+example, you require less evidence from
+controls/unaffected in order to filter a variant
+or from parental genotype calls when confirming
+a potential de novo variant.
+
+''')
+
+    gt_args.add_argument(
+'-con_max_ad', '--control_max_ad', type=int, help=
+'''Maximum ALT allele depth threshold for
+parents/unaffecteds/controls when filtering
+variants. Defaults to the same value as --max_ad.
+
+''')
+
+
+    gt_args.add_argument(
 '-con_het_ab', '--control_het_ab', type=float, metavar='AB', help=
 '''Minimum genotype allele balance for heterozygous
 genotypes. Heterozygous sample genotype calls
@@ -1062,8 +1102,9 @@ no-calls. Default = 20.
 '-sv_dp', '--sv_dp', type=int, default=0, help=
 '''Minimum genotype 'depth' threshold for structural
 variants. Sample genotype calls with fewer than
-this nunmber of supporting reads will be treated
-as no-calls. Default = 0.
+this number of total supporting reads (both REF
+and ALT alleles) will be treated as no-calls.
+Default = 0.
 
 ''')
 
@@ -1071,10 +1112,30 @@ as no-calls. Default = 0.
 '-sv_max_dp', '--sv_max_dp', type=int, default=0, help=
 '''Maximum genotype 'depth' threshold for structural
 variants. Sample genotype calls with more than
-this nunmber of supporting reads will be treated
+this number of supporting reads (both REF and ALT)
+will be treated as no-calls. Default = 0 (i.e. not
+used).
+
+''')
+
+    sv_gt_args.add_argument(
+'-sv_ad', '--sv_ad', type=int, default=0, help=
+'''Minimum ALT 'depth' threshold for structural
+variants. Sample ALT allele calls with fewer than
+this number of supporting reads will be treated
+as no-calls. Default = 0.
+
+''')
+
+    sv_gt_args.add_argument(
+'-sv_max_ad', '--sv_max_ad', type=int, default=0, help=
+'''Maximum ALT 'depth' threshold for structural
+variants. Sample ALT allele calls with more than
+this number of supporting reads will be treated
 as no-calls. Default = 0 (i.e. not used).
 
 ''')
+
 
     sv_gt_args.add_argument(
 '-sv_het_ab', '--sv_het_ab', type=float, default=0., metavar='AB', help=
@@ -1113,7 +1174,7 @@ confirming a potential de novo variant.
 
     sv_gt_args.add_argument(
 '-sv_con_dp', '--sv_control_dp', type=int, help=
-'''Minimum supporting read threshold for
+'''Minimum total supporting read threshold for
 parents/unaffecteds/controls when filtering
 structural variants. Defaults to the same value as
 --sv_dp but you may wish to set this to a lower
@@ -1126,12 +1187,35 @@ confirming a potential de novo variant.
 
     sv_gt_args.add_argument(
 '-sv_con_max_dp', '--sv_control_max_dp', type=int, help=
-'''Maximum supporting read threshold for
+'''Maximum total supporting read threshold for
 parents/unaffecteds/controls when filtering
 structural variants. Defaults to the same value as
 --sv_max_dp.
 
 ''')
+
+    sv_gt_args.add_argument(
+'-sv_con_ad', '--sv_control_ad', type=int, help=
+'''Minimum ALT allele supporting read threshold for
+parents/unaffecteds/controls when filtering
+structural variants. Defaults to the same value as
+--sv_ad but you may wish to set this to a lower
+value if, for example, you require less evidence
+from controls/unaffected in order to filter a
+variant or from parental genotype calls when
+confirming a potential de novo variant.
+
+''')
+
+    sv_gt_args.add_argument(
+'-sv_con_max_ad', '--sv_control_max_ad', type=int, help=
+'''Maximum ALT allele supporting read threshold for
+parents/unaffecteds/controls when filtering
+structural variants. Defaults to the same value as
+--sv_max_ad.
+
+''')
+
 
     sv_gt_args.add_argument(
 '-sv_con_het_ab', '--sv_control_het_ab', type=float, metavar='AB', help=
