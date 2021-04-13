@@ -120,7 +120,7 @@ class SvGtFilter(GtFilter):
             if dup_dhbfc or del_dhffc:
                 self.duphold_filter = self._duphold_filter
             self.gt_is_ok = self._gt_is_ok
-        if ref_ab_filter:
+        if ref_ab_filter or ref_ad_filter:
             if ab_fields is None:
                 ab_fields = self._check_header_fields(vcf)
             if ab_fields == ('PR', 'SR'):
