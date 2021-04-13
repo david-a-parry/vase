@@ -228,10 +228,10 @@ class SvGtFilter(GtFilter):
             if not self.enough_support(gts, sample):
                 return False
         if (self.ad or self.max_ad) and allele in gts[sample]['GT']:
-            support = self._get_pr_sr(gts, sample)
-            if self.ad and support[allele] < self.ad:
+            ad = self.get_ad(gts, sample, allele)
+            if self.ad and ad < self.ad:
                 return False
-            if self.max_ad and support[allele] > self.max_ad:
+            if self.max_ad and ad > self.max_ad:
                 return False
         if self.gq:
             # if GQ is None presumably is a no call
