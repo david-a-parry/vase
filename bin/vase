@@ -108,7 +108,7 @@ filtered/ignored.
 '--keep_filters', nargs='+', help=
 '''Only keep variants that have these FILTER Fields.
 Can not be used with --pass_filters but you can
-use 'pass' as one of your arguments here to retain
+use 'PASS' as one of your arguments here to retain
 variants that pass filters in addition to variants
 with a FILTER Field matching the values specified.
 If multiple filter annotations are given for a
