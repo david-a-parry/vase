@@ -1,4 +1,7 @@
-class SvGtFilter(object):
+from .gt_filter import GtFilter
+
+
+class SvGtFilter(GtFilter):
     '''
         Given sample calls from a VariantRecord, this class provides a
         function 'filter' which returns True if the call meets the
@@ -6,9 +9,9 @@ class SvGtFilter(object):
     '''
 
     __slots__ = ['gq', 'dp', 'max_dp', 'ad', 'max_ad', 'het_ab', 'hom_ab',
-                 'gt_is_ok', 'ab_filter', 'ref_ab_filter', 'ref_ad_filter',
-                 'ab_over_threshold', 'fields', 'enough_support', 'del_dhffc',
-                 'dup_dhbfc', 'duphold_filter']
+                 'gt_is_ok', 'get_ad', 'ab_filter', 'ref_ab_filter',
+                 'ref_ad_filter', 'ab_over_threshold', 'fields',
+                 'enough_support', 'del_dhffc', 'dup_dhbfc', 'duphold_filter']
 
     def __init__(self, vcf, gq=0, dp=0, max_dp=0, ad=0, max_ad=0, het_ab=0.,
                  hom_ab=0., ref_ab_filter=None, ref_ad_filter=None,
@@ -98,6 +101,7 @@ class SvGtFilter(object):
         self.ab_over_threshold = None
         self.enough_support = None
         self.duphold_filter = None
+        self.get_ad = None
         ab_fields = None
         if not any((gq, dp, max_dp, ad, max_ad, het_ab, hom_ab, del_dhffc,
                     dup_dhbfc)):
@@ -106,9 +110,13 @@ class SvGtFilter(object):
         else:
             ab_fields = self._check_header_fields(vcf)
             if ab_fields == ('PR', 'SR'):
-                # only option now, but may support other annotations in future
                 self.ab_filter = self._ab_filter_prsr
                 self.enough_support = self._enough_support_prsr
+                self.get_ad = self._get_allele_srpr
+            elif ab_fields == ('AD'):  # e.g. pindel
+                self.ab_filter = self._ab_filter_ad
+                self.enough_support = self._enough_support_ad
+                self.get_ad = self._get_ad
             if dup_dhbfc or del_dhffc:
                 self.duphold_filter = self._duphold_filter
             self.gt_is_ok = self._gt_is_ok
@@ -116,8 +124,11 @@ class SvGtFilter(object):
             if ab_fields is None:
                 ab_fields = self._check_header_fields(vcf)
             if ab_fields == ('PR', 'SR'):
-                # only option now, but may support other annotations in future
                 self.ab_over_threshold = self._alt_prsr_over_threshold
+                self.get_ad = self._get_allele_srpr
+            elif ab_fields == ('AD'):
+                self.ab_over_threshold = self._alt_ab_ad_over_threshold
+                self.get_ad = self._get_ad
 
     def _duphold_filter(self, gts, sample, allele, svtype):
         is_hom_alt = False
@@ -139,9 +150,9 @@ class SvGtFilter(object):
                 return fc < self.del_dhffc
         return True  # do not filter
 
-    def ad_over_threshold(self, gts, sample, allele):
+    def _get_allele_srpr(self, gts, sample, allele):
         support = self._get_pr_sr(gts, sample)
-        return support[allele] >= self.ref_ad_filter
+        return support[allele]
 
     def _alt_prsr_over_threshold(self, gts, sample, allele):
         support = self._get_pr_sr(gts, sample)
@@ -182,6 +193,19 @@ class SvGtFilter(object):
         if self.dp and sum(support) < self.dp:
             return False
         if self.max_dp and sum(support) > self.max_dp:
+            return False
+        return True
+
+    def _enough_support_ad(self, gts, sample):
+        '''
+            Returns False if sum(AD) fields for given sample
+            genotype is < self.dp.
+        '''
+        ad = gts[sample].get('AD', (None, ))
+        support = sum(filter(None, ad))
+        if self.dp and support < self.dp:
+            return False
+        if self.max_dp and support > self.max_dp:
             return False
         return True
 
@@ -239,17 +263,16 @@ class SvGtFilter(object):
                                    "annotation is set but 'DHFFC' FORMAT " +
                                    "field is not defined in your VCF header.")
             self.fields.append("DHFFC")
-        if (self.dp or self.max_dp or self.het_ab or self.hom_ab or
-                self.ref_ab_filter):
+        if any((self.dp, self.max_dp, self.ad, self.max_ad, self.het_ab,
+                self.hom_ab, self.ref_ab_filter, self.ref_ad_filter)):
             if ('PR' in vcf.header.header.formats and
                     'SR' in vcf.header.header.formats):
                 self.fields.append('PR')
                 self.fields.append('SR')
                 return ('PR', 'SR')
-            else:
-                raise RuntimeError("Genotype filtering on SV allele balance " +
-                                   "or supporting read depth is set but 'PR'" +
-                                   " and/or 'SR' FORMAT fields are not " +
-                                   "defined in your VCF header.")
+            raise RuntimeError("Genotype filtering on SV allele balance " +
+                                "or supporting read depth is set but 'PR'" +
+                                " and/or 'SR' FORMAT fields are not " +
+                                "defined in your VCF header.")
         return None
 
