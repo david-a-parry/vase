@@ -113,7 +113,7 @@ class SvGtFilter(GtFilter):
                 self.ab_filter = self._ab_filter_prsr
                 self.enough_support = self._enough_support_prsr
                 self.get_ad = self._get_allele_srpr
-            elif ab_fields == ('AD'):  # e.g. pindel
+            elif ab_fields == 'AD':  # e.g. pindel
                 self.ab_filter = self._ab_filter_ad
                 self.enough_support = self._enough_support_ad
                 self.get_ad = self._get_ad
@@ -126,7 +126,7 @@ class SvGtFilter(GtFilter):
             if ab_fields == ('PR', 'SR'):
                 self.ab_over_threshold = self._alt_prsr_over_threshold
                 self.get_ad = self._get_allele_srpr
-            elif ab_fields == ('AD'):
+            elif ab_fields == 'AD':
                 self.ab_over_threshold = self._alt_ab_ad_over_threshold
                 self.get_ad = self._get_ad
 
@@ -265,11 +265,13 @@ class SvGtFilter(GtFilter):
             self.fields.append("DHFFC")
         if any((self.dp, self.max_dp, self.ad, self.max_ad, self.het_ab,
                 self.hom_ab, self.ref_ab_filter, self.ref_ad_filter)):
-            if ('PR' in vcf.header.header.formats and
-                    'SR' in vcf.header.header.formats):
+            if ('PR' in vcf.header.header.formats and 'SR' in
+                    vcf.header.header.formats):
                 self.fields.append('PR')
                 self.fields.append('SR')
                 return ('PR', 'SR')
+            if 'AD' in vcf.header.header.formats:
+                return 'AD'
             raise RuntimeError("Genotype filtering on SV allele balance " +
                                 "or supporting read depth is set but 'PR'" +
                                 " and/or 'SR' FORMAT fields are not " +
