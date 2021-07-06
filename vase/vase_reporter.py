@@ -34,7 +34,7 @@ vep_keys = {'biotype': 'BIOTYPE',
             'gene': 'Gene',
             'feature': 'Feature'}
 
-snpeff_keys = {'biotype': 'Transcript_Biotype',
+snpeff_keys = {'biotype': 'Transcript_BioType',
                'impact': 'Annotation_Impact',
                'symbol': 'Gene_Name',
                'gene': 'Gene_ID',
@@ -692,6 +692,8 @@ class VaseReporter(object):
         if 'CANONICAL' in csq[0]:
             sorted_csq = sorted(feat_csq, key=lambda x: x['CANONICAL'],
                                 reverse=True)
+        else:
+            sorted_csq = feat_csq
         sorted_csq = sorted(sorted_csq, key=lambda x:
                             self.biotype_order[x[self._csq_keys['biotype']]])
         sorted_csq = sorted(sorted_csq, key=lambda x:
@@ -710,6 +712,12 @@ class VaseReporter(object):
             n += 1
             if self._snpeff_mode:
                 csqs = record.ANN
+                # SnpEff transcripts have the version appended, which will
+                # prevent gnomAD constraint files etc. from matching - remove
+                # suffix
+                for x in csqs:
+                    x[self._csq_keys['feature']] = \
+                            x[self._csq_keys['feature']].rsplit('.', 1)[0]
             else:
                 csqs = record.CSQ
             for annot, pattern in self.seg_fields.items():
@@ -718,12 +726,15 @@ class VaseReporter(object):
                         if record.info[annot][i] is None:
                             continue
                         if self.all_features:
-                            feat = list(x[self._feature_key] for x in csqs if
-                                        x[self._feature_key] != '' and
+                            feat = list(x[self._csq_keys['feature']] for x in
+                                        csqs if
+                                        x[self._csq_keys['feature']] != '' and
                                         x['alt_index'] == i + 1)
                         else:
                             feat = \
                              record.info[self.feat_annots[annot]][i].split("|")
+                            if self._snpeff_mode:
+                                feat = [x.rsplit('.', 1)[0] for x in feat]
                         if self.choose_transcript:
                             feat = [self.pick_transcript(feat, i+1,
                                                          csqs)]

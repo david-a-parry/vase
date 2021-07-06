@@ -374,7 +374,7 @@ class VaseRecord(object):
         '''
         # If GT field is phased in both records check this and only this
         if (self.record.samples[sample].phased and
-                other.record.samples[sample.phased]):
+                other.record.samples[sample].phased):
             i = self.record.samples[sample].allele_indices.index(allele)
             j = other.record.samples[sample].allele_indices.index(other_allele)
             return i == j
