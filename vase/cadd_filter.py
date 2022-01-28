@@ -109,7 +109,7 @@ class CaddFilter(object):
             self.to_score_file = gzip.open(to_score, 'wt')
         self.walk_chrom = None
         self.prev_walk = (-1, -1)
-        self.walk_buffer = []
+        self.walk_buffer = defaultdict(list)
         self.reseek = False
         if self.walk:
             for fh in self.cadd_tabix:
@@ -242,36 +242,36 @@ class CaddFilter(object):
         chunk_begin, chunk_end = cbins[0], cbins[-1]
         if self.reseek or chunk_begin > tbx.tell():
             tbx.seek(chunk_begin)
-            self.walk_buffer = []
-        elif self.walk_buffer:
-            if start < self.walk_buffer[-1].stop:
+            self.walk_buffer[tbx] = []
+        elif self.walk_buffer[tbx]:
+            if start < self.walk_buffer[tbx][-1].stop:
                 remove_i = set()
-                for i in range(len(self.walk_buffer)):
-                    if self.walk_buffer[i].pos > end:
+                for i in range(len(self.walk_buffer[tbx])):
+                    if self.walk_buffer[tbx][i].pos > end:
                         break
-                    if self.walk_buffer[i].stop >= start:
-                        recs.append(self.walk_buffer[i])
+                    if self.walk_buffer[tbx][i].stop >= start:
+                        recs.append(self.walk_buffer[tbx][i])
                     else:
                         remove_i.add(i)
                 if remove_i:
-                    self.walk_buffer = [self.walk_buffer[i] for i in
-                                        range(len(self.walk_buffer)) if i not
-                                        in remove_i]
+                    self.walk_buffer[tbx] = [self.walk_buffer[tbx][i] for i in
+                                             range(len(self.walk_buffer[tbx]))
+                                             if i not in remove_i]
             else:
-                self.walk_buffer = []
-        if not self.walk_buffer or self.walk_buffer[-1].pos <= end:
+                self.walk_buffer[tbx] = []
+        if not self.walk_buffer[tbx] or self.walk_buffer[tbx][-1].pos <= end:
             for row in tbx:
                 record = self._simplify_cadd_record(row.decode())
                 if record is None:
                     continue
                 if record.pos > end or tbx.tell() > chunk_end:
                     if use_buffer and record.chrom == chrom:
-                        self.walk_buffer.append(record)
+                        self.walk_buffer[tbx].append(record)
                     break
                 if record.stop >= start:
                     recs.append(record)
                     if use_buffer:
-                        self.walk_buffer.append(record)
+                        self.walk_buffer[tbx].append(record)
         self.reseek = not use_buffer
         return recs
 
