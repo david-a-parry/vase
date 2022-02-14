@@ -2,13 +2,20 @@ from collections import defaultdict
 from .utils import csv_to_dict
 
 allelic_req_to_label = {'biallelic':                  ['recessive'],
+                        'biallelic_autosomal':        ['recessive'],
+                        'biallelic_PAR':              ['recessive'],
                         'digenic':                    [],
                         'hemizygous':                 ['recessive'],
+                        'monoallelic_X_hem':          ['recessive'],
+                        'monoallelic_Y_hem':          ['recessive'],
                         'imprinted':                  [],
                         'mitochondrial':              [],
                         'monoallelic':                ['de novo', 'dominant'],
+                        'monoallelic_autosomal':      ['de novo', 'dominant'],
+                        'monoallelic_PAR':            ['de novo', 'dominant'],
                         'mosaic':                     ['de novo', 'dominant'],
                         'x-linked dominant':          ['de novo', 'dominant'],
+                        'monoallelic_X_het':          ['de novo', 'dominant'],
                         'x-linked over-dominance':    ['de novo', 'dominant'],
                         'uncertain':                  [],
                         '':                           []}
@@ -23,9 +30,24 @@ mutation_to_csq = {
                                             'transcript_ablation',
                                             'feature_ablation',  # SnpEff only
                                             'feature_truncation'],
+    'absent gene product':                 ['frameshift_variant',
+                                            'stop_gained',
+                                            'start_lost',
+                                            'initiator_codon_variant',
+                                            'splice_acceptor_variant',
+                                            'splice_donor_variant',
+                                            'transcript_ablation',
+                                            'feature_ablation',  # SnpEff only
+                                            'feature_truncation'],
     'uncertain':                           None,
     '':                                    None,
     'all missense/in frame':               ['missense_variant',
+                                            'inframe_deletion',
+                                            'inframe_insertion',
+                                            # SnpEff only classes below
+                                            'disruptive_inframe_deletion',
+                                            'disruptive_inframe_insertion'],
+    'altered gene product structure':      ['missense_variant',
                                             'inframe_deletion',
                                             'inframe_insertion',
                                             # SnpEff only classes below
@@ -50,6 +72,9 @@ mutation_to_csq = {
                                             'duplication'  # SnpEff
                                             ],
     'increased gene dosage':               ['transcript_amplification',
+                                            'duplication'  # SnpEff
+                                            ],
+    'increased gene product level':        ['transcript_amplification',
                                             'duplication'  # SnpEff
                                             ],
     'gain of function':                    ['missense_variant',
