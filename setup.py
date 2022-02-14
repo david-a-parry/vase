@@ -13,7 +13,7 @@ else:
     raise RuntimeError("Unable to find version string in {}.".format(v_file))
 
 
-test_requirements = ['nose', 'xlrd']
+test_requirements = ['nose', 'openpyxl']
 setup(
     name="vase",
     packages=["vase"],

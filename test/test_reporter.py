@@ -1,6 +1,6 @@
 from .utils import *
 from vase.vase_reporter import VaseReporter
-import xlrd
+from openpyxl import load_workbook
 import json
 from collections import defaultdict
 
@@ -11,11 +11,11 @@ g2p = os.path.join(dir_path, "test_data", "test_g2p.csv")
 
 
 def _get_xlsx_output(xlsx, fam):
-    wb = xlrd.open_workbook(xlsx)
-    sheet = wb.sheet_by_name(fam)
+    wb = load_workbook(xlsx)
+    sheet = wb[fam]
     values = []
-    for i in range(sheet.nrows):
-        values.append([sheet.cell_value(i, j) for j in range(sheet.ncols)])
+    for row in sheet.rows:
+        values.append([x.value for x in row])
     return values
 
 
