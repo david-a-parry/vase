@@ -92,7 +92,7 @@ class G2P(object):
     ''' Filter variants based on requirements from a G2P CSV file.'''
 
     def __init__(self, g2p_file, snpeff_mode=False):
-        self.g2p = self._read_g2p_csv(g2p_file)
+        self.g2p, self.columns = self._read_g2p_csv(g2p_file)
         if snpeff_mode:
             self._symbol_key = 'Gene_Name'
             self._csq_key = 'Annotation'
@@ -100,18 +100,29 @@ class G2P(object):
             self._symbol_key = 'SYMBOL'
             self._csq_key = 'Consequence'
 
-    def _read_g2p_csv(self, g2p):
-        required_fields = ['gene symbol', 'disease name', 'DDD category',
+    def _read_g2p_csv(self, g2p_file):
+        required_fields = ['gene symbol', 'disease name',
                            'allelic requirement', 'mutation consequence',
                            'organ specificity list', 'prev symbols']
-        g2p = csv_to_dict(g2p, 'gene symbol', required_fields)
+        g2p = csv_to_dict(g2p_file, 'gene symbol', required_fields)
+        first_row = list(g2p.values())[0][0]
+        cat_col = None
+        for x in ['DDD category', 'confidence category']:
+            if x in first_row:
+                cat_col = x
+                break
+        if cat_col is None:
+            raise ValueError("Neither 'DDD category' or " +
+                             "'confidence category' field found in G2P file " +
+                             "'{}'".format(g2p_file))
+        required_fields.insert(2, cat_col)
         prev_symbol_d = defaultdict(list)
         for row in [x for y in g2p.values() for x in y]:
             if row['prev symbols']:
                 for prev in row['prev symbols'].split(';'):
                     prev_symbol_d[prev].append(row)
         g2p.update(prev_symbol_d)
-        return g2p
+        return g2p, required_fields
 
     def consequence_requirement_met(self, csqs):
         '''

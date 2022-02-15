@@ -589,8 +589,7 @@ class VaseReporter(object):
         if csq[self._csq_keys['symbol']] in self.g2p.g2p:
             d = ["|".join(x[f] for x in
                  self.g2p.g2p[csq[self._csq_keys['symbol']]]) for f in
-                 ['disease name', 'DDD category', 'allelic requirement',
-                 'mutation consequence', 'organ specificity list']]
+                 self.g2p.columns[1:]]
         return d
 
     def get_constraint_data(self, csq):
