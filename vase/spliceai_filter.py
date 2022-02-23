@@ -37,11 +37,11 @@ def filter_on_splice_ai(record, min_delta=None, max_delta=None,
             if idict['ALLELE'] != record.record.alleles[i]:
                 continue
             if min_delta:
-                over_threshold = [ds for ds in annot_order[2:6] if idict[ds] is
-                                  not None and idict[ds] >= min_delta]
+                over_threshold = any(idict[ds] is not None and idict[ds] >=
+                                     min_delta for ds in annot_order[2:6])
             if max_delta:
-                over_threshold = [ds for ds in annot_order[2:6] if idict[ds] is
-                                  not None and idict[ds] <= max_delta]
+                over_threshold = all(idict[ds] is None or idict[ds] <= max_delta
+                                     for ds in annot_order[2:6])
             if over_threshold:
                 keep_alleles[i-1] = True
                 if check_symbol:
