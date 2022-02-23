@@ -860,14 +860,22 @@ annotation will be marked for retention also (e.g.
 if using segregation filtering). Note that allele
 frequency filters will still be applied.
 
+If used in conjunction with --csq or --impact
+options, variants that match the specified
+--csq/--impact classes will be retained
+irrespective of SpliceAI delta score, while
+variants not matching specified --csq/--impact
+classes will be retained if they meet the SpliceAI
+delta score threshold.
+
 ''')
     file_args.add_argument(
 '--splice_ai_max_delta', '-splice_ai_max_delta', metavar='DELTA', type=float,
 help=
 '''Same as --splice_ai_min_delta but
 alleles/consequences will be retained only if
-SpliceAI delta scores are equal to or below this
-threshold.
+all SpliceAI delta scores are equal to or below
+this threshold.
 
 ''')
     file_args.add_argument(
@@ -881,7 +889,11 @@ SpliceAI program
 ''')
     file_args.add_argument(
 '--prioritise_cadd', action='store_true', help=
-'''TO DO''')
+'''If using --cadd_phred or --cadd_raw cutoffs,
+filter variants below threshold even if they meet
+SpliceAI delta cutoffs. Default behaviour is to
+retain variants if they meet --splice_ai_min_delta
+irrespective of CADD cutoffs.''')
 
     #args for sample based filtering
     sample_args.add_argument(

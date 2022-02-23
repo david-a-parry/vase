@@ -504,6 +504,8 @@ class VaseRunner(object):
             self._set_to_true_if_true(cadd_drop, r_alts)
         if any(cadd_drop):
             if splice_alleles is not None and not self.args.prioritise_cadd:
+                # splice_alleles (i.e. over SpliceAI threshold) override
+                # filtering because CADD < threshold
                 cadd_drop = [x and not y for x, y in zip(cadd_drop,
                                                          splice_alleles)]
             self._set_to_true_if_true(remove_alleles, cadd_drop)
