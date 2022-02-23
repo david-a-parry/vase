@@ -3,6 +3,7 @@ from .utils import *
 splice_ai_vcf = os.path.join(dir_path, "test_data", "splice_ai_scores.vcf.gz")
 prescored_vcf = os.path.join(dir_path, "test_data", "splice_ai_prescored.vcf.gz")
 snpeff_vcf = input_prefix + '.snpeff.vcf.gz'
+cadd_file = os.path.join(dir_path, "test_data", "test_cadd_scores.tsv.gz")
 
 
 def teardown_module():
@@ -125,6 +126,22 @@ def test_filter_splice_ai_snpeff():
         output=output,
         splice_ai_min_delta=0.5,
         impact=["HIGH"],
+    )
+    results, expected = run_args(test_args, output,
+                                 sys._getframe().f_code.co_name)
+    assert_equal(results, expected)
+    os.remove(output)
+
+
+def test_filter_splice_ai_vep_cadd():
+    output = get_tmp_out()
+    test_args = dict(
+        splice_ai_vcfs=[splice_ai_vcf],
+        output=output,
+        splice_ai_min_delta=0.5,
+        impact=["HIGH"],
+        cadd_phred=20,
+        cadd_files=[cadd_file],
     )
     results, expected = run_args(test_args, output,
                                  sys._getframe().f_code.co_name)
