@@ -434,6 +434,7 @@ class VaseRunner(object):
                 # bail out now if no valid allele and not keeping clinvar
                 return remove_alleles, remove_csq
         # check functional consequences
+        splice_alleles = None
         if self.csq_filter:
             r_alts, remove_csq = self.csq_filter.filter(vase_record)
             self._set_to_true_if_true(remove_alleles, r_alts)
@@ -448,7 +449,7 @@ class VaseRunner(object):
                     canonical_csq=self.args.canonical)
                 self._set_to_false_if_true(remove_alleles, splice_alleles)
                 self._set_to_false_if_true(remove_csq, splice_csq)
-            if self.splice_ai_filter:
+            elif self.splice_ai_filter:
                 splice_alleles, splice_csq = (
                     self.splice_ai_filter.annotate_or_filter(
                         vase_record,
@@ -491,20 +492,26 @@ class VaseRunner(object):
                         or self.args.splice_ai_max_delta):
                     remove_alleles = [not(x) or y for x, y in
                                       zip(splice_alleles, remove_alleles)]
+        cadd_drop = [False] * len(vase_record.record.alts)
         if self.prev_cadd_phred and self.args.cadd_phred:
             r_alts = self.filter_on_existing_cadd_phred(vase_record)
-            self._set_to_true_if_true(remove_alleles, r_alts)
+            self._set_to_true_if_true(cadd_drop, r_alts)
         if self.prev_cadd_raw and self.args.cadd_raw:
             r_alts = self.filter_on_existing_cadd_raw(vase_record)
-            self._set_to_true_if_true(remove_alleles, r_alts)
+            self._set_to_true_if_true(cadd_drop, r_alts)
         if self.cadd_filter:
             r_alts = self.cadd_filter.annotate_or_filter(vase_record)
-            self._set_to_true_if_true(remove_alleles, r_alts)
-            if (not self.args.clinvar_path and all(remove_alleles)):
-                # bail out now if no valid consequence and not keeping clinvar
-                # path variants - if using clinvar path we have to ensure we
-                # haven't got a path variant with a non-qualifying consequence
-                return remove_alleles, remove_csq
+            self._set_to_true_if_true(cadd_drop, r_alts)
+        if any(cadd_drop):
+            if splice_alleles is not None and not self.args.prioritise_cadd:
+                cadd_drop = [x and not y for x, y in zip(cadd_drop,
+                                                         splice_alleles)]
+            self._set_to_true_if_true(remove_alleles, cadd_drop)
+        if (not self.args.clinvar_path and all(remove_alleles)):
+            # bail out now if no valid consequence and not keeping clinvar
+            # path variants - if using clinvar path we have to ensure we
+            # haven't got a path variant with a non-qualifying consequence
+            return remove_alleles, remove_csq
         for f in self.vcf_filters:
             r, k, m = f.annotate_and_filter_record(vase_record)
             # should only overwrite value of remove_alleles[i] or

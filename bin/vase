@@ -879,6 +879,9 @@ SpliceAI program
 (https://github.com/Illumina/SpliceAI).
 
 ''')
+    file_args.add_argument(
+'--prioritise_cadd', action='store_true', help=
+'''TO DO''')
 
     #args for sample based filtering
     sample_args.add_argument(
