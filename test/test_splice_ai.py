@@ -133,6 +133,22 @@ def test_filter_splice_ai_snpeff():
     os.remove(output)
 
 
+def test_filter_splice_ai_cadd():
+    output = get_tmp_out()
+    test_args = dict(
+        splice_ai_vcfs=[splice_ai_vcf],
+        output=output,
+        splice_ai_min_delta=0.5,
+        cadd_phred=20,
+        cadd_files=[cadd_file],
+        prioritise_cadd=True,
+    )
+    results, expected = run_args(test_args, output,
+                                 sys._getframe().f_code.co_name)
+    assert_equal(results, expected)
+    os.remove(output)
+
+
 def test_filter_splice_ai_vep_cadd():
     output = get_tmp_out()
     test_args = dict(
