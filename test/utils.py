@@ -86,6 +86,7 @@ all_args = {
     'splice_ai_min_delta': None,
     'splice_ai_max_delta': None,
     'missing_splice_ai_scores': None,
+    'prioritise_cadd': False,
     'cases': [],
     'controls': [],
     'ped': None,
