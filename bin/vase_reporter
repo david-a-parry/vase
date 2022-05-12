@@ -111,4 +111,5 @@ if __name__ == '__main__':
     try:
         runner.write_report()
     finally:
-        runner.out_fh.close()
+        if not runner.out_fh.fileclosed:
+            runner.out_fh.close()
