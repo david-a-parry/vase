@@ -164,6 +164,9 @@ class VaseReporter(object):
     def _finish_up(self):
         if self.output_type == 'xlsx':
             if self.hide_empty:
+                # can't hide first worksheet so sort before hiding
+                self.out_fh.worksheets_objs.sort(
+                    key=lambda x: self.rows[x.name] < 2)
                 for family in self.worksheets.keys():
                     if self.rows[family] < 2:
                         self.worksheets[family].hide()
