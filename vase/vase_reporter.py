@@ -120,7 +120,7 @@ class VaseReporter(object):
                 raise RuntimeError("Family '{}' not found in ped ".format(f) +
                                    "'{}'.".format(ped))
             if f in self._fam_order:
-                self.logger.warn("Duplicate family '{}' specified".format(f))
+                self.logger.warning("Duplicate family '{}' specified".format(f))
             else:
                 self._fam_order.append(f)
         self.families = set(self._fam_order)
@@ -138,10 +138,10 @@ class VaseReporter(object):
                 self.mg = mygene.MyGeneInfo()
                 self.mygene_lookups = True
             except ModuleNotFoundError:
-                self.logger.warn("Error importing mygene - please install " +
+                self.logger.warning("Error importing mygene - please install " +
                                  "mygene  (e.g. pip3 install mygene) to use " +
                                  "the --mygene_lookups option.")
-                self.logger.warn("Continuing without mygene lookups")
+                self.logger.warning("Continuing without mygene lookups")
         if custom_feat_annots:
             self.feat_annots = custom_feat_annots
         else:
@@ -339,7 +339,7 @@ class VaseReporter(object):
         if family is not None:
             samples = self._get_sample_order(family)
             if not samples:
-                self.logger.warn("No samples in VCF for family {}".format(
+                self.logger.warning("No samples in VCF for family {}".format(
                                                                        family))
                 return None
             self.sample_orders[family] = samples
@@ -440,7 +440,7 @@ class VaseReporter(object):
             return [''] * 5
         if csq[self._csq_keys['feature']] not in self.rest_cache:
             if not ENST.match(csq[self._csq_keys['feature']]):
-                self.logger.warn("Skipping REST lookup of non-Ensembl " +
+                self.logger.warning("Skipping REST lookup of non-Ensembl " +
                                  "transcript feature " +
                                  "'{}'".format(csq[self._csq_keys['feature']]))
                 self.rest_cache[csq[self._csq_keys['feature']]] = [''] * 5
@@ -449,8 +449,8 @@ class VaseReporter(object):
                     self.rest_cache[csq[self._csq_keys['feature']]] = \
                         self._get_rest_data(csq)
                 except Exception as err:
-                    self.logger.warn(err)
-                    self.logger.warn("REST lookups for {} failed".format(
+                    self.logger.warning(err)
+                    self.logger.warning("REST lookups for {} failed".format(
                         csq[self._csq_keys['feature']]))
                     self.rest_cache[csq[self._csq_keys['feature']]] = [''] * 5
         return self.rest_cache[csq[self._csq_keys['feature']]]
@@ -469,8 +469,8 @@ class VaseReporter(object):
                 go = str.join("|", (x['description'] for x in go_data if
                                     x['description'] is not None))
         except Exception as err:
-            self.logger.warn(err)
-            self.logger.warn("GO lookup for {} failed".format(
+            self.logger.warning(err)
+            self.logger.warning("GO lookup for {} failed".format(
                 csq[self._csq_keys['feature']]))
             go = 'LOOKUP FAILED'
         if csq[self._csq_keys['gene']]:
@@ -486,8 +486,8 @@ class VaseReporter(object):
                 mim = str.join("|", (x['description'] for x in xref_data
                                      if x['dbname'] == 'MIM_MORBID'))
             except Exception as err:
-                self.logger.warn(err)
-                self.logger.warn("XREF lookups for {} failed".format(
+                self.logger.warning(err)
+                self.logger.warning("XREF lookups for {} failed".format(
                     csq[self._csq_keys['feature']]))
                 entrez = 'LOOKUP FAILED'
                 full_name = 'LOOKUP FAILED'
@@ -499,8 +499,8 @@ class VaseReporter(object):
                 if orth is not None:
                     traits = str.join("|", self.ensembl_rest.get_traits(orth))
             except Exception as err:
-                self.logger.warn(err)
-                self.logger.warn("Orthology lookup for {} failed".format(
+                self.logger.warning(err)
+                self.logger.warning("Orthology lookup for {} failed".format(
                     csq[self._csq_keys['feature']]))
                 traits = 'LOOKUP FAILED'
         return [entrez, full_name, go, reactome, traits, mim]
@@ -518,13 +518,13 @@ class VaseReporter(object):
                                         species=9606,
                                         fields=",".join(MG_FIELDS))
             if len(results['hits']) == 0:
-                self.logger.warn("No MyGene hits for gene {}/{}".format(
+                self.logger.warning("No MyGene hits for gene {}/{}".format(
                     csq[self._csq_keys['gene']],
                     csq[self._csq_keys['symbol']]))
                 self.mygene_cache[csq[self._csq_keys['gene']]] = [''] * 8
                 return [''] * 8
             elif len(results['hits']) > 1:
-                self.logger.warn("Multiple ({}) ".format(
+                self.logger.warning("Multiple ({}) ".format(
                                  len(results['hits'])) +
                                  "MyGene hits for gene {}/{}".format(
                                      csq[self._csq_keys['gene']],

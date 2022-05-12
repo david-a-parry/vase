@@ -296,7 +296,7 @@ class VepFilter(CsqFilter):
                     benign.extend((4 > int(x) > 1 for x in assertions))
                     path.extend((6 > int(x) > 3 for x in assertions))
                 except ValueError:
-                    self.logger.warn("Error parsing 'clinvar_clnsig' field " +
+                    self.logger.warning("Error parsing 'clinvar_clnsig' field " +
                                      "'{}' - expected numeric values.".format(
                                          csq[annot]))
             else:
@@ -339,14 +339,14 @@ class VepFilter(CsqFilter):
                     self.logger.info("Found '{}' VEP allele ".format(fq) +
                                      "frequency annotation")
         if not self.freq_fields:
-            self.logger.warn("No compatible (>= v90) allele frequency fields" +
+            self.logger.warning("No compatible (>= v90) allele frequency fields" +
                              " in VEP annotations.")
 
     def _get_path_fields(self, vcf):
         cln_fields = ['CLIN_SIG', 'clinvar_clnsig']
         path_fields = [f for f in vcf.header.csq_fields if f in cln_fields]
         if not path_fields:
-            self.logger.warn("No compatible ClinVar VEP annotations found " +
+            self.logger.warning("No compatible ClinVar VEP annotations found " +
                              "for use with pathogenic allele identification.")
         return path_fields
 

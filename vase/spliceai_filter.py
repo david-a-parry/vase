@@ -131,7 +131,7 @@ class SpliceAiFilter(object):
                 from Bio import bgzf
                 self.to_score_file = bgzf.BgzfWriter(to_score)
             except ImportError:
-                self.logger.warn("Can not import bgzf via biopython. Please " +
+                self.logger.warning("Can not import bgzf via biopython. Please " +
                                  "install biopython in order to write bgzip " +
                                  "compressed (.gz/.bgz) output. Missing " +
                                  "SpliceAI scores will be written using gzip" +
@@ -175,7 +175,7 @@ class SpliceAiFilter(object):
         if self.walk and not self.force_walk:
             if (record.record.start < self.prev_coordinate[1] and
                     record.record.chrom == self.prev_coordinate[0]):
-                self.logger.warn("Input is not sorted by coordinate, will " +
+                self.logger.warning("Input is not sorted by coordinate, will " +
                                  "fall back to slower indvidual index-based " +
                                  "look-ups.")
                 self.walk = False

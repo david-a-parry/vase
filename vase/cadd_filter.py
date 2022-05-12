@@ -182,7 +182,7 @@ class CaddFilter(object):
             return None
         cols = cadd.split("\t")
         if len(cols) < 6:
-            self.logger.warn("Not enought columns for CADD record: {}"
+            self.logger.warning("Not enought columns for CADD record: {}"
                              .format(cadd))
             return None
         ref = cols[2]
@@ -218,7 +218,7 @@ class CaddFilter(object):
         elif start < self.prev_walk[0]:
             self.reseek = True
             if not self.force_walk:
-                self.logger.warn("Input is not sorted by coordinate, will  " +
+                self.logger.warning("Input is not sorted by coordinate, will  " +
                                  "fall back to slower indvidual index-based " +
                                  "look-ups.")
                 self.walk = False
@@ -305,10 +305,10 @@ class CaddFilter(object):
         for fn in cadd_files:
             idx = fn + '.tbi'
             if not os.path.isfile(idx):  # create index if it doesn't exist
-                self.logger.warn("No index found for {} - attempting to index."
+                self.logger.warning("No index found for {} - attempting to index."
                                  .format(fn))
                 pysam.tabix_index(fn, preset="vcf")
-                self.logger.warn("Finished indexing {}.".format(fn))
+                self.logger.warning("Finished indexing {}.".format(fn))
             tbx = pysam.TabixFile(fn)
             self.cadd_tabix.append(tbx)
             if self.walk:

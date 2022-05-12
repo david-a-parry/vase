@@ -108,7 +108,7 @@ class VcfFilter(object):
         if self.walk and not self.force_walk:
             if (record.start < self.prev_coordinate[1] and
                     record.chrom == self.prev_coordinate[0]):
-                self.logger.warn("Input is not sorted by coordinate, will " +
+                self.logger.warning("Input is not sorted by coordinate, will " +
                                  "fall back to slower indvidual index-based " +
                                  "look-ups.")
                 self.walk = False

@@ -72,13 +72,13 @@ def get_coords(x, t, species, rest, logger):
             logger.info("Interpretting {} as gene symbol".format(x))
             data = rest.get_via_xref(x, species, 'gene')
             if len(data) > 1:
-                logger.warn("More than one Gene match for {}".format(x))
+                logger.warning("More than one Gene match for {}".format(x))
             for d in data:
                 gene_info.append(rest.lookup_id(d['id']))
     except Exception as err:
-        logger.warn(err)
+        logger.warning(err)
     if not gene_info:
-        logger.warn("REST lookup failed for {}".format(x))
+        logger.warning("REST lookup failed for {}".format(x))
         return []
     return ([inf[x] for x in ['seq_region_name', 'start', 'end', 'strand',
                               'id', 'display_name']] for inf in gene_info)
@@ -106,7 +106,7 @@ def read_gene_list(f, logger):
             if x:
                 genes.append(x[0])
     if not genes:
-        logger.warn("No genes found in {}".format(f))
+        logger.warning("No genes found in {}".format(f))
     return genes
 
 def get_logger(quiet=False, debug=False):

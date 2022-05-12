@@ -122,7 +122,7 @@ class VaseRunner(object):
         self.burden_counter = None
         if args.burden_counts:
             if args.n_cases or args.n_controls:
-                self.logger.warn("--n_cases and --n_controls arguments are " +
+                self.logger.warning("--n_cases and --n_controls arguments are " +
                                  "ignored when using --burden_counter.")
             self.burden_counter = BurdenCounter(
                 self.input,
@@ -574,10 +574,10 @@ class VaseRunner(object):
             self.logger.debug("No 'AF' in INFO at {}:{}".format(
                 record.chrom, record.pos))
             if 'AN' not in record.info:
-                self.logger.warn("No 'AF' or 'AN' in INFO at {}:{}".format(
+                self.logger.warning("No 'AF' or 'AN' in INFO at {}:{}".format(
                     record.chrom, record.pos) + " - will not filter on AF")
             elif 'AC' not in record.info:
-                self.logger.warn("No 'AF' or 'AC' in INFO at {}:{}".format(
+                self.logger.warning("No 'AF' or 'AC' in INFO at {}:{}".format(
                     record.chrom, record.pos) + " - will not filter on AF")
             else:
                 self.logger.debug("Trying AC/AN instead")
@@ -588,7 +588,7 @@ class VaseRunner(object):
         try:
             return (record.info['AN'] < self.args.filtering_an)
         except KeyError:
-            self.logger.warn("No 'AN' in INFO at {}:{}".format(record.chrom,
+            self.logger.warning("No 'AN' in INFO at {}:{}".format(record.chrom,
                                                                record.pos))
             return True
 
@@ -596,7 +596,7 @@ class VaseRunner(object):
         try:
             return (record.info['AN'] < self.args.min_an)
         except KeyError:
-            self.logger.warn("No 'AN' in INFO at {}:{}".format(record.chrom,
+            self.logger.warning("No 'AN' in INFO at {}:{}".format(record.chrom,
                                                                record.pos))
             return True
 
@@ -614,7 +614,7 @@ class VaseRunner(object):
                     if af[i] is None or af[i] < self.args.min_af:
                         remove[i] = True
         except KeyError:
-            self.logger.warn("Missing 'AN' or 'AC' field in INFO at {}:{}".
+            self.logger.warning("Missing 'AN' or 'AC' field in INFO at {}:{}".
                              format(record.chrom, record.pos) + " - will not"
                              " filter on AF")
         return remove
@@ -631,7 +631,7 @@ class VaseRunner(object):
                     if ac[i] is None or ac[i] < self.args.min_ac:
                         remove[i] = True
         except KeyError:
-            self.logger.warn("No 'AC' in INFO at {}:{}".format(
+            self.logger.warning("No 'AC' in INFO at {}:{}".format(
                 record.chrom, record.pos))
         return remove
 
@@ -786,7 +786,7 @@ class VaseRunner(object):
     def get_vep_filters(self):
         if self.args.no_vep_freq:
             if self.args.vep_af:
-                self.logger.warn("Ignoring --vep_af argument because " +
+                self.logger.warning("Ignoring --vep_af argument because " +
                                  "--no_vep_af argument is in use.")
             vep_freq = None
             vep_min_freq = None
@@ -1304,11 +1304,11 @@ class VaseRunner(object):
         if for_removal:
             self.info_to_remove = for_removal
             self.remove_previous_inheritance_filters = self._clean_info
-            self.logger.warn(
+            self.logger.warning(
                 "Replacing {:,} previous".format(len(for_removal)) +
                 " segregation INFO fields.")
             for f in for_removal:
-                self.logger.warn(
+                self.logger.warning(
                     "Previous {} annotations will be removed".format(f))
         else:
             self.remove_previous_inheritance_filters = lambda *args: None
@@ -1334,7 +1334,7 @@ class VaseRunner(object):
             if not self.args.biallelic and not self.args.de_novo:
                 raise ValueError("Error: " + msg)
             else:
-                self.logger.warn(msg + ". Will continue with other models.")
+                self.logger.warning(msg + ". Will continue with other models.")
                 self.dominant_filter = None
         else:
             for f, d in self.dominant_filter.get_header_fields().items():
@@ -1363,7 +1363,7 @@ class VaseRunner(object):
             if not self.args.biallelic and not self.args.dominant:
                 raise ValueError("Error: " + msg)
             else:
-                self.logger.warn(msg + ". Will continue with other models.")
+                self.logger.warning(msg + ". Will continue with other models.")
                 self.de_novo_filter = None
         else:
             for f, d in self.de_novo_filter.get_header_fields().items():
@@ -1392,7 +1392,7 @@ class VaseRunner(object):
             if not self.args.de_novo and not self.args.dominant:
                 raise ValueError("Error: " + msg)
             else:
-                self.logger.warn(msg + ". Will continue with other models.")
+                self.logger.warning(msg + ". Will continue with other models.")
                 self.recessive_filter = None
         else:
             self.use_cache = True

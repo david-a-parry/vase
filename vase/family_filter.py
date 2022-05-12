@@ -131,7 +131,7 @@ class FamilyFilter(object):
                     # is parent affected
                     if par not in fam.individuals:
                         if par in self.vcf.header.samples:
-                            self.logger.warn("Family '{}' parent '{}' ".format(
+                            self.logger.warning("Family '{}' parent '{}' ".format(
                                              fid, par) + "not specified in " +
                                              "PED, but present in VCF - " +
                                              "assuming unaffected")
