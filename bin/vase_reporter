@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import io
 import sys
 import argparse
 from vase.vase_reporter import VaseReporter
@@ -111,5 +112,9 @@ if __name__ == '__main__':
     try:
         runner.write_report()
     finally:
-        if not runner.out_fh.fileclosed:
+        if isinstance(runner.out_fh, io.TextIOBase):
+            fileclosed = runner.out_fh.closed
+        else:
+            fileclosed = runner.out_fh.fileclosed
+        if not fileclosed:
             runner.out_fh.close()
