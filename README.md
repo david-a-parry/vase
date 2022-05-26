@@ -31,12 +31,12 @@ bgzipped output.
 To install the vase script to $HOME/.local/bin (or possibly on Mac OS
 /Users/$USER/Library/Python/3.\*/bin/) the simplest way is to use pip:
 
-    pip3 install git+git://github.com/david-a-parry/vase.git --user
+    pip3 install git+https://github.com/david-a-parry/vase.git --user
 
 To install with the extra modules required for bgzip output and vase_reporter
 functionality (recommended) use the following:
 
-    pip3 install git+git://github.com/david-a-parry/vase.git#egg=vase[BGZIP,REPORTER,MYGENEINFO] --user
+    pip3 install git+https://github.com/david-a-parry/vase.git#egg=vase[BGZIP,REPORTER,MYGENEINFO] --user
 
 To install system-wide remove the --user flag and ensure you have root 
 priveleges (e.g. using sudo).
