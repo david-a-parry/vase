@@ -25,7 +25,7 @@ setup(
     download_url='https://github.com/david-a-parry/vase/archive/{}.tar.gz'.format(verstr),
     license='MIT',
     install_requires=[
-          'pysam>=0.14',
+          'pysam>=0.17',
           'natsort',
           'numpy',
     ],

@@ -9,6 +9,9 @@ from .vcf_header import VcfHeader
 from .utils import reg2bins
 
 MAX_INT32 = int(2**31 - 1)
+# prevent UnicodeDecodeError on latin characters often found in VEP plugin
+# annotations
+pysam.set_encoding_error_handler('pysam.latin1replace')
 
 
 class VcfReader(object):
